@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlgoTrade | Portfolio</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">
+          <div class="brand-mark">AI</div>
+          <h1>AlgoTrade</h1>
+        </div>
+        <ul class="sidebar-nav">
+          <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
+          <li class="nav-item" data-page="market"><i class="fa-solid fa-chart-column"></i> Market Data</li>
+          <li class="nav-item" data-page="signals"><i class="fa-solid fa-bolt"></i> Trade Signals</li>
+          <li class="nav-item" data-page="strategies"><i class="fa-solid fa-diagram-project"></i> Strategies</li>
+          <li class="nav-item active"><i class="fa-solid fa-wallet"></i> Portfolio</li>
+          <li class="nav-item" data-page="backtesting"><i class="fa-solid fa-flask-vial"></i> Backtesting</li>
+          <li class="nav-item" data-page="reports"><i class="fa-solid fa-file-lines"></i> Reports</li>
+          <li class="nav-item" data-page="watchlist"><i class="fa-solid fa-star"></i> Watchlist</li>
+          <li class="nav-item" data-page="alerts"><i class="fa-solid fa-bell"></i> Alerts</li>
+          <li class="nav-item" data-page="profile"><i class="fa-solid fa-user"></i> Profile Settings</li>
+          <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</li>
+        </ul>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu" id="menu-toggle"><i class="fa fa-bars"></i></button>
+            <span class="page-title">Portfolio</span>
+          </div>
+          <div class="topbar-right">
+            <button class="icon-button"><i class="fa-solid fa-bell"></i><span class="badge">1</span></button>
+            <div class="user-chip">
+              <div class="avatar" id="user-avatar">V</div>
+              <div>
+                <div class="user-name" id="top-user-name">Investor</div>
+                <div class="user-plan">Premium Plan</div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Portfolio Holdings</div>
+            </div>
+            <table class="portfolio-table">
+              <thead>
+                <tr><th>Symbol</th><th>Qty</th><th>Avg Cost</th><th>Last Price</th><th>Market Value</th><th>P/L</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>RELIANCE</td><td>120</td><td>₹2,650</td><td>₹2,856</td><td>₹3,42,720</td><td class="positive">+₹24,720</td></tr>
+                <tr><td>TCS</td><td>80</td><td>₹3,420</td><td>₹3,620</td><td>₹2,89,600</td><td class="positive">+₹16,000</td></tr>
+                <tr><td>INFY</td><td>150</td><td>₹1,440</td><td>₹1,482</td><td>₹2,22,300</td><td class="positive">+₹6,300</td></tr>
+                <tr><td>HDFCBANK</td><td>60</td><td>₹1,700</td><td>₹1,721</td><td>₹1,03,260</td><td class="positive">+₹1,260</td></tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      const user = parseUser();
+      if (!requireAuth()) { throw new Error('Not authenticated'); }
+      if (user) {
+        document.getElementById('top-user-name').textContent = user.full_name || user.username;
+        document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
+      }
+
+      async function loadPortfolio() {
+        try {
+          const data = await apiRequest('/api/portfolio');
+          const table = document.querySelector('.portfolio-table tbody');
+          const holdings = data.holdings || [];
+          if (!holdings.length) {
+            table.innerHTML = '<tr><td colspan="6" class="empty-state">No holdings available.</td></tr>';
+            return;
+          }
+
+          table.innerHTML = holdings.map((holding) => `
+            <tr>
+              <td>${holding.symbol}</td>
+              <td>${holding.quantity}</td>
+              <td>${formatCurrency(holding.average_price)}</td>
+              <td>${formatCurrency(holding.current_price)}</td>
+              <td>${formatCurrency(holding.current_value)}</td>
+              <td class="${holding.pnl >= 0 ? 'positive' : 'negative'}">${holding.pnl >= 0 ? '+' : '-'}${formatCurrency(Math.abs(holding.pnl))}</td>
+            </tr>
+          `).join('');
+        } catch (error) {
+          if (error.message.includes('Authorization')) {
+            logoutUser();
+            return;
+          }
+        }
+      }
+
+      document.getElementById('logout-btn').addEventListener('click', logoutUser);
+      document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+      bindSidebarNavigation();
+      loadPortfolio();
+      setInterval(loadPortfolio, 10000);
+    </script>
+  </body>
+</html>

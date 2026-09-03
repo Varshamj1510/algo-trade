@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlgoTrade | Signals</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">
+          <div class="brand-mark">AI</div>
+          <h1>AlgoTrade</h1>
+        </div>
+        <ul class="sidebar-nav">
+          <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
+          <li class="nav-item" data-page="market"><i class="fa-solid fa-chart-column"></i> Market Data</li>
+          <li class="nav-item active"><i class="fa-solid fa-bolt"></i> Trade Signals</li>
+          <li class="nav-item" data-page="strategies"><i class="fa-solid fa-diagram-project"></i> Strategies</li>
+          <li class="nav-item" data-page="portfolio"><i class="fa-solid fa-wallet"></i> Portfolio</li>
+          <li class="nav-item" data-page="backtesting"><i class="fa-solid fa-flask-vial"></i> Backtesting</li>
+          <li class="nav-item" data-page="reports"><i class="fa-solid fa-file-lines"></i> Reports</li>
+          <li class="nav-item" data-page="watchlist"><i class="fa-solid fa-star"></i> Watchlist</li>
+          <li class="nav-item" data-page="alerts"><i class="fa-solid fa-bell"></i> Alerts</li>
+          <li class="nav-item" data-page="profile"><i class="fa-solid fa-user"></i> Profile Settings</li>
+          <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</li>
+        </ul>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu" id="menu-toggle"><i class="fa fa-bars"></i></button>
+            <span class="page-title">Trade Signals</span>
+          </div>
+          <div class="topbar-right">
+            <button class="icon-button"><i class="fa-solid fa-bell"></i><span class="badge">2</span></button>
+            <div class="user-chip">
+              <div class="avatar" id="user-avatar">V</div>
+              <div>
+                <div class="user-name" id="top-user-name">Investor</div>
+                <div class="user-plan">Premium Plan</div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-grid">
+          <section class="table-card">
+            <div class="panel-header">
+              <div class="panel-title">Live Trading Signals</div>
+              <div class="segment-tabs">
+                <button class="active" data-filter="all">All</button>
+                <button data-filter="BUY">Buy</button>
+                <button data-filter="SELL">Sell</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="signal-table" id="signals-table">
+                <thead>
+                  <tr><th>Symbol</th><th>Signal</th><th>Strategy</th><th>Current Price</th><th>Target</th><th>Stoploss</th><th>Confidence</th><th>Timestamp</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      const tbody = document.querySelector('#signals-table tbody');
+      const sidebar = document.getElementById('sidebar');
+      const menuToggle = document.getElementById('menu-toggle');
+      const user = parseUser();
+      if (!requireAuth()) { throw new Error('Not authenticated'); }
+      if (user) {
+        document.getElementById('top-user-name').textContent = user.full_name || user.username;
+        document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
+      }
+
+      let liveSignals = [];
+
+      function getSignalClass(signal) {
+        const level = String(signal || '').toUpperCase();
+        if (level === 'BUY') return 'buy';
+        if (level === 'SELL') return 'sell';
+        return 'hold';
+      }
+
+      function renderTable(list) {
+        tbody.innerHTML = list.map((signal) => `
+          <tr>
+            <td>${signal.symbol}</td>
+            <td class="${getSignalClass(signal.signal)}">${signal.signal}</td>
+            <td>${signal.strategy}</td>
+            <td>${formatCurrency(signal.current_price)}</td>
+            <td>${formatCurrency(signal.target_price)}</td>
+            <td>${formatCurrency(signal.stop_loss)}</td>
+            <td>${signal.confidence}%</td>
+            <td>${signal.timestamp}</td>
+          </tr>
+        `).join('');
+      }
+
+      function applyFilter(filter) {
+        if (!liveSignals.length) return;
+        const list = filter === 'all' ? liveSignals : liveSignals.filter((s) => s.signal === filter);
+        renderTable(list);
+      }
+
+      async function loadSignals() {
+        try {
+          const data = await apiRequest('/api/signals');
+          liveSignals = data.data || [];
+          const activeButton = document.querySelector('.segment-tabs .active');
+          applyFilter(activeButton ? activeButton.dataset.filter : 'all');
+        } catch (error) {
+          if (error.message.includes('Authorization')) {
+            logoutUser();
+            return;
+          }
+          tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Signal feed unavailable.</td></tr>';
+        }
+      }
+
+      document.querySelectorAll('.segment-tabs button').forEach((button) => button.addEventListener('click', () => {
+        document.querySelectorAll('.segment-tabs button').forEach((b) => b.classList.remove('active'));
+        button.classList.add('active');
+        applyFilter(button.dataset.filter);
+      }));
+      document.getElementById('logout-btn').addEventListener('click', logoutUser);
+      menuToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+      bindSidebarNavigation();
+      loadSignals();
+      setInterval(loadSignals, 8000);
+    </script>
+  </body>
+</html>

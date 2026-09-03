@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlgoTrade | Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">
+          <div class="brand-mark">AI</div>
+          <h1>AlgoTrade</h1>
+        </div>
+
+        <ul class="sidebar-nav">
+          <li class="nav-item active"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
+          <li class="nav-item" data-page="market"><i class="fa-solid fa-chart-column"></i> Market Data</li>
+          <li class="nav-item" data-page="signals"><i class="fa-solid fa-bolt"></i> Trade Signals</li>
+          <li class="nav-item" data-page="strategies"><i class="fa-solid fa-diagram-project"></i> Strategies</li>
+          <li class="nav-item" data-page="portfolio"><i class="fa-solid fa-wallet"></i> Portfolio</li>
+          <li class="nav-item" data-page="backtesting"><i class="fa-solid fa-flask-vial"></i> Backtesting</li>
+          <li class="nav-item" data-page="reports"><i class="fa-solid fa-file-lines"></i> Reports</li>
+          <li class="nav-item" data-page="watchlist"><i class="fa-solid fa-star"></i> Watchlist</li>
+          <li class="nav-item" data-page="alerts"><i class="fa-solid fa-bell"></i> Alerts</li>
+          <li class="nav-item" data-page="profile"><i class="fa-solid fa-user"></i> Profile Settings</li>
+          <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</li>
+        </ul>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu" id="menu-toggle"><i class="fa fa-bars"></i></button>
+            <span class="page-title">Dashboard</span>
+          </div>
+          <div class="topbar-right">
+            <button class="icon-button notification-button" id="notification-button" aria-label="Notifications">
+              <i class="fa-solid fa-bell"></i>
+              <span class="badge">3</span>
+            </button>
+            <div class="user-chip">
+              <div class="avatar" id="user-avatar">T</div>
+              <div>
+                <div class="user-name" id="top-user-name">Trader</div>
+                <div class="user-plan">Premium Plan</div>
+              </div>
+              <i class="fa-solid fa-caret-down" style="color: var(--muted);"></i>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-grid">
+          <div class="hero-row">
+            <div>
+              <h2 class="welcome">Welcome back, <span id="welcome-name">Trader</span> 👋</h2>
+              <div class="subtitle">Here's what's happening in the market today.</div>
+            </div>
+            <div class="date-pill" id="date-pill">--</div>
+          </div>
+
+          <section class="panel ai-decision-panel">
+            <div class="panel-header">
+              <div class="panel-title">AI Trading Verdict</div>
+              <span class="decision-pill buy" id="ai-signal-pill">BUY</span>
+            </div>
+            <div class="decision-content">
+              <div class="decision-main">
+                <div class="decision-symbol" id="ai-symbol">RELIANCE</div>
+                <div class="decision-confidence" id="ai-confidence">Confidence: 92%</div>
+              </div>
+              <p id="ai-reason">BUY signal from moving average crossover, MACD confirmation, and strong relative momentum across the market session.</p>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Quick Signal Generator</div>
+            </div>
+            <form id="signal-form" class="signal-generator-grid">
+              <div class="form-group">
+                <label for="signal-symbol">Stock Symbol</label>
+                <input id="signal-symbol" type="text" value="RELIANCE" placeholder="Example: RELIANCE" />
+              </div>
+              <div class="form-group">
+                <label for="signal-price">Current Price</label>
+                <input id="signal-price" type="number" step="0.01" value="2856.4" />
+              </div>
+              <div class="form-group">
+                <label for="signal-rsi">RSI</label>
+                <input id="signal-rsi" type="number" step="0.1" value="68" />
+              </div>
+              <div class="form-group">
+                <label for="signal-macd">MACD</label>
+                <input id="signal-macd" type="number" step="0.01" value="120" />
+              </div>
+              <div class="form-group">
+                <label for="signal-support">Support</label>
+                <input id="signal-support" type="number" step="0.01" value="2740" />
+              </div>
+              <div class="form-group">
+                <label for="signal-resistance">Resistance</label>
+                <input id="signal-resistance" type="number" step="0.01" value="2810" />
+              </div>
+              <div class="signal-generator-actions">
+                <button type="submit" class="primary-btn">Generate Signal</button>
+              </div>
+            </form>
+          </section>
+
+          <div class="stats-grid" id="stats-grid"></div>
+
+          <div class="two-col">
+            <section class="panel">
+              <div class="panel-header">
+                <div class="panel-title">Market Overview</div>
+                <div class="segment-tabs">
+                  <button class="active" data-market="NIFTY 50">NIFTY 50</button>
+                  <button data-market="SENSEX">SENSEX</button>
+                  <button data-market="BANK NIFTY">BANK NIFTY</button>
+                </div>
+              </div>
+              <div class="chart-wrap"><canvas id="marketChart"></canvas></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <div class="panel-title">AI Trade Signals</div>
+                <button class="secondary-btn" onclick="window.location.href='/signals'">View All</button>
+              </div>
+              <table class="signal-table">
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>Signal</th>
+                    <th>Price</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody id="signal-table-body"></tbody>
+              </table>
+            </section>
+          </div>
+
+          <div class="metrics-grid">
+            <section class="table-card">
+              <div class="panel-header">
+                <div class="panel-title">Portfolio Allocation</div>
+              </div>
+              <div class="chart-wrap" style="height: 220px;"><canvas id="allocationChart"></canvas></div>
+            </section>
+
+            <section class="table-card">
+              <div class="panel-header">
+                <div class="panel-title">Top Gainers</div>
+              </div>
+              <table class="stock-table">
+                <tbody>
+                  <tr><td>BEL</td><td>₹306.75</td><td class="positive">+4.35%</td></tr>
+                  <tr><td>NTPC</td><td>₹335.40</td><td class="positive">+3.20%</td></tr>
+                  <tr><td>M&M</td><td>₹2,742.10</td><td class="positive">+2.87%</td></tr>
+                  <tr><td>TATASTEEL</td><td>₹155.65</td><td class="positive">+2.45%</td></tr>
+                  <tr><td>ADANIENT</td><td>₹2,651.30</td><td class="positive">+2.10%</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="table-card">
+              <div class="panel-header">
+                <div class="panel-title">Top Losers</div>
+              </div>
+              <table class="stock-table">
+                <tbody>
+                  <tr><td>TECHM</td><td>₹1,236.50</td><td class="negative">-2.39%</td></tr>
+                  <tr><td>WIPRO</td><td>₹458.20</td><td class="negative">-1.85%</td></tr>
+                  <tr><td>HOLTECH</td><td>₹1,678.90</td><td class="negative">-1.45%</td></tr>
+                  <tr><td>SBIN</td><td>₹812.40</td><td class="negative">-1.20%</td></tr>
+                  <tr><td>AXISBANK</td><td>₹1,062.30</td><td class="negative">-0.95%</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="table-card">
+              <div class="panel-header">
+                <div class="panel-title">Recent Activity</div>
+              </div>
+              <div class="activity-item">
+                <div class="timeline-dot"></div>
+                <div>
+                  <div><strong>Buy Signal Generated</strong></div>
+                  <div class="subtitle">RELIANCE • 10:29 AM</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <div class="timeline-dot"></div>
+                <div>
+                  <div><strong>Strategy Backtest Completed</strong></div>
+                  <div class="subtitle">Momentum Strategy • 10:20 AM</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <div class="timeline-dot"></div>
+                <div>
+                  <div><strong>Report Generated</strong></div>
+                  <div class="subtitle">May Performance Report • 09:45 AM</div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      const topUserName = document.getElementById('top-user-name');
+      const welcomeName = document.getElementById('welcome-name');
+      const userAvatar = document.getElementById('user-avatar');
+      const statsGrid = document.getElementById('stats-grid');
+      const signalTableBody = document.getElementById('signal-table-body');
+      const datePill = document.getElementById('date-pill');
+      const menuToggle = document.getElementById('menu-toggle');
+      const sidebar = document.getElementById('sidebar');
+      const notificationButton = document.getElementById('notification-button');
+      const aiSignalPill = document.getElementById('ai-signal-pill');
+      const aiSymbol = document.getElementById('ai-symbol');
+      const aiConfidence = document.getElementById('ai-confidence');
+      const aiReason = document.getElementById('ai-reason');
+
+      function getDisplayUserName() {
+        const user = parseUser();
+        const value = user?.full_name || user?.username || 'Trader';
+        return String(value).split(' ')[0] || 'Trader';
+      }
+
+      function updateDate() {
+        const now = new Date();
+        datePill.textContent = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' • ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+
+      function renderStats(stats) {
+        const cards = [
+          { label: 'Total Portfolio Value', value: '₹' + Number(stats.total_portfolio_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), trend: '+2.35% Today', icon: 'fa-wallet' },
+          { label: "Today's P&L", value: '₹' + Number(stats.today_pnl).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), trend: '+1.89%', icon: 'fa-chart-line' },
+          { label: 'Total Profit', value: '₹' + Number(stats.total_profit).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), trend: '+12.45%', icon: 'fa-arrow-trend-up' },
+          { label: 'Winning Trades', value: stats.winning_trades + '%', trend: '+5.21%', icon: 'fa-percent' },
+          { label: 'Active Signals', value: stats.active_signals, trend: '3 Buy / 4 Sell', icon: 'fa-bolt' },
+        ];
+
+        statsGrid.innerHTML = cards.map((card) => `
+          <div class="stat-card">
+            <div class="stat-header">
+              <span>${card.label}</span>
+              <span class="stat-icon"><i class="fa-solid ${card.icon}"></i></span>
+            </div>
+            <div class="stat-value">${card.value}</div>
+            <div class="stat-trend">${card.trend}</div>
+          </div>
+        `).join('');
+      }
+
+      function renderDecision(signals, verdict) {
+        const bestSignal = (signals || []).find((signal) => signal.signal) || { symbol: 'RELIANCE', signal: 'BUY', confidence: 92 };
+        const signal = (verdict && verdict.signal) || bestSignal.signal || 'HOLD';
+        const level = String(signal).toUpperCase();
+        const cls = level === 'BUY' ? 'buy' : level === 'SELL' ? 'sell' : 'hold';
+        aiSignalPill.textContent = level;
+        aiSignalPill.className = `decision-pill ${cls}`;
+        aiSymbol.textContent = (verdict && verdict.symbol) || bestSignal.symbol || 'RELIANCE';
+        aiConfidence.textContent = `Confidence: ${(verdict && verdict.confidence) || bestSignal.confidence || 92}%`;
+        aiReason.textContent = (verdict && verdict.reason) || `The system combines Moving Average crossover, MACD momentum, RSI strength, VWAP positioning, Bollinger Bands, and ATR volatility to support a ${level} decision with multi-factor confirmation.`;
+      }
+
+      function getSignalClass(signal) {
+        const level = String(signal || '').toUpperCase();
+        if (level === 'BUY') return 'buy';
+        if (level === 'SELL') return 'sell';
+        return 'hold';
+      }
+
+      function renderSignals(signals) {
+        signalTableBody.innerHTML = signals.slice(0, 5).map((signal) => `
+          <tr>
+            <td>${signal.symbol}</td>
+            <td class="${getSignalClass(signal.signal)}">${signal.signal}</td>
+            <td>₹${Number(signal.current_price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td>${signal.timestamp}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function loadDashboard() {
+        try {
+          const response = await apiRequest('/api/dashboard');
+          const user = response.user || parseUser();
+          if (user) {
+            const fullName = user.full_name || user.username || 'Trader';
+            topUserName.textContent = fullName;
+            welcomeName.textContent = getDisplayUserName();
+            userAvatar.textContent = (fullName || 'T').charAt(0).toUpperCase();
+          }
+          renderStats(response.stats || {});
+          renderDecision(response.signals || [], response.ai_verdict || null);
+          renderSignals(response.signals || []);
+          renderMarketChart();
+          renderAllocationChart();
+        } catch (error) {
+          logoutUser();
+        }
+      }
+
+      function renderMarketChart() {
+        const labels = ['09:15', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'];
+        const values = [24280, 24380, 24410, 24360, 24600, 24540, 24720];
+        const context = document.getElementById('marketChart');
+        if (window.marketChartInstance) window.marketChartInstance.destroy();
+        window.marketChartInstance = new Chart(context, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'NIFTY 50',
+              data: values,
+              borderColor: '#087ef5',
+              backgroundColor: 'rgba(8,126,245,0.14)',
+              fill: true,
+              tension: 0.4,
+              pointRadius: 0,
+              borderWidth: 3,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: '#8ea1be' } },
+              y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8ea1be', callback: (value) => `₹${value}` } }
+            }
+          }
+        });
+      }
+
+      function renderAllocationChart() {
+        const context = document.getElementById('allocationChart');
+        if (window.allocationChartInstance) window.allocationChartInstance.destroy();
+        window.allocationChartInstance = new Chart(context, {
+          type: 'doughnut',
+          data: {
+            labels: ['Stocks', 'Mutual Funds', 'Cash', 'Others'],
+            datasets: [{
+              data: [60, 20, 15, 5],
+              backgroundColor: ['#6d1cff', '#087ef5', '#20d79a', '#f7c948'],
+              borderWidth: 0,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            cutout: '68%'
+          }
+        });
+      }
+
+      bindSidebarNavigation();
+
+      document.getElementById('signal-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = {
+          symbol: document.getElementById('signal-symbol').value,
+          price: Number(document.getElementById('signal-price').value || 0),
+          rsi: Number(document.getElementById('signal-rsi').value || 50),
+          macd: Number(document.getElementById('signal-macd').value || 0),
+          support: Number(document.getElementById('signal-support').value || 0),
+          resistance: Number(document.getElementById('signal-resistance').value || 0),
+        };
+
+        try {
+          const response = await apiRequest('/api/ai-signal', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          const result = response.data || {};
+          renderDecision([{ symbol: result.symbol || payload.symbol, signal: result.signal || 'HOLD', confidence: result.confidence || 80 }], {
+            signal: result.signal || 'HOLD',
+            symbol: result.symbol || payload.symbol,
+            confidence: result.confidence || 80,
+            reason: result.reason || 'AI signal generated from user inputs.'
+          });
+        } catch (error) {
+          aiReason.textContent = 'Unable to generate signal from the supplied inputs.';
+        }
+      });
+
+      notificationButton.addEventListener('click', () => {
+        window.location.href = '/alerts';
+      });
+      document.getElementById('logout-btn').addEventListener('click', logoutUser);
+      menuToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+      updateDate(); setInterval(updateDate, 60000);
+      loadDashboard();
+    </script>
+  </body>
+</html>

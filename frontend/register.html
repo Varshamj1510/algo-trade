@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlgoTrade | Register</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  </head>
+  <body>
+    <div class="auth-page">
+      <div class="auth-shell">
+        <div class="auth-visual">
+          <div class="brand">
+            <div class="brand-mark">AI</div>
+            <div>
+              <h1>AlgoTrade</h1>
+            </div>
+          </div>
+          <div style="padding: 40px 10px 20px;">
+            <p style="color: var(--muted); letter-spacing: .2em; text-transform: uppercase; font-size: 11px;">Create account</p>
+            <h2 style="font-size: 2.8rem; margin: 12px 0;">Build smarter<br />trading systems.</h2>
+            <p style="color: var(--muted); max-width: 380px; line-height: 1.7;">Join the platform for AI trading insights, portfolio monitoring, and strategy execution.</p>
+          </div>
+        </div>
+
+        <div class="auth-card">
+          <h2 class="auth-title">Create New Account</h2>
+          <p class="auth-subtitle">Fill in the details to get started</p>
+
+          <div id="register-alert"></div>
+
+          <form id="register-form">
+            <div class="form-group">
+              <label for="full-name">Full Name</label>
+              <input id="full-name" name="full_name" type="text" placeholder="Full Name" required />
+            </div>
+
+            <div class="form-group">
+              <label for="register-email">Email</label>
+              <input id="register-email" name="email" type="email" placeholder="Email" required />
+            </div>
+
+            <div class="form-group">
+              <label for="username">Username</label>
+              <input id="username" name="username" type="text" placeholder="Username" required />
+            </div>
+
+            <div class="form-group">
+              <label for="register-password">Password</label>
+              <div class="input-row">
+                <input id="register-password" name="password" type="password" placeholder="Password" required />
+                <button type="button" class="toggle-password" data-target="register-password"><i class="fa fa-eye"></i></button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="confirm-password">Confirm Password</label>
+              <div class="input-row">
+                <input id="confirm-password" name="confirm_password" type="password" placeholder="Confirm Password" required />
+                <button type="button" class="toggle-password" data-target="confirm-password"><i class="fa fa-eye"></i></button>
+              </div>
+            </div>
+
+            <label class="checkbox-row"><input type="checkbox" required /> I agree to the Terms & Conditions</label>
+
+            <div class="form-group" style="margin-top: 18px;">
+              <button type="submit" class="primary-btn">REGISTER</button>
+            </div>
+          </form>
+
+          <div class="auth-footer">
+            Already have an account? <button type="button" class="link-btn" onclick="window.location.href='/login'">Login</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      const alertBox = document.getElementById('register-alert');
+      const form = document.getElementById('register-form');
+
+      function showAlert(message, type = 'error') {
+        alertBox.innerHTML = `<div class="alert ${type}">${message}</div>`;
+      }
+
+      document.querySelectorAll('.toggle-password').forEach((button) => {
+        button.addEventListener('click', () => {
+          const input = document.getElementById(button.dataset.target);
+          const icon = button.querySelector('i');
+          const show = input.type === 'password';
+          input.type = show ? 'text' : 'password';
+          icon.className = show ? 'fa fa-eye-slash' : 'fa fa-eye';
+        });
+      });
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const payload = {
+          full_name: document.getElementById('full-name').value.trim(),
+          email: document.getElementById('register-email').value.trim(),
+          username: document.getElementById('username').value.trim(),
+          password: document.getElementById('register-password').value,
+        };
+
+        if (payload.password !== document.getElementById('confirm-password').value) {
+          showAlert('Passwords do not match.', 'error');
+          return;
+        }
+
+        try {
+          const data = await apiRequest('/api/auth/register', { method: 'POST', body: JSON.stringify(payload) });
+          localStorage.setItem('algotrade_token', data.token);
+          localStorage.setItem('algotrade_user', JSON.stringify(data.user));
+          redirectTo('/dashboard');
+        } catch (error) {
+          showAlert(error.message, 'error');
+        }
+      });
+    </script>
+  </body>
+</html>

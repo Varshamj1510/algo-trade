@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlgoTrade | Alerts</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">
+          <div class="brand-mark">AI</div>
+          <h1>AlgoTrade</h1>
+        </div>
+        <ul class="sidebar-nav">
+          <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
+          <li class="nav-item" data-page="market"><i class="fa-solid fa-chart-column"></i> Market Data</li>
+          <li class="nav-item" data-page="signals"><i class="fa-solid fa-bolt"></i> Trade Signals</li>
+          <li class="nav-item" data-page="strategies"><i class="fa-solid fa-diagram-project"></i> Strategies</li>
+          <li class="nav-item" data-page="portfolio"><i class="fa-solid fa-wallet"></i> Portfolio</li>
+          <li class="nav-item" data-page="backtesting"><i class="fa-solid fa-flask-vial"></i> Backtesting</li>
+          <li class="nav-item" data-page="reports"><i class="fa-solid fa-file-lines"></i> Reports</li>
+          <li class="nav-item" data-page="watchlist"><i class="fa-solid fa-star"></i> Watchlist</li>
+          <li class="nav-item active"><i class="fa-solid fa-bell"></i> Alerts</li>
+          <li class="nav-item" data-page="profile"><i class="fa-solid fa-user"></i> Profile Settings</li>
+          <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</li>
+        </ul>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu" id="menu-toggle"><i class="fa fa-bars"></i></button>
+            <span class="page-title">Alerts</span>
+          </div>
+          <div class="topbar-right">
+            <button class="icon-button"><i class="fa-solid fa-bell"></i><span class="badge">3</span></button>
+            <div class="user-chip">
+              <div class="avatar" id="user-avatar">V</div>
+              <div>
+                <div class="user-name" id="top-user-name">Investor</div>
+                <div class="user-plan">Premium Plan</div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Notification Center</div>
+              <button class="secondary-btn">Mark All as Read</button>
+            </div>
+            <div class="activity-item">
+              <div class="timeline-dot"></div>
+              <div><div><strong>Buy alert triggered for RELIANCE</strong></div><div class="subtitle">Target reached at ₹2,900 • 11:20 AM</div></div>
+            </div>
+            <div class="activity-item">
+              <div class="timeline-dot"></div>
+              <div><div><strong>Risk limit warning</strong></div><div class="subtitle">Portfolio exposure crossed 70% • 10:50 AM</div></div>
+            </div>
+            <div class="activity-item">
+              <div class="timeline-dot"></div>
+              <div><div><strong>Backtest completed</strong></div><div class="subtitle">Momentum strategy report ready • 09:15 AM</div></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      const user = parseUser();
+      if (user) {
+        document.getElementById('top-user-name').textContent = user.full_name || user.username;
+        document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
+      }
+      document.getElementById('logout-btn').addEventListener('click', logoutUser);
+      document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+      bindSidebarNavigation();
+    </script>
+  </body>
+</html>

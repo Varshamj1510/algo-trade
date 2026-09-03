@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlgoTrade | Market</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">
+          <div class="brand-mark">AI</div>
+          <h1>AlgoTrade</h1>
+        </div>
+        <ul class="sidebar-nav">
+          <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
+          <li class="nav-item active"><i class="fa-solid fa-chart-column"></i> Market Data</li>
+          <li class="nav-item" data-page="signals"><i class="fa-solid fa-bolt"></i> Trade Signals</li>
+          <li class="nav-item" data-page="strategies"><i class="fa-solid fa-diagram-project"></i> Strategies</li>
+          <li class="nav-item" data-page="portfolio"><i class="fa-solid fa-wallet"></i> Portfolio</li>
+          <li class="nav-item" data-page="backtesting"><i class="fa-solid fa-flask-vial"></i> Backtesting</li>
+          <li class="nav-item" data-page="reports"><i class="fa-solid fa-file-lines"></i> Reports</li>
+          <li class="nav-item" data-page="watchlist"><i class="fa-solid fa-star"></i> Watchlist</li>
+          <li class="nav-item" data-page="alerts"><i class="fa-solid fa-bell"></i> Alerts</li>
+          <li class="nav-item" data-page="profile"><i class="fa-solid fa-user"></i> Profile Settings</li>
+          <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</li>
+        </ul>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu" id="menu-toggle"><i class="fa fa-bars"></i></button>
+            <span class="page-title">Market Data</span>
+          </div>
+          <div class="topbar-right">
+            <button class="icon-button"><i class="fa-solid fa-bell"></i><span class="badge">3</span></button>
+            <div class="user-chip">
+              <div class="avatar" id="user-avatar">V</div>
+              <div>
+                <div class="user-name" id="top-user-name">Investor</div>
+                <div class="user-plan">Premium Plan</div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Market Overview</div>
+              <div class="segment-tabs">
+                <button class="active" data-market="NIFTY 50">NIFTY 50</button>
+                <button data-market="SENSEX">SENSEX</button>
+                <button data-market="BANK NIFTY">BANK NIFTY</button>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="marketCanvas"></canvas></div>
+          </section>
+
+          <section class="table-card">
+            <div class="panel-header">
+              <div class="panel-title">Market Watch</div>
+              <input id="stock-search" type="text" placeholder="Search stock" style="max-width: 220px;" />
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="stock-table" id="market-table">
+                <thead>
+                  <tr><th>Symbol</th><th>Name</th><th>Price</th><th>Change</th><th>Volume</th><th>High</th><th>Low</th><th>Open</th><th>Previous Close</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      const tableBody = document.querySelector('#market-table tbody');
+      const sidebar = document.getElementById('sidebar');
+      const menuToggle = document.getElementById('menu-toggle');
+      const searchInput = document.getElementById('stock-search');
+      const user = parseUser();
+      if (!requireAuth()) { throw new Error('Not authenticated'); }
+      if (user) {
+        document.getElementById('top-user-name').textContent = user.full_name || user.username;
+        document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
+      }
+
+      function renderMarketChart() {
+        const labels = ['09:15', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'];
+        const datasets = {
+          'NIFTY 50': [24280, 24390, 24320, 24460, 24610, 24540, 24720],
+          'SENSEX': [78450, 78600, 78520, 78920, 79200, 79050, 79420],
+          'BANK NIFTY': [51500, 51780, 51660, 52040, 52120, 51980, 52260],
+        };
+        const current = document.querySelector('.segment-tabs .active').dataset.market;
+        const context = document.getElementById('marketCanvas');
+        if (window.marketPageChart) window.marketPageChart.destroy();
+        window.marketPageChart = new Chart(context, {
+          type: 'line',
+          data: { labels, datasets: [{ data: datasets[current], borderColor: '#087ef5', backgroundColor: 'rgba(8,126,245,0.12)', fill: true, tension: 0.35, borderWidth: 3, pointRadius: 0 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: '#8ea1be' } }, y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8ea1be' } } } }
+        });
+      }
+
+      async function loadMarketData() {
+        try {
+          const data = await apiRequest('/api/market');
+          renderTable(data.data || []);
+        } catch (error) {
+          if (error.message && error.message.includes('Authorization')) {
+            logoutUser();
+            return;
+          }
+          renderTable([]);
+        }
+      }
+
+      function renderTable(stocks) {
+        const query = searchInput.value.trim().toLowerCase();
+        const filtered = stocks.filter((stock) => stock.symbol.toLowerCase().includes(query) || (stock.name || '').toLowerCase().includes(query));
+        if (!filtered.length) {
+          tableBody.innerHTML = '<tr><td colspan="9" class="empty-state">No matching stocks found.</td></tr>';
+          return;
+        }
+
+        tableBody.innerHTML = filtered.map((stock) => `
+          <tr>
+            <td>${stock.symbol}</td>
+            <td>${stock.name}</td>
+            <td>${formatCurrency(stock.price)}</td>
+            <td class="${stock.change >= 0 ? 'positive' : 'negative'}">${stock.change >= 0 ? '+' : ''}${Number(stock.change).toFixed(2)}%</td>
+            <td>${Number(stock.volume).toLocaleString('en-IN')}</td>
+            <td>${formatCurrency(stock.high)}</td>
+            <td>${formatCurrency(stock.low)}</td>
+            <td>${formatCurrency(stock.open)}</td>
+            <td>${formatCurrency(stock.previous_close)}</td>
+          </tr>
+        `).join('');
+      }
+
+      document.querySelectorAll('.segment-tabs button').forEach((btn) => btn.addEventListener('click', () => {
+        document.querySelectorAll('.segment-tabs button').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderMarketChart();
+      }));
+      searchInput.addEventListener('input', () => loadMarketData());
+      document.getElementById('logout-btn').addEventListener('click', logoutUser);
+      menuToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+      bindSidebarNavigation();
+      renderMarketChart();
+      loadMarketData();
+      setInterval(loadMarketData, 8000);
+    </script>
+  </body>
+</html>

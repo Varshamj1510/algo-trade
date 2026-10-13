@@ -1,5 +1,3 @@
-const API_BASE = 'http://127.0.0.1:5000';
-
 function getToken() {
   return localStorage.getItem('algotrade_token');
 }
@@ -19,7 +17,7 @@ function apiRequest(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  return fetch(`${API_BASE}${path}`, {
+  return fetch(path, {
     ...options,
     headers,
   }).then(async (response) => {

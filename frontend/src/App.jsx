@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const API_BASE = 'http://127.0.0.1:5000';
+const API_BASE = '';
 
 const statCards = [
   { label: 'Total Portfolio Value', value: '₹ 2,45,678.90', delta: '+2.35% Today' },

@@ -38,6 +38,17 @@ pip install -r requirements.txt
 python app.py
 ```
 
+## Deploy on Render
+
+Create a **Web Service** from this repository with the repository root as the root directory. Render can use the root `requirements.txt` and `Procfile`; if setting commands manually, use:
+
+- Build command: `pip install -r requirements.txt`
+- Start command: `gunicorn --bind 0.0.0.0:$PORT run:app`
+
+Set `SECRET_KEY` and `JWT_SECRET_KEY` as separate, strong random secrets in the Render service's **Environment** settings. Do not use the placeholder values in `.env.example`, commit a `.env` file, or share secrets in chat. Set `KITE_API_KEY`, `KITE_API_SECRET`, and `KITE_REDIRECT_URI` only if enabling Kite Connect; the redirect URI must be `https://<your-render-service>.onrender.com/kite/callback` and must match the URI configured for the Kite app.
+
+The default SQLite database is suitable only for a temporary demo: Render's service filesystem is not persistent, so user data can be lost when the service restarts or is redeployed. For persistent production data, provision a Render Postgres database and configure `DATABASE_URL` with its connection string before relying on the service for user accounts or saved data. Both `postgres://` and `postgresql://` connection strings are supported.
+
 ## API endpoints
 
 - `GET /healthz`

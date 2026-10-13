@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlgoTrade | Order Protection</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">
+          <div class="brand-mark">AI</div>
+          <h1>AlgoTrade</h1>
+        </div>
+        <ul class="sidebar-nav">
+          <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
+          <li class="nav-item" data-page="market"><i class="fa-solid fa-chart-column"></i> Market Data</li>
+          <li class="nav-item" data-page="signals"><i class="fa-solid fa-bolt"></i> Trade Signals</li>
+          <li class="nav-item" data-page="strategies"><i class="fa-solid fa-diagram-project"></i> Strategies</li>
+          <li class="nav-item" data-page="portfolio"><i class="fa-solid fa-wallet"></i> Portfolio</li>
+          <li class="nav-item" data-page="backtesting"><i class="fa-solid fa-flask-vial"></i> Backtesting</li>
+          <li class="nav-item" data-page="reports"><i class="fa-solid fa-file-lines"></i> Reports</li>
+          <li class="nav-item" data-page="watchlist"><i class="fa-solid fa-star"></i> Watchlist</li>
+          <li class="nav-item" data-page="alerts"><i class="fa-solid fa-bell"></i> Alerts</li>
+          <li class="nav-item active"><i class="fa-solid fa-shield-halved"></i> Order Protection</li>
+          <li class="nav-item" data-page="profile"><i class="fa-solid fa-user"></i> Profile Settings</li>
+          <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</li>
+        </ul>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu" id="menu-toggle" aria-label="Toggle navigation"><i class="fa fa-bars"></i></button>
+            <span class="page-title">Order Protection Calculator</span>
+          </div>
+          <div class="topbar-right">
+            <div class="user-chip">
+              <div class="avatar" id="user-avatar">T</div>
+              <div>
+                <div class="user-name" id="top-user-name">Trader</div>
+                <div class="user-plan">Risk tools</div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-grid">
+          <div class="hero-row">
+            <div>
+              <h2 class="welcome">Plan your trade risk</h2>
+              <div class="subtitle">Estimate stop, target, position size, and risk before placing an order.</div>
+            </div>
+          </div>
+          <div class="protection-layout">
+            <section class="panel">
+              <div class="panel-header">
+                <div class="panel-title">Trade parameters</div>
+              </div>
+              <form id="protection-form" class="protection-form">
+                <div class="form-group">
+                  <label for="demo-stock">Dashboard demo stock</label>
+                  <select id="demo-stock"><option value="">Loading demo stocks...</option></select>
+                  <small id="demo-stock-status" class="muted">Sample prices only; not live quotes.</small>
+                </div>
+                <div class="form-group">
+                  <label for="protection-side">Position direction</label>
+                  <select id="protection-side" name="side" required>
+                    <option value="BUY">Long (BUY)</option>
+                    <option value="SELL">Short (SELL)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="entry-price">Entry price (₹)</label>
+                  <input id="entry-price" name="entry_price" type="number" min="0.01" step="0.01" required />
+                </div>
+                <div class="form-group">
+                  <label for="stop-price">Stop-loss price (₹)</label>
+                  <input id="stop-price" name="stop_loss_price" type="number" min="0.01" step="0.01" required />
+                </div>
+                <div class="form-group">
+                  <label for="target-price">Take-profit price (₹) <span class="muted">Optional</span></label>
+                  <input id="target-price" name="take_profit_price" type="number" min="0.01" step="0.01" />
+                </div>
+                <div class="form-group">
+                  <label for="quantity">Quantity <span class="muted">Optional</span></label>
+                  <input id="quantity" name="quantity" type="number" min="0.01" step="0.01" />
+                </div>
+                <div class="form-group">
+                  <label for="account-balance">Account balance (₹)</label>
+                  <input id="account-balance" name="account_balance" type="number" min="0.01" step="0.01" value="100000" required />
+                </div>
+                <div class="form-group">
+                  <label for="risk-percent">Account risk (%)</label>
+                  <input id="risk-percent" name="risk_percent" type="number" min="0.01" max="100" step="0.01" value="1" required />
+                </div>
+                <div class="form-group">
+                  <label for="trailing-percent">Trailing distance (%) <span class="muted">Optional</span></label>
+                  <input id="trailing-percent" name="trailing_percent" type="number" min="0.01" max="99.99" step="0.01" />
+                </div>
+                <div class="protection-form-actions">
+                  <button type="submit" class="primary-btn" id="calculate-button">Calculate protection</button>
+                </div>
+              </form>
+              <div id="protection-error" class="alert error" role="alert" hidden></div>
+            </section>
+
+            <section class="panel protection-results" aria-live="polite">
+              <div class="panel-header">
+                <div class="panel-title">Estimated risk profile</div>
+              </div>
+              <p id="protection-empty" class="empty-state">Enter your trade details and calculate to see the estimates.</p>
+              <div id="protection-output" class="protection-metrics" hidden>
+                <div class="protection-metric">
+                  <span>Risk budget</span>
+                  <strong id="result-risk-budget">—</strong>
+                </div>
+                <div class="protection-metric">
+                  <span>Risk-based position size</span>
+                  <strong id="result-position-size">—</strong>
+                </div>
+                <div class="protection-metric">
+                  <span>Maximum loss at quantity</span>
+                  <strong id="result-maximum-loss">—</strong>
+                </div>
+                <div class="protection-metric">
+                  <span>Potential profit at quantity</span>
+                  <strong id="result-potential-profit">—</strong>
+                </div>
+                <div class="protection-metric">
+                  <span>Risk/reward ratio</span>
+                  <strong id="result-risk-reward">—</strong>
+                </div>
+                <div class="protection-metric">
+                  <span>Trailing stop estimate</span>
+                  <strong id="result-trailing-stop">—</strong>
+                </div>
+                <div class="protection-prices">
+                  <span>Entry <strong id="result-entry">—</strong></span>
+                  <span>Stop <strong id="result-stop">—</strong></span>
+                  <span>Target <strong id="result-target">—</strong></span>
+                </div>
+              </div>
+              <p class="protection-disclaimer">Calculator estimates only. It does not place orders or save protection settings. Position size is fractional and excludes fees, slippage, and lot-size constraints.</p>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      const user = parseUser();
+      if (!requireAuth()) { throw new Error('Not authenticated'); }
+      if (user) {
+        const name = user.full_name || user.username || 'Trader';
+        document.getElementById('top-user-name').textContent = name;
+        document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
+      }
+
+      document.getElementById('logout-btn').addEventListener('click', logoutUser);
+      document.getElementById('menu-toggle').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.toggle('open');
+      });
+      bindSidebarNavigation();
+
+      const form = document.getElementById('protection-form');
+      const errorBox = document.getElementById('protection-error');
+      const submitButton = document.getElementById('calculate-button');
+      const money = (value) => value == null ? '—' : formatCurrency(value);
+      const optionalMoney = (value) => value == null ? 'Not provided' : money(value);
+      const demoStockSelect = document.getElementById('demo-stock');
+      let demoStocks = [];
+
+      function updateSuggestedLevels() {
+        const entry = Number(document.getElementById('entry-price').value);
+        if (!Number.isFinite(entry) || entry <= 0) return;
+        const isLong = document.getElementById('protection-side').value === 'BUY';
+        document.getElementById('stop-price').value = (entry * (isLong ? 0.98 : 1.02)).toFixed(2);
+        document.getElementById('target-price').value = (entry * (isLong ? 1.02 : 0.98)).toFixed(2);
+      }
+
+      async function loadDemoStocks() {
+        try {
+          const response = await apiRequest('/api/market?exchange=NSE');
+          demoStocks = response.data || [];
+          demoStockSelect.replaceChildren();
+          demoStocks.forEach((stock) => {
+            const option = document.createElement('option');
+            option.value = stock.symbol;
+            option.textContent = `${stock.symbol} · ${stock.name}`;
+            demoStockSelect.append(option);
+          });
+          if (!demoStocks.length) {
+            demoStockSelect.innerHTML = '<option value="">No dashboard demo stocks available</option>';
+            document.getElementById('demo-stock-status').textContent = 'Could not find seeded demo stock values.';
+            return;
+          }
+          const selected = demoStocks[0];
+          document.getElementById('entry-price').value = Number(selected.price).toFixed(2);
+          updateSuggestedLevels();
+          document.getElementById('demo-stock-status').textContent =
+            `Demo quote: ${selected.symbol} at ${formatCurrency(selected.price)} · illustrative stop/target defaults; edit before calculating.`;
+        } catch (error) {
+          if (error.message.includes('Authorization')) {
+            logoutUser();
+            return;
+          }
+          document.getElementById('demo-stock-status').textContent = error.message || 'Demo stock values could not be loaded.';
+          demoStockSelect.innerHTML = '<option value="">Demo stocks unavailable</option>';
+        }
+      }
+
+      demoStockSelect.addEventListener('change', () => {
+        const stock = demoStocks.find((item) => item.symbol === demoStockSelect.value);
+        if (!stock) return;
+        document.getElementById('entry-price').value = Number(stock.price).toFixed(2);
+        updateSuggestedLevels();
+        document.getElementById('demo-stock-status').textContent =
+          `Demo quote: ${stock.symbol} at ${formatCurrency(stock.price)} · illustrative stop/target defaults; edit before calculating.`;
+      });
+      document.getElementById('protection-side').addEventListener('change', updateSuggestedLevels);
+      loadDemoStocks();
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        errorBox.hidden = true;
+        submitButton.disabled = true;
+        submitButton.textContent = 'Calculating...';
+        const formData = new FormData(form);
+        const payload = Object.fromEntries(formData.entries());
+
+        try {
+          const response = await apiRequest('/api/protection/calculate', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          const result = response.data;
+          document.getElementById('protection-empty').hidden = true;
+          document.getElementById('protection-output').hidden = false;
+          document.getElementById('result-risk-budget').textContent = money(result.risk_amount);
+          document.getElementById('result-position-size').textContent = `${result.position_size} units`;
+          document.getElementById('result-maximum-loss').textContent = optionalMoney(result.maximum_loss);
+          document.getElementById('result-potential-profit').textContent = optionalMoney(result.potential_profit);
+          document.getElementById('result-risk-reward').textContent =
+            result.risk_reward_ratio == null ? 'Not available' : `${result.risk_reward_ratio}:1`;
+          document.getElementById('result-trailing-stop').textContent =
+            result.trailing_stop_price == null ? 'Not provided' : money(result.trailing_stop_price);
+          document.getElementById('result-entry').textContent = money(result.entry_price);
+          document.getElementById('result-stop').textContent = money(result.stop_loss_price);
+          document.getElementById('result-target').textContent = optionalMoney(result.take_profit_price);
+        } catch (error) {
+          errorBox.textContent = error.message;
+          errorBox.hidden = false;
+        } finally {
+          submitButton.disabled = false;
+          submitButton.textContent = 'Calculate protection';
+        }
+      });
+    </script>
+  </body>
+</html>

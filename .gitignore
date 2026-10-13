@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+backend/data/kite_session.json
+.pytest_cache/
+__pycache__/
+*.py[cod]
+.venv/
+frontend/node_modules/
+frontend/dist/
+database/*.db
+backend/database/*.db

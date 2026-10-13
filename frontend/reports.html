@@ -50,18 +50,17 @@
         <div class="content-grid">
           <section class="panel">
             <div class="panel-header">
-              <div class="panel-title">Performance Overview</div>
-              <button class="secondary-btn">Export CSV</button>
+              <div>
+                <div class="panel-title">Demo Performance Reports</div>
+                <p id="reports-status" class="market-data-status">Loading seeded report examples...</p>
+              </div>
+              <button class="secondary-btn" id="export-reports" type="button">Export CSV</button>
             </div>
             <table class="portfolio-table">
               <thead>
-                <tr><th>Report</th><th>Generated</th><th>Status</th><th>Action</th></tr>
+                <tr><th>Report</th><th>Generated</th><th>Return</th><th>Trades</th><th>Win Rate</th><th>Profit Factor</th><th>Status</th></tr>
               </thead>
-              <tbody>
-                <tr><td>Monthly Performance</td><td>12 May 2026</td><td class="positive">Ready</td><td><button class="secondary-btn">Download</button></td></tr>
-                <tr><td>Strategy Summary</td><td>08 May 2026</td><td class="positive">Ready</td><td><button class="secondary-btn">Download</button></td></tr>
-                <tr><td>Risk Review</td><td>02 May 2026</td><td class="positive">Ready</td><td><button class="secondary-btn">Download</button></td></tr>
-              </tbody>
+              <tbody id="reports-body"><tr><td colspan="7" class="empty-state">Loading reports...</td></tr></tbody>
             </table>
           </section>
         </div>
@@ -71,6 +70,9 @@
     <script src="/js/api.js"></script>
     <script>
       const user = parseUser();
+      const reportsBody = document.getElementById('reports-body');
+      const reportsStatus = document.getElementById('reports-status');
+      let reports = [];
       if (user) {
         document.getElementById('top-user-name').textContent = user.full_name || user.username;
         document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
@@ -78,6 +80,59 @@
       document.getElementById('logout-btn').addEventListener('click', logoutUser);
       document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
       bindSidebarNavigation();
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+      }
+
+      async function loadReports() {
+        try {
+          const response = await apiRequest('/api/reports');
+          reports = response.data || [];
+          reportsStatus.textContent = `${reports.length} seeded demo reports · performance values are sample data, not live trading results.`;
+          reportsBody.innerHTML = reports.length ? reports.map((report) => `
+            <tr>
+              <td>${escapeHtml(report.name)}</td>
+              <td>${escapeHtml(report.created_at)}</td>
+              <td>${Number(report.total_return).toFixed(2)}%</td>
+              <td>${Number(report.total_trades)}</td>
+              <td>${Number(report.win_rate).toFixed(2)}%</td>
+              <td>${Number(report.profit_factor).toFixed(2)}</td>
+              <td>${escapeHtml(report.status)}</td>
+            </tr>
+          `).join('') : '<tr><td colspan="7" class="empty-state">No demo reports are available.</td></tr>';
+        } catch (error) {
+          if (error.message.includes('Authorization')) {
+            logoutUser();
+            return;
+          }
+          reportsStatus.textContent = error.message;
+          reportsBody.innerHTML = '<tr><td colspan="7" class="empty-state">Reports could not be loaded.</td></tr>';
+        }
+      }
+
+      document.getElementById('export-reports').addEventListener('click', () => {
+        if (!reports.length) {
+          reportsStatus.textContent = 'There are no reports to export.';
+          return;
+        }
+        const columns = ['Report', 'Generated', 'Return (%)', 'Trades', 'Win Rate (%)', 'Profit Factor', 'Status'];
+        const rows = reports.map((report) => [
+          report.name, report.created_at, report.total_return, report.total_trades,
+          report.win_rate, report.profit_factor, report.status,
+        ]);
+        const csv = [columns, ...rows].map((row) =>
+          row.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')
+        ).join('\r\n');
+        const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'dashboard-demo-reports.csv';
+        link.click();
+        URL.revokeObjectURL(url);
+      });
+
+      loadReports();
     </script>
   </body>
 </html>

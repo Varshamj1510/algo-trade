@@ -4,6 +4,38 @@ from backend.algorithms.macd import macd
 from backend.algorithms.moving_average import moving_average
 
 
+def generate_demo_trade_signals(instruments):
+    signals = []
+    for instrument in instruments:
+        change = float(instrument.get('change') or 0)
+        price = float(instrument.get('price') or 0)
+        if change >= 1:
+            signal = 'BUY'
+            target_price = round(price * 1.02, 2)
+            stop_loss = round(price * 0.98, 2)
+        elif change <= -1:
+            signal = 'SELL'
+            target_price = round(price * 0.98, 2)
+            stop_loss = round(price * 1.02, 2)
+        else:
+            signal = 'HOLD'
+            target_price = None
+            stop_loss = None
+
+        signals.append({
+            'symbol': instrument['symbol'],
+            'signal': signal,
+            'strategy': 'Demo daily-change rule',
+            'current_price': round(price, 2),
+            'target_price': target_price,
+            'stop_loss': stop_loss,
+            'confidence': min(95, 55 + int(abs(change) * 8)),
+            'timestamp': 'Demo sample',
+            'reason': f'Demo daily change: {change:+.2f}%.',
+        })
+    return signals
+
+
 def generate_trade_decision(symbol, current_price, rsi_value, macd_value, support_level=0, resistance_level=0):
     symbol = (symbol or 'UNKNOWN').upper()
     price = float(current_price or 0)

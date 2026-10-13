@@ -48,15 +48,21 @@
         </header>
 
         <div class="content-grid">
+          <section class="panel">
+            <div class="panel-title">Demo Trade Signals</div>
+            <p class="market-data-status">BUY is assigned for demo changes of +1% or more, SELL for -1% or less, and HOLD otherwise. Levels and confidence are illustrative calculations from the seeded dashboard values only; they are not live quotes or trading advice.</p>
+          </section>
+
           <section class="table-card">
             <div class="panel-header">
-              <div class="panel-title">Live Trading Signals</div>
+              <div class="panel-title">Signals from Dashboard Demo Stocks</div>
               <div class="segment-tabs">
                 <button class="active" data-filter="all">All</button>
                 <button data-filter="BUY">Buy</button>
                 <button data-filter="SELL">Sell</button>
               </div>
             </div>
+            <p class="market-data-status" id="signals-status">Loading dashboard demo signals...</p>
             <div style="overflow-x:auto;">
               <table class="signal-table" id="signals-table">
                 <thead>
@@ -82,7 +88,128 @@
         document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
       }
 
-      let liveSignals = [];
+      let savedDemoSignals = [];
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        })[character]);
+      }
+
+      function displayNumber(value, digits = 2) {
+        return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)) ? Number(value).toLocaleString(undefined, {
+          minimumFractionDigits: digits, maximumFractionDigits: digits,
+        }) : 'Not available';
+      }
+
+      function latest(series) {
+        return Array.isArray(series) ? [...series].reverse().find((value) => Number.isFinite(value)) : null;
+      }
+
+      function chartPath(values, width, height, min, max) {
+        const valid = values.map((value, index) => Number.isFinite(value) ? { value, index } : null).filter(Boolean);
+        if (valid.length < 2) return '';
+        return valid.map(({ value, index }, point) => {
+          const x = index / Math.max(values.length - 1, 1) * width;
+          const y = height - (value - min) / (max - min || 1) * height;
+          return `${point ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+      }
+
+      function drawChart(targetId, seriesDefinitions, fixedRange = null) {
+        const target = document.getElementById(targetId);
+        target.replaceChildren();
+        const width = 720;
+        const height = 210;
+        const allValues = seriesDefinitions.flatMap((series) => series.values.filter(Number.isFinite));
+        if (allValues.length < 2) {
+          target.textContent = 'Not enough candle history to chart these indicators.';
+          return;
+        }
+        const min = fixedRange ? fixedRange[0] : Math.min(...allValues);
+        const max = fixedRange ? fixedRange[1] : Math.max(...allValues);
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        svg.setAttribute('role', 'img');
+        svg.setAttribute('aria-label', target.getAttribute('aria-label') || 'Indicator chart');
+        seriesDefinitions.forEach((series) => {
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', chartPath(series.values, width, height, min, max));
+          path.setAttribute('class', `chart-line ${series.className}`);
+          svg.appendChild(path);
+        });
+        target.appendChild(svg);
+      }
+
+      function insight(title, value, detail, state = '') {
+        return `<article class="analysis-insight ${state}"><span>${escapeHtml(title)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></article>`;
+      }
+
+      function renderAnalysis(data) {
+        const indicators = data.indicators || {};
+        const series = data.indicator_series || {};
+        const candles = data.candles || [];
+        const latestClose = latest(series.close);
+        const latestRsi = indicators.rsi_14;
+        const latestMacd = indicators.macd_histogram;
+        const averageVolume = indicators.average_volume_20;
+        const currentVolume = indicators.volume;
+        const atr = indicators.atr_14;
+        const atrPercent = latestClose && atr ? atr / latestClose * 100 : null;
+        const relativeVolume = averageVolume && currentVolume ? currentVolume / averageVolume : null;
+        const ema20 = indicators.ema_20;
+        const trendUp = Number.isFinite(ema20) && latestClose > ema20;
+        const momentumLabel = latestMacd == null ? 'Insufficient history' : latestMacd > 0 ? 'Positive' : latestMacd < 0 ? 'Negative' : 'Neutral';
+        const momentumState = latestMacd > 0 ? 'positive' : latestMacd < 0 ? 'negative' : '';
+        const rsiLabel = latestRsi == null ? 'Unavailable' : latestRsi >= 70 ? 'Overbought range' : latestRsi <= 30 ? 'Oversold range' : 'Neutral range';
+        const volumeLabel = relativeVolume == null ? 'Insufficient history' : relativeVolume >= 1.5 ? 'Above recent average' : relativeVolume <= 0.75 ? 'Below recent average' : 'Near recent average';
+        const riskLabel = atrPercent == null ? 'Unavailable' : atrPercent >= 3 ? 'Higher recent volatility' : atrPercent >= 1.5 ? 'Moderate recent volatility' : 'Lower recent volatility';
+        const recentCandles = candles.slice(-20);
+        const support = recentCandles.length ? Math.min(...recentCandles.map((candle) => candle.low)) : null;
+        const resistance = recentCandles.length ? Math.max(...recentCandles.map((candle) => candle.high)) : null;
+
+        const signal = data.analysis || {};
+        const signalNode = document.getElementById('analysis-signal');
+        signalNode.textContent = signal.signal || 'N/A';
+        signalNode.className = `signal-${String(signal.signal || 'hold').toLowerCase()}`;
+        document.getElementById('analysis-reason').textContent = signal.reason || 'No rule-based signal is available for this history.';
+        document.getElementById('analysis-confidence').textContent = Number.isFinite(signal.confidence) ? `${signal.confidence}%` : 'Unavailable';
+        document.getElementById('analysis-price').textContent = data.quote ? `₹${displayNumber(data.quote.price)}` : 'Unavailable';
+        document.getElementById('analysis-updated').textContent = `${data.instrument?.symbol || ''} · ${data.timeframe || ''} · ${candles.length} candles`;
+
+        document.getElementById('analysis-insights').innerHTML = [
+          insight('Market trend', trendUp ? 'Above EMA 20' : 'At/below EMA 20', `Last candle close ₹${displayNumber(latestClose)}; EMA 20 ₹${displayNumber(ema20)}`, trendUp ? 'positive' : 'negative'),
+          insight('Momentum', momentumLabel, `MACD histogram ${displayNumber(latestMacd, 4)} · RSI 14 ${displayNumber(latestRsi)}`, momentumState),
+          insight('Volume', volumeLabel, relativeVolume == null ? 'Need at least 20 candles for comparison' : `${displayNumber(relativeVolume, 2)}× the average of the last 20 candles`),
+          insight('Volatility & range', riskLabel, `ATR 14 ₹${displayNumber(atr)} (${displayNumber(atrPercent)}%) · 20-candle low/high ₹${displayNumber(support)} / ₹${displayNumber(resistance)}`),
+        ].join('');
+
+        const indicatorItems = [
+          ['RSI (14)', latestRsi], ['MACD', indicators.macd], ['MACD signal', indicators.macd_signal],
+          ['EMA (20)', indicators.ema_20], ['SMA (20)', indicators.sma_20], ['SMA (50)', indicators.sma_50],
+          ['Bollinger upper', indicators.bollinger_upper], ['Bollinger lower', indicators.bollinger_lower],
+          ['VWAP (period)', indicators.vwap], ['ATR (14)', atr], ['OBV', indicators.obv],
+        ];
+        document.getElementById('analysis-indicators').innerHTML = indicatorItems.map(([name, value]) =>
+          `<div class="analysis-indicator"><span>${escapeHtml(name)}</span><strong>${escapeHtml(displayNumber(value, name === 'OBV' ? 0 : 2))}</strong></div>`
+        ).join('');
+
+        const limit = (values) => (values || []).slice(-80);
+        drawChart('analysis-price-chart', [
+          { values: limit(series.bollinger_upper), className: 'line-bollinger' },
+          { values: limit(series.bollinger_lower), className: 'line-bollinger' },
+          { values: limit(series.sma_20), className: 'line-sma' },
+          { values: limit(series.ema_20), className: 'line-ema' },
+          { values: limit(series.close), className: 'line-close' },
+        ]);
+        const macdValues = limit(series.macd_histogram);
+        const macdMax = Math.max(1, ...macdValues.filter(Number.isFinite).map(Math.abs));
+        drawChart('analysis-momentum-chart', [
+          { values: limit(series.rsi_14), className: 'line-rsi' },
+          { values: macdValues.map((value) => Number.isFinite(value) ? 50 + value / macdMax * 40 : null), className: 'line-macd' },
+        ], [0, 100]);
+        analysisResults.hidden = false;
+      }
 
       function getSignalClass(signal) {
         const level = String(signal || '').toUpperCase();
@@ -94,28 +221,33 @@
       function renderTable(list) {
         tbody.innerHTML = list.map((signal) => `
           <tr>
-            <td>${signal.symbol}</td>
-            <td class="${getSignalClass(signal.signal)}">${signal.signal}</td>
-            <td>${signal.strategy}</td>
+            <td>${escapeHtml(signal.symbol)}</td>
+            <td class="${getSignalClass(signal.signal)}">${escapeHtml(signal.signal)}</td>
+            <td>${escapeHtml(signal.strategy)}</td>
             <td>${formatCurrency(signal.current_price)}</td>
-            <td>${formatCurrency(signal.target_price)}</td>
-            <td>${formatCurrency(signal.stop_loss)}</td>
-            <td>${signal.confidence}%</td>
-            <td>${signal.timestamp}</td>
+            <td>${signal.target_price == null ? '--' : formatCurrency(signal.target_price)}</td>
+            <td>${signal.stop_loss == null ? '--' : formatCurrency(signal.stop_loss)}</td>
+            <td>${Number(signal.confidence)}%</td>
+            <td>${escapeHtml(signal.timestamp)}</td>
           </tr>
         `).join('');
+        if (!list.length) {
+          tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No signals match this filter.</td></tr>';
+        }
       }
 
       function applyFilter(filter) {
-        if (!liveSignals.length) return;
-        const list = filter === 'all' ? liveSignals : liveSignals.filter((s) => s.signal === filter);
+        if (!savedDemoSignals.length) return;
+        const list = filter === 'all' ? savedDemoSignals : savedDemoSignals.filter((s) => s.signal === filter);
         renderTable(list);
       }
 
       async function loadSignals() {
         try {
           const data = await apiRequest('/api/signals');
-          liveSignals = data.data || [];
+          savedDemoSignals = data.data || [];
+          document.getElementById('signals-status').textContent =
+            `${savedDemoSignals.length} signals calculated from dashboard demo stock values · not live data.`;
           const activeButton = document.querySelector('.segment-tabs .active');
           applyFilter(activeButton ? activeButton.dataset.filter : 'all');
         } catch (error) {
@@ -136,7 +268,6 @@
       menuToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
       bindSidebarNavigation();
       loadSignals();
-      setInterval(loadSignals, 8000);
     </script>
   </body>
 </html>

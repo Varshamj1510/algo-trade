@@ -1,3 +1,4 @@
+from sqlalchemy import inspect
 from flask_sqlalchemy import SQLAlchemy
 
 
@@ -8,3 +9,23 @@ def init_db(app):
     db.init_app(app)
     with app.app_context():
         db.create_all()
+        strategy_columns = {
+            column['name'] for column in inspect(db.engine).get_columns('strategies')
+        }
+        migrations = {
+            'buy_logic': 'VARCHAR(3)',
+            'buy_conditions': 'TEXT',
+            'sell_logic': 'VARCHAR(3)',
+            'sell_conditions': 'TEXT',
+        }
+        missing_columns = {
+            name: definition
+            for name, definition in migrations.items()
+            if name not in strategy_columns
+        }
+        if missing_columns:
+            with db.engine.begin() as connection:
+                for name, definition in missing_columns.items():
+                    connection.exec_driver_sql(
+                        f'ALTER TABLE strategies ADD COLUMN {name} {definition}'
+                    )

@@ -100,9 +100,25 @@ def seed_demo_data():
         db.session.add(Alert(user_id=user.id, title='Signal Alert', description='Momentum setup on NTPC', type='Signal Alert', status='Triggered'))
         db.session.add(Alert(user_id=user.id, title='Portfolio Alert', description='Allocation target reached', type='Portfolio Alert', status='Disabled'))
 
-    if Report.query.count() == 0:
-        db.session.add(Report(name='May Performance Report', total_return=16.2, total_trades=58, win_rate=63.7, profit_factor=1.48, status='Ready'))
-        db.session.add(Report(name='June Weekly Snapshot', total_return=8.7, total_trades=21, win_rate=61.0, profit_factor=1.33, status='Ready'))
+    demo_reports = [
+        ('May Performance Report', 16.2, 58, 63.7, 1.48),
+        ('June Weekly Snapshot', 8.7, 21, 61.0, 1.33),
+        ('Momentum Strategy Review', 12.4, 34, 64.7, 1.52),
+        ('Quarterly Portfolio Summary', 9.6, 87, 62.1, 1.41),
+        ('Risk and Drawdown Analysis', 6.3, 42, 59.5, 1.28),
+        ('Breakout Strategy Snapshot', 14.1, 29, 66.2, 1.61),
+    ]
+    existing_report_names = {name for (name,) in db.session.query(Report.name).all()}
+    for name, total_return, total_trades, win_rate, profit_factor in demo_reports:
+        if name not in existing_report_names:
+            db.session.add(Report(
+                name=name,
+                total_return=total_return,
+                total_trades=total_trades,
+                win_rate=win_rate,
+                profit_factor=profit_factor,
+                status='Ready',
+            ))
 
     if Holding.query.filter_by(user_id=user.id).count() == 0:
         db.session.add(Holding(user_id=user.id, symbol='RELIANCE', quantity=120, average_price=2650.00, current_price=2856.40))

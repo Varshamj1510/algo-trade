@@ -50,21 +50,12 @@
         <div class="content-grid">
           <section class="panel">
             <div class="panel-header">
-              <div class="panel-title">Notification Center</div>
-              <button class="secondary-btn">Mark All as Read</button>
+              <div>
+                <div class="panel-title">Demo Alert Center</div>
+                <p id="alerts-status" class="market-data-status">Loading alerts for this demo account...</p>
+              </div>
             </div>
-            <div class="activity-item">
-              <div class="timeline-dot"></div>
-              <div><div><strong>Buy alert triggered for RELIANCE</strong></div><div class="subtitle">Target reached at ₹2,900 • 11:20 AM</div></div>
-            </div>
-            <div class="activity-item">
-              <div class="timeline-dot"></div>
-              <div><div><strong>Risk limit warning</strong></div><div class="subtitle">Portfolio exposure crossed 70% • 10:50 AM</div></div>
-            </div>
-            <div class="activity-item">
-              <div class="timeline-dot"></div>
-              <div><div><strong>Backtest completed</strong></div><div class="subtitle">Momentum strategy report ready • 09:15 AM</div></div>
-            </div>
+            <div id="alerts-list"></div>
           </section>
         </div>
       </main>
@@ -73,6 +64,8 @@
     <script src="/js/api.js"></script>
     <script>
       const user = parseUser();
+      const alertsList = document.getElementById('alerts-list');
+      const alertsStatus = document.getElementById('alerts-status');
       if (user) {
         document.getElementById('top-user-name').textContent = user.full_name || user.username;
         document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
@@ -80,6 +73,36 @@
       document.getElementById('logout-btn').addEventListener('click', logoutUser);
       document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
       bindSidebarNavigation();
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+      }
+
+      async function loadAlerts() {
+        try {
+          const response = await apiRequest('/api/alerts');
+          const alerts = response.data || [];
+          alertsStatus.textContent = `${alerts.length} saved alerts for this demo account. Price-trigger descriptions are examples and are not evaluated against live quotes.`;
+          alertsList.innerHTML = alerts.length ? alerts.map((alert) => `
+            <article class="activity-item">
+              <div class="timeline-dot"></div>
+              <div>
+                <div><strong>${escapeHtml(alert.title)}</strong></div>
+                <div class="subtitle">${escapeHtml(alert.description || alert.type)} · ${escapeHtml(alert.status)}</div>
+              </div>
+            </article>
+          `).join('') : '<div class="empty-state">No alerts are saved for this account.</div>';
+        } catch (error) {
+          if (error.message.includes('Authorization')) {
+            logoutUser();
+            return;
+          }
+          alertsStatus.textContent = error.message;
+          alertsList.innerHTML = '<div class="empty-state">Alerts could not be loaded.</div>';
+        }
+      }
+
+      loadAlerts();
     </script>
   </body>
 </html>

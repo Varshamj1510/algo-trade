@@ -50,18 +50,29 @@
         <div class="content-grid">
           <section class="panel">
             <div class="panel-header">
-              <div class="panel-title">Tracked Securities</div>
-              <button class="secondary-btn">+ Add Stock</button>
+              <div class="panel-title">Find an instrument</div>
+              <div class="instrument-search-controls">
+                <div class="instrument-search">
+                  <input id="instrument-search" type="text" placeholder="Company name or symbol" autocomplete="off" />
+                  <div id="instrument-suggestions" class="suggestion-list" hidden></div>
+                </div>
+                <input id="exchange-filter" type="text" placeholder="Exchange (optional)" aria-label="Filter by exchange" />
+              </div>
+            </div>
+            <section id="instrument-details" class="instrument-details" hidden></section>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Tracked Demo Securities</div>
+                <div id="watchlist-status" class="market-data-status" role="status"></div>
+              </div>
             </div>
             <table class="portfolio-table">
               <thead>
-                <tr><th>Symbol</th><th>Name</th><th>Price</th><th>Change</th><th>Action</th></tr>
+                <tr><th>Symbol</th><th>Name</th><th>Exchange</th><th>Price</th><th>Change</th><th>Action</th></tr>
               </thead>
-              <tbody>
-                <tr><td>RELIANCE</td><td>Reliance Industries</td><td>₹2,856</td><td class="positive">+1.38%</td><td><button class="secondary-btn">Remove</button></td></tr>
-                <tr><td>TCS</td><td>Tata Consultancy Services</td><td>₹3,620</td><td class="positive">+0.92%</td><td><button class="secondary-btn">Remove</button></td></tr>
-                <tr><td>INFY</td><td>Infosys</td><td>₹1,482</td><td class="positive">+1.22%</td><td><button class="secondary-btn">Remove</button></td></tr>
-              </tbody>
+              <tbody id="watchlist-body"><tr><td colspan="6" class="empty-state">Loading watchlist...</td></tr></tbody>
             </table>
           </section>
         </div>
@@ -71,6 +82,13 @@
     <script src="/js/api.js"></script>
     <script>
       const user = parseUser();
+      const watchlistBody = document.getElementById('watchlist-body');
+      const searchInput = document.getElementById('instrument-search');
+      const exchangeInput = document.getElementById('exchange-filter');
+      const suggestions = document.getElementById('instrument-suggestions');
+      const detailsPanel = document.getElementById('instrument-details');
+      const watchlistStatus = document.getElementById('watchlist-status');
+      let suggestionTimer;
       if (user) {
         document.getElementById('top-user-name').textContent = user.full_name || user.username;
         document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
@@ -78,6 +96,103 @@
       document.getElementById('logout-btn').addEventListener('click', logoutUser);
       document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
       bindSidebarNavigation();
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+      }
+
+      async function loadWatchlist() {
+        try {
+          const result = await apiRequest('/api/watchlist');
+          const items = result.data || [];
+          watchlistStatus.textContent = `${items.length} tracked instruments · seeded dashboard demo prices · not live.`;
+          watchlistBody.innerHTML = items.length ? items.map((item) => `
+            <tr>
+              <td>${escapeHtml(item.symbol)}</td><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.exchange)}</td>
+              <td>${item.price == null ? '--' : formatCurrency(item.price)}</td>
+              <td class="${item.change == null ? 'muted' : item.change >= 0 ? 'positive' : 'negative'}">${item.change == null ? '--' : `${item.change >= 0 ? '+' : ''}${Number(item.change).toFixed(2)}%`}</td>
+              <td><button class="secondary-btn" data-remove="${escapeHtml(item.watchlist_id)}" title="Remove from watchlist"><i class="fa-solid fa-trash"></i></button></td>
+            </tr>
+          `).join('') : '<tr><td colspan="6" class="empty-state">Your watchlist is empty.</td></tr>';
+        } catch (error) {
+          if (error.message.includes('Authorization')) {
+            logoutUser();
+            return;
+          }
+          watchlistStatus.textContent = error.message;
+          watchlistBody.innerHTML = `<tr><td colspan="6" class="empty-state">${escapeHtml(error.message)}</td></tr>`;
+        }
+      }
+
+      async function searchInstruments() {
+        const query = searchInput.value.trim();
+        if (!query) {
+          suggestions.hidden = true;
+          return;
+        }
+        try {
+          const params = new URLSearchParams({ q: query, exchange: exchangeInput.value.trim() });
+          const result = await apiRequest(`/api/instruments/search?${params}`);
+          suggestions.innerHTML = (result.data || []).map((instrument) => `
+            <button class="suggestion-item" data-detail="${escapeHtml(instrument.symbol)}" data-exchange="${escapeHtml(instrument.exchange)}">
+              <strong>${escapeHtml(instrument.symbol)}</strong><span>${escapeHtml(instrument.name)}</span><small>${escapeHtml(instrument.exchange)}</small>
+            </button>
+          `).join('') || '<div class="suggestion-empty">No instruments found</div>';
+          suggestions.hidden = false;
+        } catch (error) {
+          if (error.message.includes('Authorization')) {
+            logoutUser();
+            return;
+          }
+          watchlistStatus.textContent = error.message;
+          suggestions.hidden = true;
+        }
+      }
+
+      async function showDetails(symbol, exchange) {
+        const params = new URLSearchParams({ exchange });
+        const result = await apiRequest(`/api/instruments/${encodeURIComponent(symbol)}?${params}`);
+        const instrument = result.data;
+        detailsPanel.innerHTML = `
+          <div><div class="instrument-detail-heading">${escapeHtml(instrument.name)}</div><div class="muted">${escapeHtml(instrument.symbol)} · ${escapeHtml(instrument.exchange)} · ${escapeHtml(instrument.instrument_type || 'EQUITY')}</div></div>
+          <div class="instrument-detail-metrics"><span>Price<strong>${formatCurrency(instrument.price)}</strong></span><span>Change<strong class="${instrument.change >= 0 ? 'positive' : 'negative'}">${instrument.change >= 0 ? '+' : ''}${Number(instrument.change).toFixed(2)}%</strong></span><span>Sector<strong>${escapeHtml(instrument.sector || '—')}</strong></span></div>
+          <button class="secondary-btn" data-add="${escapeHtml(instrument.symbol)}" data-exchange="${escapeHtml(instrument.exchange)}"><i class="fa-solid fa-star"></i> Add to Watchlist</button>
+        `;
+        detailsPanel.hidden = false;
+        suggestions.hidden = true;
+      }
+
+      document.addEventListener('click', async (event) => {
+        const detailButton = event.target.closest('[data-detail]');
+        const addButton = event.target.closest('[data-add]');
+        const removeButton = event.target.closest('[data-remove]');
+        if (detailButton) {
+          try { await showDetails(detailButton.dataset.detail, detailButton.dataset.exchange); } catch (error) { window.alert(error.message); }
+        } else if (addButton) {
+          try {
+            await apiRequest('/api/watchlist', { method: 'POST', body: JSON.stringify({ symbol: addButton.dataset.add, exchange: addButton.dataset.exchange }) });
+            await loadWatchlist();
+            window.alert(`${addButton.dataset.add} added to watchlist`);
+          } catch (error) { window.alert(error.message); }
+        } else if (removeButton) {
+          try {
+            await apiRequest(`/api/watchlist/${encodeURIComponent(removeButton.dataset.remove)}`, { method: 'DELETE' });
+            await loadWatchlist();
+          } catch (error) { window.alert(error.message); }
+        } else if (!event.target.closest('.instrument-search')) {
+          suggestions.hidden = true;
+        }
+      });
+
+      searchInput.addEventListener('input', () => {
+        window.clearTimeout(suggestionTimer);
+        suggestionTimer = window.setTimeout(searchInstruments, 200);
+      });
+      exchangeInput.addEventListener('input', () => {
+        window.clearTimeout(suggestionTimer);
+        suggestionTimer = window.setTimeout(searchInstruments, 200);
+      });
+      loadWatchlist();
     </script>
   </body>
 </html>

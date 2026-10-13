@@ -26,7 +26,11 @@ function apiRequest(path, options = {}) {
     const contentType = response.headers.get('content-type') || '';
     const data = contentType.includes('application/json') ? await response.json().catch(() => ({})) : {};
     if (!response.ok) {
-      throw new Error(data.message || data.msg || 'Request failed');
+      const message = data.message || data.msg || 'Request failed';
+      if (response.status === 401 && token && !path.startsWith('/api/auth/')) {
+        logoutUser();
+      }
+      throw new Error(message);
     }
     return data;
   });
@@ -51,6 +55,31 @@ function parseUser() {
 }
 
 function bindSidebarNavigation() {
+  const sidebarNav = document.querySelector('.sidebar-nav');
+  if (sidebarNav && !sidebarNav.querySelector('[data-page="alpha-research"]')) {
+    const item = document.createElement('li');
+    item.className = 'nav-item';
+    if (window.location.pathname === '/alpha-research') {
+      item.classList.add('active');
+    }
+    item.dataset.page = 'alpha-research';
+    item.innerHTML = '<i class="fa-solid fa-flask"></i> Alpha Research';
+    const profileItem = sidebarNav.querySelector('[data-page="profile"]');
+    sidebarNav.insertBefore(item, profileItem || null);
+  }
+
+  if (sidebarNav && !sidebarNav.querySelector('[data-page="order-protection"]')) {
+    const item = document.createElement('li');
+    item.className = 'nav-item';
+    if (window.location.pathname === '/order-protection') {
+      item.classList.add('active');
+    }
+    item.dataset.page = 'order-protection';
+    item.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Order Protection';
+    const profileItem = sidebarNav.querySelector('[data-page="profile"]');
+    sidebarNav.insertBefore(item, profileItem || null);
+  }
+
   document.querySelectorAll('.nav-item[data-page]').forEach((item) => {
     item.style.cursor = 'pointer';
     item.onclick = () => {

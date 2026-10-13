@@ -50,14 +50,25 @@
         <div class="content-grid">
           <section class="panel">
             <div class="panel-header">
-              <div class="panel-title">Strategy Backtest Report</div>
-              <button class="secondary-btn">Run Strategy</button>
+              <div>
+                <div class="panel-title">Historical Strategy Backtest</div>
+                <p class="subtitle">Uses daily closes from the historical CSV only. Dashboard demo quotes and Kite data are not used.</p>
+              </div>
             </div>
+            <form id="backtest-form" class="instrument-search-controls">
+              <label for="backtest-symbol">Historical symbol</label>
+              <select id="backtest-symbol" name="symbol" required></select>
+              <label for="backtest-capital">Initial capital (₹)</label>
+              <input id="backtest-capital" name="initial_capital" type="number" min="1" step="0.01" value="100000" required />
+              <div class="market-data-status">Strategy: 20/50-day simple moving-average crossover</div>
+              <button class="primary-btn" id="backtest-submit" type="submit">Run historical backtest</button>
+            </form>
+            <p id="backtest-status" class="market-data-status" role="status">Loading historical CSV coverage...</p>
             <div class="stats-grid">
-              <div class="stat-card"><div class="stat-header"><span>Total Return</span><span class="stat-icon"><i class="fa-solid fa-arrow-trend-up"></i></span></div><div class="stat-value">+24.8%</div><div class="stat-trend">Above benchmark</div></div>
-              <div class="stat-card"><div class="stat-header"><span>Sharpe Ratio</span><span class="stat-icon"><i class="fa-solid fa-chart-simple"></i></span></div><div class="stat-value">1.82</div><div class="stat-trend">Strong risk-adjusted gain</div></div>
-              <div class="stat-card"><div class="stat-header"><span>Max Drawdown</span><span class="stat-icon"><i class="fa-solid fa-arrow-down-short-wide"></i></span></div><div class="stat-value">-11.4%</div><div class="stat-trend">Contained</div></div>
-              <div class="stat-card"><div class="stat-header"><span>Win Rate</span><span class="stat-icon"><i class="fa-solid fa-trophy"></i></span></div><div class="stat-value">68.2%</div><div class="stat-trend">Consistent</div></div>
+              <div class="stat-card"><div class="stat-header"><span>Total Return</span><span class="stat-icon"><i class="fa-solid fa-arrow-trend-up"></i></span></div><div class="stat-value" id="backtest-return">—</div><div class="stat-trend" id="backtest-final-value">Run a backtest to see results</div></div>
+              <div class="stat-card"><div class="stat-header"><span>Profit Factor</span><span class="stat-icon"><i class="fa-solid fa-chart-simple"></i></span></div><div class="stat-value" id="backtest-profit-factor">—</div><div class="stat-trend" id="backtest-trades">Historical closed trades</div></div>
+              <div class="stat-card"><div class="stat-header"><span>Max Drawdown</span><span class="stat-icon"><i class="fa-solid fa-arrow-down-short-wide"></i></span></div><div class="stat-value" id="backtest-drawdown">—</div><div class="stat-trend">Calculated from the historical equity curve</div></div>
+              <div class="stat-card"><div class="stat-header"><span>Win Rate</span><span class="stat-icon"><i class="fa-solid fa-trophy"></i></span></div><div class="stat-value" id="backtest-win-rate">—</div><div class="stat-trend" id="backtest-period">Historical CSV period</div></div>
             </div>
           </section>
         </div>
@@ -67,13 +78,84 @@
     <script src="/js/api.js"></script>
     <script>
       const user = parseUser();
+      const form = document.getElementById('backtest-form');
+      const status = document.getElementById('backtest-status');
+      if (!requireAuth()) { throw new Error('Not authenticated'); }
       if (user) {
         document.getElementById('top-user-name').textContent = user.full_name || user.username;
         document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
       }
+
+      function setBacktestStatus(message, isError = false) {
+        status.textContent = message;
+        status.classList.toggle('error', isError);
+      }
+
+      async function loadHistoricalSymbols() {
+        try {
+          const response = await apiRequest('/api/backtest/instruments');
+          const symbolSelect = document.getElementById('backtest-symbol');
+          symbolSelect.replaceChildren();
+          (response.data || []).forEach((item) => {
+            const option = document.createElement('option');
+            option.value = item.symbol;
+            option.textContent = `${item.symbol} · ${item.start_date} – ${item.end_date} (${item.observations} sessions)`;
+            symbolSelect.append(option);
+          });
+          if (!symbolSelect.options.length) {
+            symbolSelect.innerHTML = '<option value="">No historical symbols available</option>';
+            document.getElementById('backtest-submit').disabled = true;
+            setBacktestStatus('No historical observations are available in the CSV.', true);
+            return;
+          }
+          setBacktestStatus(`${response.data.length} symbols available · source: historical CSV only.`);
+        } catch (error) {
+          if (error.message.includes('Authorization')) {
+            logoutUser();
+            return;
+          }
+          setBacktestStatus(error.message || 'Historical CSV coverage could not be loaded.', true);
+          document.getElementById('backtest-submit').disabled = true;
+        }
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const submit = document.getElementById('backtest-submit');
+        submit.disabled = true;
+        setBacktestStatus('Calculating from historical daily closes...');
+        try {
+          const response = await apiRequest('/api/backtest', {
+            method: 'POST',
+            body: JSON.stringify({
+              symbol: document.getElementById('backtest-symbol').value,
+              initial_capital: document.getElementById('backtest-capital').value,
+            }),
+          });
+          const result = response.data;
+          document.getElementById('backtest-return').textContent = `${result.total_return >= 0 ? '+' : ''}${result.total_return}%`;
+          document.getElementById('backtest-final-value').textContent = `Final value ${formatCurrency(result.final_value)}`;
+          document.getElementById('backtest-profit-factor').textContent = result.profit_factor || '—';
+          document.getElementById('backtest-trades').textContent = `${result.total_trades} closed trades`;
+          document.getElementById('backtest-drawdown').textContent = `-${result.max_drawdown}%`;
+          document.getElementById('backtest-win-rate').textContent = `${result.win_rate}%`;
+          document.getElementById('backtest-period').textContent = `${result.start_date} to ${result.end_date} · ${result.observations} observations`;
+          setBacktestStatus(`${result.strategy_name} · ${result.symbol} · ${result.data_source} only. Excludes fees, slippage, and dividends.`);
+        } catch (error) {
+          if (error.message.includes('Authorization')) {
+            logoutUser();
+            return;
+          }
+          setBacktestStatus(error.message || 'Historical backtest failed.', true);
+        } finally {
+          submit.disabled = false;
+        }
+      });
+
       document.getElementById('logout-btn').addEventListener('click', logoutUser);
       document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
       bindSidebarNavigation();
+      loadHistoricalSymbols();
     </script>
   </body>
 </html>

@@ -51,13 +51,80 @@
           <section class="panel">
             <div class="panel-header strategy-header">
               <div class="panel-title">Strategy Library</div>
-              <button class="secondary-btn">+ New Strategy</button>
+              <button class="secondary-btn" id="new-strategy-button" type="button">+ New Strategy</button>
             </div>
+            <p id="strategy-status" class="market-data-status">Loading demo strategy templates...</p>
             <div class="search-box" style="margin-bottom: 18px;">
               <i class="fa-solid fa-magnifying-glass"></i>
-              <input id="strategy-search" type="text" placeholder="Search strategy, stock, or signal reason" />
+              <input id="strategy-search" type="text" placeholder="Search strategies or rule descriptions" />
             </div>
             <div class="strategy-grid" id="strategy-grid"></div>
+          </section>
+
+          <section class="panel strategy-builder-panel" id="strategy-builder-panel" hidden>
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Build a rule-based strategy</div>
+                <div class="subtitle">Create BUY and SELL rules using indicator comparisons.</div>
+              </div>
+              <button class="secondary-btn" id="close-builder-button" type="button">Close</button>
+            </div>
+            <form id="strategy-builder-form">
+              <div class="form-group">
+                <label for="strategy-name">Strategy name</label>
+                <input id="strategy-name" name="name" type="text" maxlength="80" required />
+              </div>
+              <div class="form-group">
+                <label for="strategy-description">Description <span class="muted">Optional, up to 250 characters</span></label>
+                <input id="strategy-description" name="description" type="text" maxlength="250" />
+              </div>
+
+              <div class="strategy-rule-groups">
+                <section class="strategy-rule-group">
+                  <div class="strategy-rule-header">
+                    <h3>BUY conditions</h3>
+                    <label>Match
+                      <select id="buy-logic" aria-label="BUY condition logic">
+                        <option value="AND">All (AND)</option>
+                        <option value="OR">Any (OR)</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="strategy-condition-list" id="buy-condition-list"></div>
+                  <button type="button" class="secondary-btn add-condition-button" data-side="buy">+ Add BUY condition</button>
+                </section>
+
+                <section class="strategy-rule-group">
+                  <div class="strategy-rule-header">
+                    <h3>SELL conditions</h3>
+                    <label>Match
+                      <select id="sell-logic" aria-label="SELL condition logic">
+                        <option value="AND">All (AND)</option>
+                        <option value="OR">Any (OR)</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="strategy-condition-list" id="sell-condition-list"></div>
+                  <button type="button" class="secondary-btn add-condition-button" data-side="sell">+ Add SELL condition</button>
+                </section>
+              </div>
+
+              <div class="strategy-preview-panel">
+                <div class="panel-title">Rule preview</div>
+                <div id="strategy-rule-preview" class="strategy-rule-preview"></div>
+                <p class="subtitle">Set indicator snapshot values yourself. This preview is not live market data or a historical indicator chart.</p>
+                <div id="strategy-snapshot-fields" class="strategy-snapshot-fields"></div>
+                <button type="button" class="secondary-btn" id="preview-strategy-button">Preview signal</button>
+                <div id="strategy-signal-preview" class="strategy-signal-preview" role="status" aria-live="polite" hidden></div>
+                <div id="indicator-condition-chart" class="indicator-condition-chart" aria-label="Indicator condition results" hidden></div>
+              </div>
+
+              <div id="strategy-builder-error" class="alert error" role="alert" hidden></div>
+              <div id="strategy-builder-success" class="alert success" role="status" hidden></div>
+              <div class="strategy-builder-actions">
+                <button type="submit" class="primary-btn" id="save-strategy-button">Save strategy</button>
+              </div>
+            </form>
           </section>
         </div>
       </main>
@@ -75,49 +142,37 @@
       const strategyCatalog = [
         {
           name: 'Moving Average / EMA',
-          signal: 'BUY',
-          score: 78,
           description: 'Short-term EMA crossing above long-term EMA indicates a bullish trend change and stronger momentum.',
           logic: 'BUY when the faster EMA moves above the slower EMA. SELL when the faster EMA falls below. HOLD when the trend is flat or noisy.'
         },
         {
           name: 'MACD',
-          signal: 'BUY',
-          score: 81,
           description: 'MACD line crossing above the signal line shows rising momentum and a possible continuation of the uptrend.',
           logic: 'BUY when MACD crosses above the signal line. SELL when MACD crosses below. HOLD when both lines are close and trend strength is weak.'
         },
         {
           name: 'RSI',
-          signal: 'HOLD',
-          score: 64,
           description: 'RSI measures momentum strength and identifies oversold or overbought zones for reversal trades.',
           logic: 'BUY below 30, SELL above 70, HOLD between 40 and 60 to avoid false breakouts.'
         },
         {
           name: 'VWAP',
-          signal: 'BUY',
-          score: 72,
           description: 'Price trading above VWAP often means institutional buying pressure and a healthy trend environment.',
           logic: 'BUY when price remains above VWAP and volume supports the move. SELL when price closes below VWAP.'
         },
         {
           name: 'Bollinger Bands',
-          signal: 'SELL',
-          score: 58,
           description: 'Bands widen or contract with volatility, helping identify breakout or reversal opportunities near the extreme bands.',
           logic: 'BUY near the lower band during strength, SELL near the upper band during exhaustion, HOLD in the middle range.'
         },
         {
           name: 'ATR',
-          signal: 'HOLD',
-          score: 61,
           description: 'ATR reflects volatility; it helps size risk and decide whether a move is likely to continue or fade.',
           logic: 'High ATR supports trend continuation; low ATR suggests sideways or weak movement, resulting in HOLD or tight risk management.'
         }
       ];
 
-      let currentStrategyCards = [...strategyCatalog];
+      let currentStrategyCards = [];
 
       function getSignalClass(signal) {
         const level = String(signal || '').toUpperCase();
@@ -126,11 +181,17 @@
         return 'hold';
       }
 
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        })[char]);
+      }
+
       function renderStrategyCards(cards) {
         const grid = document.getElementById('strategy-grid');
         const query = document.getElementById('strategy-search').value.trim().toLowerCase();
         const filtered = cards.filter((strategy) => {
-          const haystack = `${strategy.name} ${strategy.description} ${strategy.logic} ${strategy.signal}`.toLowerCase();
+          const haystack = `${strategy.name} ${strategy.description} ${strategy.logic || ''}`.toLowerCase();
           return haystack.includes(query);
         });
 
@@ -143,44 +204,341 @@
           <article class="strategy-card">
             <div class="strategy-head">
               <div>
-                <div class="strategy-name">${strategy.name}</div>
-                <div class="strategy-subtitle">Technical indicator logic</div>
+                <div class="strategy-name">${escapeHtml(strategy.name)}</div>
+                <div class="strategy-subtitle">${strategy.isCustom ? 'Saved custom rules' : 'Demo template · not a live signal'}</div>
               </div>
-              <span class="decision-pill ${getSignalClass(strategy.signal)}">${strategy.signal}</span>
+              <span class="decision-pill ${getSignalClass(strategy.isCustom ? 'CUSTOM' : 'TEMPLATE')}">${strategy.isCustom ? 'CUSTOM' : 'TEMPLATE'}</span>
             </div>
-            <div class="strategy-score">${strategy.score}% confidence</div>
-            <p>${strategy.description}</p>
+            <div class="strategy-score">${strategy.isCustom
+              ? 'Custom rules · no historical performance'
+              : strategy.score == null
+                ? 'Demo template · not backtested'
+                : `${escapeHtml(strategy.score)}% seeded example win rate · ${escapeHtml(strategy.totalTrades || 0)} example trades`}</div>
+            <p>${escapeHtml(strategy.description)}</p>
             <div class="strategy-logic">
-              <strong>Why this signal:</strong>
-              <span>${strategy.logic}</span>
+              <strong>${strategy.isCustom ? 'Rules:' : 'Template logic:'}</strong>
+              <span>${escapeHtml(strategy.logic)}</span>
             </div>
           </article>
         `).join('');
       }
 
+      const indicatorLabels = {
+        price: 'Price',
+        rsi: 'RSI',
+        macd: 'MACD',
+        ema: 'EMA',
+        sma: 'SMA',
+        bollinger_upper: 'Bollinger upper band',
+        bollinger_middle: 'Bollinger middle band',
+        bollinger_lower: 'Bollinger lower band',
+        moving_average: 'Moving average',
+        vwap: 'VWAP',
+        atr: 'ATR',
+        obv: 'OBV',
+        volume: 'Volume',
+      };
+      const operatorLabels = { gt: '>', gte: '≥', lt: '<', lte: '≤', eq: '=' };
+      const operatorNames = [
+        ['gt', 'Greater than (>)'],
+        ['gte', 'At least (≥)'],
+        ['lt', 'Less than (<)'],
+        ['lte', 'At most (≤)'],
+        ['eq', 'Equal to (=)'],
+      ];
+
+      function addCondition(side, condition = { indicator: 'rsi', operator: side === 'buy' ? 'lt' : 'gt', value: '' }) {
+        const list = document.getElementById(`${side}-condition-list`);
+        if (list.children.length >= 10) {
+          showBuilderError(`A maximum of 10 ${side.toUpperCase()} conditions is allowed.`);
+          return;
+        }
+        const row = document.createElement('div');
+        row.className = 'strategy-condition-row';
+
+        const indicatorLabel = document.createElement('label');
+        indicatorLabel.textContent = 'Indicator';
+        const indicatorSelect = document.createElement('select');
+        indicatorSelect.className = 'condition-indicator';
+        indicatorSelect.setAttribute('aria-label', `${side.toUpperCase()} condition indicator`);
+        Object.entries(indicatorLabels).forEach(([value, label]) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = label;
+          option.selected = condition.indicator === value;
+          indicatorSelect.append(option);
+        });
+        indicatorLabel.append(indicatorSelect);
+
+        const operatorLabel = document.createElement('label');
+        operatorLabel.textContent = 'Comparison';
+        const operatorSelect = document.createElement('select');
+        operatorSelect.className = 'condition-operator';
+        operatorSelect.setAttribute('aria-label', `${side.toUpperCase()} condition comparison`);
+        operatorNames.forEach(([value, label]) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = label;
+          option.selected = condition.operator === value;
+          operatorSelect.append(option);
+        });
+        operatorLabel.append(operatorSelect);
+
+        const valueLabel = document.createElement('label');
+        valueLabel.textContent = 'Value';
+        const valueInput = document.createElement('input');
+        valueInput.className = 'condition-value';
+        valueInput.type = 'number';
+        valueInput.step = 'any';
+        valueInput.required = true;
+        valueInput.value = condition.value ?? '';
+        valueInput.setAttribute('aria-label', `${side.toUpperCase()} condition value`);
+        valueLabel.append(valueInput);
+
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'secondary-btn remove-condition-button';
+        removeButton.textContent = 'Remove';
+        removeButton.setAttribute('aria-label', `Remove ${side.toUpperCase()} condition`);
+        removeButton.addEventListener('click', () => {
+          row.remove();
+          updateRulePreview();
+        });
+
+        row.append(indicatorLabel, operatorLabel, valueLabel, removeButton);
+        list.append(row);
+        row.addEventListener('input', updateRulePreview);
+        row.addEventListener('change', updateRulePreview);
+        updateRulePreview();
+      }
+
+      function showBuilderError(message) {
+        const errorBox = document.getElementById('strategy-builder-error');
+        errorBox.textContent = message;
+        errorBox.hidden = false;
+        document.getElementById('strategy-builder-success').hidden = true;
+      }
+
+      function readConditionGroup(side) {
+        const rows = [...document.querySelectorAll(`#${side}-condition-list .strategy-condition-row`)];
+        if (!rows.length) {
+          throw new Error(`Add at least one ${side.toUpperCase()} condition.`);
+        }
+        return rows.map((row) => {
+          const value = row.querySelector('.condition-value').value.trim();
+          if (value === '' || !Number.isFinite(Number(value))) {
+            throw new Error(`Enter a valid number for every ${side.toUpperCase()} condition.`);
+          }
+          return {
+            indicator: row.querySelector('.condition-indicator').value,
+            operator: row.querySelector('.condition-operator').value,
+            value: Number(value),
+          };
+        });
+      }
+
+      function readStrategyRules() {
+        return {
+          buy_logic: document.getElementById('buy-logic').value,
+          buy_conditions: readConditionGroup('buy'),
+          sell_logic: document.getElementById('sell-logic').value,
+          sell_conditions: readConditionGroup('sell'),
+        };
+      }
+
+      function formatConditions(conditions, logic) {
+        return conditions.map((condition) =>
+          `${indicatorLabels[condition.indicator]} ${operatorLabels[condition.operator]} ${condition.value}`
+        ).join(` ${logic} `);
+      }
+
+      function updateRulePreview() {
+        const preview = document.getElementById('strategy-rule-preview');
+        const snapshotFields = document.getElementById('strategy-snapshot-fields');
+        document.getElementById('strategy-signal-preview').hidden = true;
+        document.getElementById('indicator-condition-chart').hidden = true;
+        try {
+          const buyConditions = readConditionGroup('buy');
+          const sellConditions = readConditionGroup('sell');
+          const buyLogic = document.getElementById('buy-logic').value;
+          const sellLogic = document.getElementById('sell-logic').value;
+          preview.textContent = `BUY when ${formatConditions(buyConditions, buyLogic)}. SELL when ${formatConditions(sellConditions, sellLogic)}.`;
+
+          const indicators = [...new Set([...buyConditions, ...sellConditions].map((condition) => condition.indicator))];
+          const existing = new Map([...snapshotFields.querySelectorAll('input')].map((input) => [
+            input.dataset.indicator, input.value,
+          ]));
+          snapshotFields.replaceChildren();
+          indicators.forEach((indicator) => {
+            const label = document.createElement('label');
+            label.textContent = `${indicatorLabels[indicator]} snapshot`;
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = 'any';
+            input.required = true;
+            input.dataset.indicator = indicator;
+            input.value = existing.get(indicator) || '';
+            input.setAttribute('aria-label', `${indicatorLabels[indicator]} preview snapshot value`);
+            label.append(input);
+            snapshotFields.append(label);
+          });
+        } catch {
+          preview.textContent = 'Complete the BUY and SELL conditions to preview the rules.';
+          snapshotFields.replaceChildren();
+        }
+      }
+
       async function loadStrategies() {
         try {
           const data = await apiRequest('/api/strategies');
-          const cards = (data.data || []).length ? data.data.map((item, index) => ({
+          const savedStrategies = data.data || [];
+          const builtIns = savedStrategies.filter((item) => !item.is_custom);
+          const cards = builtIns.length ? builtIns.map((item, index) => ({
             ...strategyCatalog[index % strategyCatalog.length],
             name: item.name || strategyCatalog[index % strategyCatalog.length].name,
-            score: Number(item.win_rate || strategyCatalog[index % strategyCatalog.length].score),
+            score: Number(item.win_rate),
+            totalTrades: item.total_trades,
             description: item.description || strategyCatalog[index % strategyCatalog.length].description,
-            signal: item.status === 'Paused' ? 'HOLD' : (index % 2 === 0 ? 'BUY' : 'SELL'),
             logic: strategyCatalog[index % strategyCatalog.length].logic,
-          })) : strategyCatalog;
+          })) : strategyCatalog.map((item) => ({ ...item }));
+          savedStrategies.filter((item) => item.is_custom).forEach((item) => {
+            cards.push({
+              name: item.name,
+              description: item.description || 'Custom strategy with saved indicator rules.',
+              signal: 'CUSTOM',
+              logic: `BUY: ${formatConditions(item.buy_conditions, item.buy_logic)}; SELL: ${formatConditions(item.sell_conditions, item.sell_logic)}`,
+              isCustom: true,
+            });
+          });
 
           currentStrategyCards = cards;
+          document.getElementById('strategy-status').textContent =
+            `${builtIns.length} seeded strategy examples · metrics are demo values, not results calculated from current prices.`;
           renderStrategyCards(currentStrategyCards);
         } catch (error) {
           if (error.message.includes('Authorization')) {
             logoutUser();
             return;
           }
-          currentStrategyCards = [...strategyCatalog];
-          renderStrategyCards(currentStrategyCards);
+          document.getElementById('strategy-status').textContent = error.message;
+          document.getElementById('strategy-grid').innerHTML =
+            '<div class="empty-state">Strategies could not be loaded.</div>';
         }
       }
+
+      const builderPanel = document.getElementById('strategy-builder-panel');
+      const builderForm = document.getElementById('strategy-builder-form');
+      const errorBox = document.getElementById('strategy-builder-error');
+      const successBox = document.getElementById('strategy-builder-success');
+
+      function resetBuilder() {
+        builderForm.reset();
+        document.getElementById('strategy-description').value = '';
+        document.getElementById('buy-condition-list').replaceChildren();
+        document.getElementById('sell-condition-list').replaceChildren();
+        document.getElementById('strategy-signal-preview').hidden = true;
+        document.getElementById('indicator-condition-chart').hidden = true;
+        errorBox.hidden = true;
+        successBox.hidden = true;
+        addCondition('buy', { indicator: 'rsi', operator: 'lt', value: 30 });
+        addCondition('sell', { indicator: 'rsi', operator: 'gt', value: 70 });
+      }
+
+      document.getElementById('new-strategy-button').addEventListener('click', () => {
+        resetBuilder();
+        builderPanel.hidden = false;
+        builderPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('strategy-name').focus();
+      });
+      document.getElementById('close-builder-button').addEventListener('click', () => {
+        builderPanel.hidden = true;
+      });
+      document.querySelectorAll('.add-condition-button').forEach((button) => {
+        button.addEventListener('click', () => addCondition(button.dataset.side));
+      });
+      document.getElementById('buy-logic').addEventListener('change', updateRulePreview);
+      document.getElementById('sell-logic').addEventListener('change', updateRulePreview);
+
+      document.getElementById('preview-strategy-button').addEventListener('click', async () => {
+        errorBox.hidden = true;
+        const resultBox = document.getElementById('strategy-signal-preview');
+        const conditionChart = document.getElementById('indicator-condition-chart');
+        try {
+          const rules = readStrategyRules();
+          const indicatorValues = {};
+          document.querySelectorAll('#strategy-snapshot-fields input').forEach((input) => {
+            if (input.value.trim() === '' || !Number.isFinite(Number(input.value))) {
+              throw new Error(`Enter a valid ${indicatorLabels[input.dataset.indicator]} snapshot value.`);
+            }
+            indicatorValues[input.dataset.indicator] = Number(input.value);
+          });
+          const response = await apiRequest('/api/strategies/preview', {
+            method: 'POST',
+            body: JSON.stringify({ ...rules, indicator_values: indicatorValues }),
+          });
+          const result = response.data;
+          const details = [
+            `BUY rules ${result.buy_matches ? 'match' : 'do not match'}`,
+            `SELL rules ${result.sell_matches ? 'match' : 'do not match'}`,
+          ];
+          resultBox.textContent = `Preview signal: ${result.signal}. ${result.conflict ? 'Both rule groups match, so the preview safely returns HOLD. ' : ''}${details.join('; ')}.`;
+          resultBox.hidden = false;
+          conditionChart.replaceChildren();
+          [
+            ['BUY', result.buy_results],
+            ['SELL', result.sell_results],
+          ].forEach(([side, conditions]) => {
+            conditions.forEach((condition) => {
+              const row = document.createElement('div');
+              row.className = `indicator-condition-bar ${condition.matched ? 'matched' : 'not-matched'}`;
+              const label = document.createElement('span');
+              label.textContent = `${side}: ${condition.label}`;
+              const meter = document.createElement('span');
+              meter.className = 'indicator-condition-track';
+              meter.setAttribute('aria-hidden', 'true');
+              const fill = document.createElement('span');
+              fill.className = 'indicator-condition-fill';
+              meter.append(fill);
+              const status = document.createElement('strong');
+              status.textContent = `${condition.actual} ${condition.matched ? 'Matched' : 'Not matched'}`;
+              row.append(label, meter, status);
+              conditionChart.append(row);
+            });
+          });
+          conditionChart.hidden = false;
+        } catch (error) {
+          conditionChart.hidden = true;
+          showBuilderError(error.message);
+        }
+      });
+
+      builderForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        errorBox.hidden = true;
+        successBox.hidden = true;
+        const saveButton = document.getElementById('save-strategy-button');
+        saveButton.disabled = true;
+        saveButton.textContent = 'Saving...';
+        try {
+          const rules = readStrategyRules();
+          const response = await apiRequest('/api/strategies', {
+            method: 'POST',
+            body: JSON.stringify({
+              name: document.getElementById('strategy-name').value.trim(),
+              description: document.getElementById('strategy-description').value.trim(),
+              ...rules,
+            }),
+          });
+          successBox.textContent = `${response.data.name} saved to your strategy library.`;
+          successBox.hidden = false;
+          await loadStrategies();
+        } catch (error) {
+          showBuilderError(error.message);
+        } finally {
+          saveButton.disabled = false;
+          saveButton.textContent = 'Save strategy';
+        }
+      });
 
       document.getElementById('logout-btn').addEventListener('click', logoutUser);
       document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));

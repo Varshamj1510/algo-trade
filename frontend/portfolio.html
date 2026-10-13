@@ -48,21 +48,53 @@
         </header>
 
         <div class="content-grid">
+          <div class="hero-row">
+            <div>
+              <h2 class="welcome">Your demo portfolio</h2>
+              <div class="subtitle">A sample view of your holdings, seeded prices, and portfolio performance.</div>
+            </div>
+            <div class="date-pill">DEMO · NOT LIVE</div>
+          </div>
+
+          <div class="stats-grid portfolio-summary" aria-label="Demo portfolio summary">
+            <section class="stat-card">
+              <div class="stat-header"><span>Market value</span><span class="stat-icon"><i class="fa-solid fa-wallet"></i></span></div>
+              <div class="stat-value" id="portfolio-market-value">--</div>
+              <div class="stat-trend">Based on seeded demo prices</div>
+            </section>
+            <section class="stat-card">
+              <div class="stat-header"><span>Invested</span><span class="stat-icon"><i class="fa-solid fa-coins"></i></span></div>
+              <div class="stat-value" id="portfolio-invested">--</div>
+              <div class="stat-trend">Average cost × quantity</div>
+            </section>
+            <section class="stat-card">
+              <div class="stat-header"><span>Today's P&amp;L</span><span class="stat-icon"><i class="fa-solid fa-chart-line"></i></span></div>
+              <div class="stat-value" id="portfolio-today-pnl">--</div>
+              <div class="stat-trend">Illustrative demo movement</div>
+            </section>
+            <section class="stat-card">
+              <div class="stat-header"><span>Total return</span><span class="stat-icon"><i class="fa-solid fa-arrow-trend-up"></i></span></div>
+              <div class="stat-value" id="portfolio-total-return">--</div>
+              <div class="stat-trend" id="portfolio-return-amount">Demo profit/loss</div>
+            </section>
+          </div>
+
           <section class="panel">
             <div class="panel-header">
-              <div class="panel-title">Portfolio Holdings</div>
+              <div>
+                <div class="panel-title">Holdings</div>
+                <p id="portfolio-status" class="market-data-status" role="status" aria-live="polite">Loading seeded demo portfolio...</p>
+              </div>
             </div>
-            <table class="portfolio-table">
-              <thead>
-                <tr><th>Symbol</th><th>Qty</th><th>Avg Cost</th><th>Last Price</th><th>Market Value</th><th>P/L</th></tr>
-              </thead>
-              <tbody>
-                <tr><td>RELIANCE</td><td>120</td><td>₹2,650</td><td>₹2,856</td><td>₹3,42,720</td><td class="positive">+₹24,720</td></tr>
-                <tr><td>TCS</td><td>80</td><td>₹3,420</td><td>₹3,620</td><td>₹2,89,600</td><td class="positive">+₹16,000</td></tr>
-                <tr><td>INFY</td><td>150</td><td>₹1,440</td><td>₹1,482</td><td>₹2,22,300</td><td class="positive">+₹6,300</td></tr>
-                <tr><td>HDFCBANK</td><td>60</td><td>₹1,700</td><td>₹1,721</td><td>₹1,03,260</td><td class="positive">+₹1,260</td></tr>
-              </tbody>
-            </table>
+            <div style="overflow-x: auto;">
+              <table class="portfolio-table">
+                <thead>
+                  <tr><th>Symbol</th><th>Quantity</th><th>Avg. cost</th><th>Demo price</th><th>Market value</th><th>Total P&amp;L</th><th>Return</th></tr>
+                </thead>
+                <tbody><tr><td colspan="7" class="empty-state">Loading demo portfolio...</td></tr></tbody>
+              </table>
+            </div>
+            <p class="market-data-status">All amounts and returns on this page are seeded sample data for demonstration only. They are not live quotes, brokerage records, or investment advice.</p>
           </section>
         </div>
       </main>
@@ -77,24 +109,59 @@
         document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
       }
 
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+      }
+
+      function formatSignedCurrency(value) {
+        const amount = Number(value) || 0;
+        return `${amount >= 0 ? '+' : '-'}${formatCurrency(Math.abs(amount))}`;
+      }
+
+      function setPortfolioSummary(data, holdings) {
+        const invested = holdings.reduce((total, holding) => total + Number(holding.investment || 0), 0);
+        const marketValue = Number(data.total_value) || 0;
+        const todayPnl = Number(data.today_pnl) || 0;
+        const totalProfit = Number(data.total_profit) || 0;
+        const returnPercent = Number(data.overall_return) || 0;
+
+        document.getElementById('portfolio-market-value').textContent = formatCurrency(marketValue);
+        document.getElementById('portfolio-invested').textContent = formatCurrency(invested);
+        const todayValue = document.getElementById('portfolio-today-pnl');
+        todayValue.textContent = formatSignedCurrency(todayPnl);
+        todayValue.className = `stat-value ${todayPnl >= 0 ? 'positive' : 'negative'}`;
+        const returnValue = document.getElementById('portfolio-total-return');
+        returnValue.textContent = `${returnPercent >= 0 ? '+' : ''}${returnPercent.toFixed(2)}%`;
+        returnValue.className = `stat-value ${returnPercent >= 0 ? 'positive' : 'negative'}`;
+        const returnAmount = document.getElementById('portfolio-return-amount');
+        returnAmount.textContent = `${formatSignedCurrency(totalProfit)} demo P/L`;
+        returnAmount.className = `stat-trend ${totalProfit >= 0 ? 'positive' : 'negative'}`;
+      }
+
       async function loadPortfolio() {
         try {
           const data = await apiRequest('/api/portfolio');
           const table = document.querySelector('.portfolio-table tbody');
           const holdings = data.holdings || [];
+          setPortfolioSummary(data, holdings);
+          document.getElementById('portfolio-status').textContent =
+            data.holdings_source === 'seeded-demo'
+              ? `Showing ${holdings.length} seeded sample holdings because this account has no saved positions · not live.`
+              : `${holdings.length} demo holding${holdings.length === 1 ? '' : 's'} · seeded prices · not live.`;
           if (!holdings.length) {
-            table.innerHTML = '<tr><td colspan="6" class="empty-state">No holdings available.</td></tr>';
+            table.innerHTML = '<tr><td colspan="7" class="empty-state">No demo holdings are available for this account yet.</td></tr>';
             return;
           }
 
           table.innerHTML = holdings.map((holding) => `
             <tr>
-              <td>${holding.symbol}</td>
-              <td>${holding.quantity}</td>
+              <td>${escapeHtml(holding.symbol)}</td>
+              <td>${Number(holding.quantity).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
               <td>${formatCurrency(holding.average_price)}</td>
               <td>${formatCurrency(holding.current_price)}</td>
               <td>${formatCurrency(holding.current_value)}</td>
-              <td class="${holding.pnl >= 0 ? 'positive' : 'negative'}">${holding.pnl >= 0 ? '+' : '-'}${formatCurrency(Math.abs(holding.pnl))}</td>
+              <td class="${holding.pnl >= 0 ? 'positive' : 'negative'}">${formatSignedCurrency(holding.pnl)}</td>
+              <td class="${holding.pnl_pct >= 0 ? 'positive' : 'negative'}">${holding.pnl_pct >= 0 ? '+' : ''}${Number(holding.pnl_pct).toFixed(2)}%</td>
             </tr>
           `).join('');
         } catch (error) {
@@ -102,6 +169,11 @@
             logoutUser();
             return;
           }
+          document.getElementById('portfolio-status').textContent = error.message;
+          ['portfolio-market-value', 'portfolio-invested', 'portfolio-today-pnl', 'portfolio-total-return']
+            .forEach((id) => { document.getElementById(id).textContent = '--'; });
+          document.querySelector('.portfolio-table tbody').innerHTML =
+            '<tr><td colspan="7" class="empty-state">Demo portfolio data could not be loaded. Please refresh to try again.</td></tr>';
         }
       }
 
@@ -109,7 +181,6 @@
       document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
       bindSidebarNavigation();
       loadPortfolio();
-      setInterval(loadPortfolio, 10000);
     </script>
   </body>
 </html>

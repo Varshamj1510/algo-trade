@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlgoTrade | Alpha Research</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand"><div class="brand-mark">AI</div><h1>AlgoTrade</h1></div>
+        <ul class="sidebar-nav">
+          <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
+          <li class="nav-item" data-page="market"><i class="fa-solid fa-chart-column"></i> Market Data</li>
+          <li class="nav-item" data-page="signals"><i class="fa-solid fa-bolt"></i> Trade Signals</li>
+          <li class="nav-item" data-page="strategies"><i class="fa-solid fa-diagram-project"></i> Strategies</li>
+          <li class="nav-item" data-page="portfolio"><i class="fa-solid fa-wallet"></i> Portfolio</li>
+          <li class="nav-item" data-page="backtesting"><i class="fa-solid fa-flask-vial"></i> Backtesting</li>
+          <li class="nav-item" data-page="reports"><i class="fa-solid fa-file-lines"></i> Reports</li>
+          <li class="nav-item" data-page="watchlist"><i class="fa-solid fa-star"></i> Watchlist</li>
+          <li class="nav-item" data-page="alerts"><i class="fa-solid fa-bell"></i> Alerts</li>
+          <li class="nav-item" data-page="profile"><i class="fa-solid fa-user"></i> Profile Settings</li>
+          <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</li>
+        </ul>
+      </aside>
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu" id="menu-toggle"><i class="fa fa-bars"></i></button>
+            <span class="page-title">AI / Alpha Research</span>
+          </div>
+          <div class="topbar-right">
+            <div class="user-chip"><div class="avatar" id="user-avatar">V</div><div><div class="user-name" id="top-user-name">Investor</div><div class="user-plan">Research workspace</div></div></div>
+          </div>
+        </header>
+
+        <div class="content-grid">
+          <section class="panel alpha-research-card">
+            <div class="panel-header alpha-header">
+              <div>
+                <div class="panel-title">Historical Alpha Research</div>
+                <p class="subtitle">Build technical factors from real daily candles, compare models, rank factors, and inspect latent representations.</p>
+              </div>
+              <form id="research-form" class="alpha-controls">
+                <label>Symbol<input id="research-symbol" value="RELIANCE" maxlength="30" required /></label>
+                <label>Exchange<select id="research-exchange"><option>NSE</option><option>BSE</option></select></label>
+                <label>History<select id="research-timeframe"><option value="1Y" selected>1 year</option><option value="5Y">5 years</option></select></label>
+                <button class="primary-button" id="research-submit" type="submit">Run research</button>
+              </form>
+            </div>
+            <p id="research-status" class="analysis-status" role="status">Connect Kite from Market Data, then run research on a supported NSE/BSE instrument.</p>
+            <div id="research-results" hidden>
+              <div class="alpha-summary" id="alpha-summary"></div>
+              <div class="alpha-columns">
+                <section class="alpha-subpanel">
+                  <h2>Model estimates &amp; chronological validation</h2>
+                  <div class="alpha-model-grid" id="alpha-models"></div>
+                  <p class="muted alpha-explainer">The models predict the next five-session return in percent. Validation is a time-ordered holdout; direction accuracy is not a live-performance guarantee.</p>
+                </section>
+                <section class="alpha-subpanel">
+                  <h2>Latent factors</h2>
+                  <div class="latent-grid" id="alpha-latents"></div>
+                  <p class="muted alpha-explainer">PCA and a compact neural autoencoder compress standardized factor inputs. Latent dimensions are statistical representations, not named economic factors.</p>
+                </section>
+              </div>
+              <section class="alpha-subpanel alpha-history-panel">
+                <h2>Dynamic composite alpha</h2>
+                <div id="alpha-history-chart" class="alpha-history-chart" role="img" aria-label="Historical dynamic composite alpha scores"></div>
+                <p class="muted alpha-explainer">Each score uses trailing factor-return rank correlations available at that time. Factor weights adapt as their recent historical relationships change.</p>
+              </section>
+              <section class="alpha-subpanel">
+                <h2>Factor ranking &amp; current composition</h2>
+                <div class="alpha-table-wrap">
+                  <table class="alpha-table">
+                    <thead><tr><th>Factor</th><th>Rank IC</th><th>RF importance</th><th>XGBoost importance</th><th>Dynamic weight</th><th>Latest contribution</th></tr></thead>
+                    <tbody id="factor-ranking"></tbody>
+                  </table>
+                </div>
+              </section>
+              <p class="protection-disclaimer" id="alpha-disclaimer"></p>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="/js/api.js"></script>
+    <script>
+      const sidebar = document.getElementById('sidebar');
+      const form = document.getElementById('research-form');
+      const status = document.getElementById('research-status');
+      const results = document.getElementById('research-results');
+      if (!requireAuth()) throw new Error('Not authenticated');
+      const user = parseUser();
+      if (user) {
+        document.getElementById('top-user-name').textContent = user.full_name || user.username;
+        document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
+      }
+
+      function safe(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        })[character]);
+      }
+
+      function pct(value) {
+        return Number.isFinite(Number(value)) ? `${Number(value).toFixed(3)}%` : '—';
+      }
+
+      function renderHistory(history) {
+        const target = document.getElementById('alpha-history-chart');
+        target.replaceChildren();
+        const values = history || [];
+        if (values.length < 2) {
+          target.textContent = 'Not enough history to show dynamic alpha scores.';
+          return;
+        }
+        const width = 840;
+        const height = 190;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        const zero = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        zero.setAttribute('x1', '0');
+        zero.setAttribute('x2', String(width));
+        zero.setAttribute('y1', String(height / 2));
+        zero.setAttribute('y2', String(height / 2));
+        zero.setAttribute('class', 'alpha-zero-line');
+        svg.appendChild(zero);
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('class', 'alpha-history-line');
+        const coordinates = values.map((point, index) => {
+          const x = index / (values.length - 1) * width;
+          const y = height / 2 - Number(point.score) * (height * 0.45);
+          return `${index ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+        path.setAttribute('d', coordinates);
+        svg.appendChild(path);
+        target.appendChild(svg);
+        target.setAttribute('aria-label', `Dynamic alpha score history, ${values.length} observations`);
+      }
+
+      function renderResearch(data) {
+        const alpha = data.composite_alpha;
+        document.getElementById('alpha-summary').innerHTML = `
+          <article><span>Composite Alpha</span><strong class="alpha-${safe(alpha.direction.toLowerCase())}">${safe(alpha.direction)}</strong><small>Score ${safe(alpha.score)} · ${safe(data.symbol)} (${safe(data.exchange)})</small></article>
+          <article><span>Historical sample</span><strong>${safe(data.candle_count)} daily candles</strong><small>${safe(data.candle_range.start.slice(0, 10))} to ${safe(data.candle_range.end.slice(0, 10))} · ${safe(data.training_rows)} labeled rows</small></article>
+          <article><span>Ensemble estimate</span><strong>${safe(pct(data.model_predictions.ensemble))}</strong><small>Mean of Random Forest and XGBoost</small></article>
+        `;
+
+        const labels = { random_forest: 'Random Forest', xgboost: 'XGBoost' };
+        document.getElementById('alpha-models').innerHTML = Object.entries(data.model_predictions)
+          .filter(([key]) => key !== 'ensemble')
+          .map(([key, prediction]) => {
+            const validation = data.validation[key];
+            return `<article><strong>${safe(labels[key])}</strong><span>5-session estimate <b>${safe(pct(prediction))}</b></span><span>Holdout RMSE <b>${safe(pct(validation.validation_rmse_percent))}</b></span><span>Direction accuracy <b>${safe(validation.validation_direction_accuracy_percent)}%</b></span></article>`;
+          }).join('');
+
+        const latent = data.latent_factors;
+        const latentItems = [
+          ...Object.entries(latent.pca).map(([name, value]) => ['PCA ' + name, value]),
+          ...Object.entries(latent.autoencoder).map(([name, value]) => ['Autoencoder ' + name, value]),
+        ];
+        document.getElementById('alpha-latents').innerHTML = latentItems.map(([name, value]) =>
+          `<div><span>${safe(name)}</span><strong>${safe(value)}</strong></div>`
+        ).join('') + `<p class="muted alpha-explainer">PCA explained variance: ${latent.pca_explained_variance_ratio.map((value) => safe((value * 100).toFixed(1) + '%')).join(' · ')}<br>Autoencoder reconstruction MSE: ${safe(latent.autoencoder_reconstruction_mse)}</p>`;
+
+        document.getElementById('factor-ranking').innerHTML = data.factor_ranking.map((factor) => `
+          <tr><td>${safe(factor.factor)}</td><td>${safe(factor.rank_ic)}</td><td>${safe(factor.random_forest_importance)}</td><td>${safe(factor.xgboost_importance)}</td><td>${safe((factor.dynamic_weight * 100).toFixed(1))}%</td><td class="${factor.contribution >= 0 ? 'positive' : 'negative'}">${safe(factor.contribution)}</td></tr>
+        `).join('');
+        renderHistory(alpha.history);
+        document.getElementById('alpha-disclaimer').textContent = data.disclaimer;
+        results.hidden = false;
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = document.getElementById('research-submit');
+        const payload = {
+          symbol: document.getElementById('research-symbol').value.trim().toUpperCase(),
+          exchange: document.getElementById('research-exchange').value,
+          timeframe: document.getElementById('research-timeframe').value,
+        };
+        button.disabled = true;
+        button.textContent = 'Researching…';
+        status.textContent = 'Loading Kite historical candles and fitting research models…';
+        results.hidden = true;
+        try {
+          const response = await apiRequest('/api/alpha-research', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          renderResearch(response.data);
+          status.textContent = '';
+        } catch (error) {
+          if (/authorization|token has expired/i.test(error.message || '')) {
+            logoutUser();
+            return;
+          }
+          status.textContent = error.message || 'Alpha research could not be completed.';
+        } finally {
+          button.disabled = false;
+          button.textContent = 'Run research';
+        }
+      });
+
+      document.getElementById('logout-btn').addEventListener('click', logoutUser);
+      document.getElementById('menu-toggle').addEventListener('click', () => sidebar.classList.toggle('open'));
+      bindSidebarNavigation();
+    </script>
+  </body>
+</html>

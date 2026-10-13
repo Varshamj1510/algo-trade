@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -100,8 +101,14 @@ class StrategyModel(db.Model):
     win_rate = db.Column(db.Float, default=0.0)
     total_trades = db.Column(db.Integer, default=0)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    buy_logic = db.Column(db.String(3), nullable=True)
+    buy_conditions = db.Column(db.Text, nullable=True)
+    sell_logic = db.Column(db.String(3), nullable=True)
+    sell_conditions = db.Column(db.Text, nullable=True)
 
     def to_dict(self):
+        buy_conditions = json.loads(self.buy_conditions) if self.buy_conditions else []
+        sell_conditions = json.loads(self.sell_conditions) if self.sell_conditions else []
         return {
             'id': self.id,
             'name': self.name,
@@ -109,6 +116,11 @@ class StrategyModel(db.Model):
             'status': self.status,
             'win_rate': round(self.win_rate, 2),
             'total_trades': self.total_trades,
+            'buy_logic': self.buy_logic or 'AND',
+            'buy_conditions': buy_conditions,
+            'sell_logic': self.sell_logic or 'AND',
+            'sell_conditions': sell_conditions,
+            'is_custom': bool(buy_conditions or sell_conditions),
         }
 
 
@@ -242,3 +254,47 @@ class Transaction(db.Model):
     quantity = db.Column(db.Float, nullable=False)
     price = db.Column(db.Float, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'symbol': self.symbol,
+            'type': self.type,
+            'quantity': round(self.quantity, 2),
+            'price': round(self.price, 2),
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
+        }
+
+
+class Order(db.Model):
+    __tablename__ = 'orders'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    symbol = db.Column(db.String(20), nullable=False)
+    exchange = db.Column(db.String(20), nullable=False, default='NSE')
+    side = db.Column(db.String(10), nullable=False)
+    order_type = db.Column(db.String(30), nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
+    price = db.Column(db.Float, nullable=False, default=0.0)
+    trigger_price = db.Column(db.Float, nullable=True)
+    status = db.Column(db.String(20), nullable=False, default='OPEN')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'symbol': self.symbol,
+            'exchange': self.exchange,
+            'side': self.side,
+            'order_type': self.order_type,
+            'quantity': round(self.quantity, 2),
+            'price': round(self.price or 0, 2),
+            'trigger_price': round(self.trigger_price, 2) if self.trigger_price is not None else None,
+            'status': self.status,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
+            'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else '',
+            'estimated_value': round((self.price or 0) * self.quantity, 2),
+        }

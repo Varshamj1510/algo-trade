@@ -6,7 +6,6 @@
     <title>AlgoTrade | Market</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -49,31 +48,153 @@
         </header>
 
         <div class="content-grid">
-          <section class="panel">
+          <section class="panel market-overview-panel">
             <div class="panel-header">
-              <div class="panel-title">Market Overview</div>
-              <div class="segment-tabs">
-                <button class="active" data-market="NIFTY 50">NIFTY 50</button>
-                <button data-market="SENSEX">SENSEX</button>
-                <button data-market="BANK NIFTY">BANK NIFTY</button>
+              <div>
+                <div class="panel-title">Dashboard Demo Market Overview</div>
+                <div class="market-data-status" id="market-data-status">Loading dashboard demo data...</div>
+                <div class="market-data-status" id="market-coverage"></div>
+              </div>
+              <div class="market-overview-meta">
+                <span class="market-session" id="market-session">Session unavailable</span>
+                <span class="market-updated" id="market-updated">No market snapshot</span>
               </div>
             </div>
-            <div class="chart-wrap"><canvas id="marketCanvas"></canvas></div>
+            <div class="index-cards" id="index-cards">
+              <article class="index-card index-skeleton" aria-label="Loading market indices"><span></span><span></span><span></span></article>
+              <article class="index-card index-skeleton" aria-label="Loading market indices"><span></span><span></span><span></span></article>
+              <article class="index-card index-skeleton" aria-label="Loading market indices"><span></span><span></span><span></span></article>
+            </div>
+          </section>
+
+          <div class="market-insights-grid">
+            <section class="panel market-list-panel">
+              <div class="panel-header"><div class="panel-title">Top Gainers</div></div>
+              <div class="market-table-wrap"><table class="overview-table"><thead><tr><th>Stock</th><th>Price</th><th>Change</th><th>Abs.</th><th>Volume</th></tr></thead><tbody id="market-gainers"><tr><td colspan="5" class="market-skeleton-cell">Loading market data...</td></tr></tbody></table></div>
+            </section>
+            <section class="panel market-list-panel">
+              <div class="panel-header"><div class="panel-title">Top Losers</div></div>
+              <div class="market-table-wrap"><table class="overview-table"><thead><tr><th>Stock</th><th>Price</th><th>Change</th><th>Abs.</th><th>Volume</th></tr></thead><tbody id="market-losers"><tr><td colspan="5" class="market-skeleton-cell">Loading market data...</td></tr></tbody></table></div>
+            </section>
+          </div>
+
+          <section class="panel market-data-panel">
+            <div class="panel-header market-section-header">
+              <div class="panel-title">Most Active Stocks</div>
+              <label class="market-sort-control">Sort by
+                <select id="active-sort" aria-label="Sort most active stocks">
+                  <option value="volume">Volume</option>
+                  <option value="trading_value">Trading value</option>
+                </select>
+              </label>
+            </div>
+            <div class="market-table-wrap"><table class="overview-table"><thead><tr><th>Stock</th><th>Symbol</th><th>Price</th><th>Change</th><th>Volume</th><th>Trading value</th></tr></thead><tbody id="market-active"><tr><td colspan="6" class="market-skeleton-cell">Loading market data...</td></tr></tbody></table></div>
+          </section>
+
+          <section class="panel sector-panel">
+            <div class="panel-header market-section-header">
+              <div class="panel-title">Sector Overview</div>
+              <label class="market-sort-control">Sort by
+                <select id="sector-sort" aria-label="Sort sectors by performance">
+                  <option value="descending">Best performance</option>
+                  <option value="ascending">Worst performance</option>
+                </select>
+              </label>
+            </div>
+            <div class="market-table-wrap"><table class="overview-table sector-table"><thead><tr><th>Sector</th><th>Performance</th><th>Advancing</th><th>Declining</th><th>Performance range</th></tr></thead><tbody id="sector-overview"><tr><td colspan="5" class="market-skeleton-cell">Loading market data...</td></tr></tbody></table></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Demo data only</div>
+            </div>
+            <p class="market-data-status">This page uses the same seeded sample stocks as the dashboard. Values are examples, not live quotes; Kite data and historical CSV rows are not used here.</p>
           </section>
 
           <section class="table-card">
             <div class="panel-header">
-              <div class="panel-title">Market Watch</div>
-              <input id="stock-search" type="text" placeholder="Search stock" style="max-width: 220px;" />
+              <div>
+                <div class="panel-title">Market Watch · Dashboard demo stocks</div>
+                <div class="market-data-status" id="market-list-status">Loading dashboard demo stocks...</div>
+              </div>
+              <div class="instrument-search-controls">
+                <div class="instrument-search">
+                  <input id="stock-search" type="text" placeholder="Search company or symbol" autocomplete="off" />
+                  <div id="instrument-suggestions" class="suggestion-list" hidden></div>
+                </div>
+                <input id="exchange-filter" type="text" placeholder="Exchange (e.g. NSE)" aria-label="Filter by exchange" />
+              </div>
             </div>
             <div style="overflow-x:auto;">
               <table class="stock-table" id="market-table">
                 <thead>
-                  <tr><th>Symbol</th><th>Name</th><th>Price</th><th>Change</th><th>Volume</th><th>High</th><th>Low</th><th>Open</th><th>Previous Close</th></tr>
+                  <tr><th>Symbol</th><th>Name</th><th>Exchange</th><th>Type</th><th>Price</th><th>Change</th><th>Volume</th><th>High</th><th>Low</th><th>Open</th><th>Previous Close</th><th>Action</th></tr>
                 </thead>
                 <tbody></tbody>
               </table>
             </div>
+          </section>
+
+          <section id="instrument-details" class="panel stock-detail-panel" hidden>
+            <div class="stock-detail-header">
+              <div>
+                <div class="panel-title" id="stock-detail-name">Stock Details</div>
+                <div class="muted" id="stock-detail-symbol"></div>
+              </div>
+              <div class="stock-detail-actions">
+                <button class="secondary-btn" id="stock-detail-add" type="button"><i class="fa-solid fa-star"></i> Add to Watchlist</button>
+                <button class="icon-button" id="stock-detail-close" type="button" title="Close stock details" aria-label="Close stock details"><i class="fa-solid fa-xmark"></i></button>
+              </div>
+            </div>
+            <div class="stock-live-row">
+              <strong id="stock-live-price">--</strong>
+              <span id="stock-live-change" class="muted">--</span>
+              <span id="stock-live-updated" class="muted">Dashboard demo snapshot · not live</span>
+            </div>
+            <div class="stock-detail-metrics" id="stock-detail-metrics"></div>
+            <section class="order-ticket" aria-labelledby="order-ticket-title">
+              <div>
+                <div class="panel-title" id="order-ticket-title">Trade</div>
+                <div class="muted">Review the order details before saving it to the demo order book.</div>
+              </div>
+              <form id="order-form" class="order-form">
+                <label>Side
+                  <select id="order-side">
+                    <option value="BUY">Buy</option>
+                    <option value="SELL">Sell</option>
+                  </select>
+                </label>
+                <label>Order type
+                  <select id="order-type">
+                    <option value="MARKET">Market</option>
+                    <option value="LIMIT">Limit</option>
+                    <option value="STOP_LOSS">Stop-loss limit</option>
+                    <option value="STOP_LOSS_MARKET">Stop-loss market</option>
+                  </select>
+                </label>
+                <label>Quantity
+                  <input id="order-quantity" type="number" min="1" step="1" value="1" required />
+                </label>
+                <label id="order-price-field" hidden><span id="order-price-label">Limit price</span>
+                  <input id="order-price" type="number" min="0.01" step="0.01" />
+                </label>
+                <label id="order-trigger-field" hidden>Trigger price
+                  <input id="order-trigger-price" type="number" min="0.01" step="0.01" />
+                </label>
+                <button class="secondary-btn" type="submit">Preview order</button>
+              </form>
+              <p class="order-ticket-note">Demo only: confirming saves an order in this app and does not send it to Kite or an exchange.</p>
+              <div id="order-preview" class="order-preview" aria-live="polite" hidden>
+                <div class="panel-title">Order preview</div>
+                <dl id="order-preview-details"></dl>
+                <div class="order-actions">
+                  <button class="secondary-btn" id="order-edit" type="button">Edit order</button>
+                  <button class="primary-btn" id="order-confirm" type="button">Confirm order</button>
+                </div>
+              </div>
+              <div id="order-status" class="market-data-status" role="status" aria-live="polite"></div>
+            </section>
+            <p id="stock-detail-status" class="market-data-status" role="status">Seeded dashboard demo values only · not live data.</p>
           </section>
         </div>
       </main>
@@ -85,6 +206,13 @@
       const sidebar = document.getElementById('sidebar');
       const menuToggle = document.getElementById('menu-toggle');
       const searchInput = document.getElementById('stock-search');
+      const exchangeInput = document.getElementById('exchange-filter');
+      const suggestions = document.getElementById('instrument-suggestions');
+      const detailsPanel = document.getElementById('instrument-details');
+      let instruments = [];
+      let marketOverview = null;
+      let selectedInstrument = null;
+      const sectorNames = ['IT', 'Banking', 'Financial Services', 'Auto', 'Pharma', 'FMCG', 'Metals', 'Energy', 'Infrastructure', 'Defense', 'Power', 'Other'];
       const user = parseUser();
       if (!requireAuth()) { throw new Error('Not authenticated'); }
       if (user) {
@@ -92,71 +220,383 @@
         document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
       }
 
-      function renderMarketChart() {
-        const labels = ['09:15', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'];
-        const datasets = {
-          'NIFTY 50': [24280, 24390, 24320, 24460, 24610, 24540, 24720],
-          'SENSEX': [78450, 78600, 78520, 78920, 79200, 79050, 79420],
-          'BANK NIFTY': [51500, 51780, 51660, 52040, 52120, 51980, 52260],
-        };
-        const current = document.querySelector('.segment-tabs .active').dataset.market;
-        const context = document.getElementById('marketCanvas');
-        if (window.marketPageChart) window.marketPageChart.destroy();
-        window.marketPageChart = new Chart(context, {
-          type: 'line',
-          data: { labels, datasets: [{ data: datasets[current], borderColor: '#087ef5', backgroundColor: 'rgba(8,126,245,0.12)', fill: true, tension: 0.35, borderWidth: 3, pointRadius: 0 }] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: '#8ea1be' } }, y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8ea1be' } } } }
+      function renderIndexCards(summary = {}) {
+        const cards = document.getElementById('index-cards');
+        cards.innerHTML = [
+          ['Demo instruments', summary.instruments],
+          ['Advancing', summary.advancers],
+          ['Declining', summary.decliners],
+        ].map(([name, count]) => {
+          return `
+            <article class="index-card demo-summary-card">
+              <div class="index-card-top"><span class="index-card-name">${escapeHtml(name)}</span><span class="index-card-updated">Demo only</span></div>
+              <strong class="index-card-price">${count == null ? '--' : Number(count).toLocaleString('en-IN')}</strong>
+              <div class="index-card-change"><small>Seeded dashboard sample stocks</small></div>
+            </article>
+          `;
+        }).join('');
+      }
+
+      function formatOptionalCurrency(value) {
+        return value == null ? '--' : formatCurrency(value);
+      }
+
+      function renderMarketTable(targetId, items, columns, emptyText) {
+        const target = document.getElementById(targetId);
+        if (!items.length) {
+          target.innerHTML = `<tr><td colspan="${columns}" class="market-empty-cell">${escapeHtml(emptyText)}</td></tr>`;
+          return;
+        }
+        const sortedItems = [...items];
+        if (targetId === 'market-gainers') sortedItems.sort((left, right) => Number(right.change || 0) - Number(left.change || 0));
+        if (targetId === 'market-losers') sortedItems.sort((left, right) => Number(left.change || 0) - Number(right.change || 0));
+        if (targetId === 'market-active') {
+          const sortKey = document.getElementById('active-sort').value;
+          sortedItems.sort((left, right) => Number(right[sortKey] || 0) - Number(left[sortKey] || 0));
+        }
+        target.innerHTML = sortedItems.map((item) => {
+          const changeClass = item.change == null ? 'muted' : Number(item.change) >= 0 ? 'positive' : 'negative';
+          const changeText = item.change == null ? '--' : `${Number(item.change) >= 0 ? '↑ +' : '↓ '}${Number(item.change).toFixed(2)}%`;
+          return `<tr>
+            <td class="overview-stock-name">${escapeHtml(item.name || '--')}${targetId === 'market-active' ? '' : `<small>${escapeHtml(item.symbol || '--')}</small>`}</td>
+            ${targetId === 'market-active' ? `<td>${escapeHtml(item.symbol || '--')}</td>` : ''}
+            <td>${formatOptionalCurrency(item.price)}</td>
+            <td class="${changeClass}">${changeText}</td>
+            ${targetId !== 'market-active' ? `<td>${formatOptionalCurrency(item.absolute_change)}</td>` : ''}
+            <td>${item.volume == null ? '--' : Number(item.volume).toLocaleString('en-IN')}</td>
+            ${targetId === 'market-active' ? `<td>${formatOptionalCurrency(item.trading_value)}</td>` : ''}
+          </tr>`;
+        }).join('');
+      }
+
+      function renderSectors(sectors) {
+        const target = document.getElementById('sector-overview');
+        const available = new Map((sectors || []).map((sector) => [sector.name, sector]));
+        const direction = document.getElementById('sector-sort').value;
+        const rows = sectorNames.map((name) => available.get(name) || { name, change: null, gainers: null, losers: null });
+        rows.sort((left, right) => {
+          if (left.change == null) return right.change == null ? 0 : 1;
+          if (right.change == null) return -1;
+          return direction === 'ascending' ? left.change - right.change : right.change - left.change;
         });
+        const largestMove = Math.max(0.01, ...rows.map((sector) => Math.abs(Number(sector.change) || 0)));
+        target.innerHTML = rows.map((sector) => {
+          const hasPerformance = sector.change != null;
+          const width = hasPerformance ? Math.min(100, Math.abs(sector.change) / largestMove * 100) : 0;
+          return `<tr>
+            <td class="overview-stock-name">${escapeHtml(sector.name)}</td>
+            <td class="${!hasPerformance ? 'muted' : sector.change >= 0 ? 'positive' : 'negative'}">${hasPerformance ? `${sector.change >= 0 ? '↑ +' : '↓ '}${Number(sector.change).toFixed(2)}%` : '--'}</td>
+            <td>${sector.gainers == null ? '--' : Number(sector.gainers).toLocaleString('en-IN')}</td>
+            <td>${sector.losers == null ? '--' : Number(sector.losers).toLocaleString('en-IN')}</td>
+            <td><div class="sector-bar-track" aria-label="${hasPerformance ? `${Number(sector.change).toFixed(2)} percent` : 'Performance unavailable'}"><span class="${hasPerformance ? sector.change >= 0 ? 'sector-bar-positive' : 'sector-bar-negative' : ''}" style="width:${width}%"></span></div></td>
+          </tr>`;
+        }).join('');
+      }
+
+      async function loadMarketOverview() {
+        const status = document.getElementById('market-data-status');
+        try {
+          const result = await apiRequest('/api/market/overview');
+          marketOverview = result.data;
+          renderIndexCards(marketOverview.summary || {});
+          renderMarketTable('market-gainers', marketOverview.gainers || [], 5, 'No gainers are available for this snapshot.');
+          renderMarketTable('market-losers', marketOverview.losers || [], 5, 'No losers are available for this snapshot.');
+          renderMarketTable('market-active', marketOverview.most_active || [], 6, 'No activity data is available for this snapshot.');
+          renderSectors(marketOverview.sectors || []);
+          status.textContent = `${marketOverview.provider || 'Market data'} snapshot`;
+          const coverage = marketOverview.coverage || {};
+          document.getElementById('market-coverage').textContent = coverage.available_stocks == null
+            ? ''
+            : `${coverage.available_stocks} seeded dashboard demo stocks · not live`;
+          document.getElementById('market-session').textContent = 'Demo data · not live';
+          document.getElementById('market-updated').textContent = 'No live market snapshot';
+        } catch (error) {
+          if (error.message && (error.message.includes('Authorization') || error.message.includes('Token has expired'))) {
+            logoutUser();
+            return;
+          }
+          status.textContent = error.message;
+          marketOverview = null;
+          document.getElementById('market-coverage').textContent = '';
+          renderIndexCards({});
+          renderMarketTable('market-gainers', [], 5, 'Market data unavailable. No values are displayed.');
+          renderMarketTable('market-losers', [], 5, 'Market data unavailable. No values are displayed.');
+          renderMarketTable('market-active', [], 6, 'Market data unavailable. No values are displayed.');
+          renderSectors([]);
+          document.getElementById('market-session').textContent = 'Demo data unavailable';
+          document.getElementById('market-updated').textContent = 'No market snapshot';
+        }
       }
 
       async function loadMarketData() {
         try {
-          const data = await apiRequest('/api/market');
-          renderTable(data.data || []);
+          const data = await apiRequest(`/api/market?${new URLSearchParams({ exchange: exchangeInput.value.trim() })}`);
+          instruments = data.data || [];
+          renderTable(instruments);
+          const coverage = data.coverage || {};
+          document.getElementById('market-list-status').textContent =
+            `Dashboard demo data (not live): ${coverage.demo_instruments || 0} of ${coverage.listed_instruments || 0} instruments displayed.`;
         } catch (error) {
-          if (error.message && error.message.includes('Authorization')) {
+          if (error.message && (error.message.includes('Authorization') || error.message.includes('Token has expired'))) {
             logoutUser();
             return;
           }
+          instruments = [];
+          document.getElementById('market-list-status').textContent = error.message;
           renderTable([]);
         }
       }
 
       function renderTable(stocks) {
         const query = searchInput.value.trim().toLowerCase();
-        const filtered = stocks.filter((stock) => stock.symbol.toLowerCase().includes(query) || (stock.name || '').toLowerCase().includes(query));
+        const exchange = exchangeInput.value.trim().toLowerCase();
+        const filtered = stocks.filter((stock) => (!query || stock.symbol.toLowerCase().includes(query) || (stock.name || '').toLowerCase().includes(query))
+          && (!exchange || stock.exchange.toLowerCase().includes(exchange)));
         if (!filtered.length) {
-          tableBody.innerHTML = '<tr><td colspan="9" class="empty-state">No matching stocks found.</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="12" class="empty-state">No matching demo instruments found.</td></tr>';
           return;
         }
 
         tableBody.innerHTML = filtered.map((stock) => `
           <tr>
-            <td>${stock.symbol}</td>
-            <td>${stock.name}</td>
-            <td>${formatCurrency(stock.price)}</td>
-            <td class="${stock.change >= 0 ? 'positive' : 'negative'}">${stock.change >= 0 ? '+' : ''}${Number(stock.change).toFixed(2)}%</td>
-            <td>${Number(stock.volume).toLocaleString('en-IN')}</td>
-            <td>${formatCurrency(stock.high)}</td>
-            <td>${formatCurrency(stock.low)}</td>
-            <td>${formatCurrency(stock.open)}</td>
-            <td>${formatCurrency(stock.previous_close)}</td>
+            <td>${escapeHtml(stock.symbol)}</td>
+            <td>${escapeHtml(stock.name)}</td>
+            <td>${escapeHtml(stock.exchange)}</td>
+            <td>${escapeHtml(stock.instrument_type || 'EQUITY')}</td>
+            <td>${formatOptionalCurrency(stock.price)}</td>
+            <td class="${stock.change == null ? 'muted' : stock.change >= 0 ? 'positive' : 'negative'}">${stock.change == null ? '--' : `${stock.change >= 0 ? '+' : ''}${Number(stock.change).toFixed(2)}%`}</td>
+            <td>${stock.volume == null ? '--' : Number(stock.volume).toLocaleString('en-IN')}</td>
+            <td>${formatOptionalCurrency(stock.high)}</td>
+            <td>${formatOptionalCurrency(stock.low)}</td>
+            <td>${formatOptionalCurrency(stock.open)}</td>
+            <td>${formatOptionalCurrency(stock.previous_close)}</td>
+            <td><button class="secondary-btn" data-detail="${escapeHtml(stock.symbol)}" data-exchange="${escapeHtml(stock.exchange)}">Details</button></td>
           </tr>
         `).join('');
       }
 
-      document.querySelectorAll('.segment-tabs button').forEach((btn) => btn.addEventListener('click', () => {
-        document.querySelectorAll('.segment-tabs button').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        renderMarketChart();
-      }));
-      searchInput.addEventListener('input', () => loadMarketData());
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+      }
+
+      function updateOrderFields() {
+        const orderType = document.getElementById('order-type').value;
+        const hasLimitPrice = orderType === 'LIMIT' || orderType === 'STOP_LOSS';
+        const hasTriggerPrice = orderType === 'STOP_LOSS' || orderType === 'STOP_LOSS_MARKET';
+        const priceField = document.getElementById('order-price-field');
+        const triggerField = document.getElementById('order-trigger-field');
+        const priceInput = document.getElementById('order-price');
+        const triggerInput = document.getElementById('order-trigger-price');
+        priceField.hidden = !hasLimitPrice;
+        triggerField.hidden = !hasTriggerPrice;
+        priceInput.required = hasLimitPrice;
+        triggerInput.required = hasTriggerPrice;
+        document.getElementById('order-price-label').textContent = orderType === 'STOP_LOSS'
+          ? 'Stop-loss limit price'
+          : 'Limit price';
+      }
+
+      function resetOrderTicket() {
+        document.getElementById('order-form').reset();
+        document.getElementById('order-preview').hidden = true;
+        document.getElementById('order-status').textContent = '';
+        updateOrderFields();
+      }
+
+      function previewOrder(event) {
+        event.preventDefault();
+        if (!selectedInstrument) return;
+        const status = document.getElementById('order-status');
+        const referencePrice = Number(selectedInstrument.currentPrice);
+        if (!Number.isFinite(referencePrice) || referencePrice <= 0) {
+          status.textContent = 'A current quote is required before this order can be previewed.';
+          return;
+        }
+
+        const side = document.getElementById('order-side').value;
+        const orderType = document.getElementById('order-type').value;
+        const quantity = Number(document.getElementById('order-quantity').value);
+        const limitPrice = Number(document.getElementById('order-price').value);
+        const triggerPrice = Number(document.getElementById('order-trigger-price').value);
+        const usesLimitPrice = orderType === 'LIMIT' || orderType === 'STOP_LOSS';
+        const usesTriggerPrice = orderType === 'STOP_LOSS' || orderType === 'STOP_LOSS_MARKET';
+        const estimatePrice = usesLimitPrice ? limitPrice : referencePrice;
+        if (!Number.isFinite(quantity) || quantity <= 0
+            || usesLimitPrice && (!Number.isFinite(limitPrice) || limitPrice <= 0)
+            || usesTriggerPrice && (!Number.isFinite(triggerPrice) || triggerPrice <= 0)) {
+          status.textContent = 'Enter a valid quantity and the required order prices.';
+          return;
+        }
+
+        const orderTypeNames = {
+          MARKET: 'Market',
+          LIMIT: 'Limit',
+          STOP_LOSS: 'Stop-loss limit',
+          STOP_LOSS_MARKET: 'Stop-loss market',
+        };
+        const previewRows = [
+          ['Instrument', `${selectedInstrument.symbol} · ${selectedInstrument.exchange}`],
+          ['Side', side],
+          ['Order type', orderTypeNames[orderType]],
+          ['Quantity', String(quantity)],
+          ['Reference price', formatCurrency(referencePrice)],
+        ];
+        if (usesLimitPrice) previewRows.push(['Limit price', formatCurrency(limitPrice)]);
+        if (usesTriggerPrice) previewRows.push(['Trigger price', formatCurrency(triggerPrice)]);
+        previewRows.push(['Estimated order value', formatCurrency(estimatePrice * quantity)]);
+        document.getElementById('order-preview-details').innerHTML = previewRows.map(([label, value]) => `
+          <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>
+        `).join('');
+        status.textContent = '';
+        document.getElementById('order-preview').hidden = false;
+      }
+
+      async function confirmOrder() {
+        if (!selectedInstrument) return;
+        const confirmButton = document.getElementById('order-confirm');
+        const status = document.getElementById('order-status');
+        const orderType = document.getElementById('order-type').value;
+        const usesLimitPrice = orderType === 'LIMIT' || orderType === 'STOP_LOSS';
+        const usesTriggerPrice = orderType === 'STOP_LOSS' || orderType === 'STOP_LOSS_MARKET';
+        const payload = {
+          symbol: selectedInstrument.symbol,
+          exchange: selectedInstrument.exchange,
+          side: document.getElementById('order-side').value,
+          order_type: orderType,
+          quantity: Number(document.getElementById('order-quantity').value),
+          price: usesLimitPrice ? Number(document.getElementById('order-price').value) : 0,
+          trigger_price: usesTriggerPrice ? Number(document.getElementById('order-trigger-price').value) : null,
+        };
+        confirmButton.disabled = true;
+        status.textContent = 'Saving demo order...';
+        try {
+          const result = await apiRequest('/api/orders', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          document.getElementById('order-preview').hidden = true;
+          status.textContent = `Order #${result.data.id} saved as ${result.data.status} in the demo order book. It was not sent to a broker.`;
+        } catch (error) {
+          status.textContent = error.message;
+        } finally {
+          confirmButton.disabled = false;
+        }
+      }
+
+      async function searchSuggestions() {
+        const query = searchInput.value.trim();
+        if (query.length < 1) {
+          suggestions.hidden = true;
+          return;
+        }
+        try {
+          const params = new URLSearchParams({ q: query, exchange: exchangeInput.value.trim() });
+          const result = await apiRequest(`/api/instruments/search?${params}`);
+          suggestions.innerHTML = (result.data || []).map((instrument) => `
+            <button class="suggestion-item" data-detail="${escapeHtml(instrument.symbol)}" data-exchange="${escapeHtml(instrument.exchange)}" data-price="${escapeHtml(instrument.price)}">
+              <strong>${escapeHtml(instrument.symbol)}</strong><span>${escapeHtml(instrument.name)}</span><small>${escapeHtml(instrument.exchange)}</small>
+            </button>
+          `).join('') || '<div class="suggestion-empty">No instruments found</div>';
+          suggestions.hidden = false;
+        } catch (error) {
+          suggestions.hidden = true;
+        }
+      }
+
+      async function showInstrument(symbol, exchange) {
+        resetOrderTicket();
+        selectedInstrument = null;
+        detailsPanel.hidden = false;
+        suggestions.hidden = true;
+        detailsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        try {
+          const params = new URLSearchParams({ exchange });
+          const response = await apiRequest(`/api/instruments/${encodeURIComponent(symbol)}?${params}`);
+          const instrument = response.data;
+          selectedInstrument = {
+            symbol: instrument.symbol,
+            exchange: instrument.exchange,
+            currentPrice: Number(instrument.price),
+          };
+          document.getElementById('stock-detail-name').textContent = instrument.name || instrument.symbol;
+          document.getElementById('stock-detail-symbol').textContent =
+            `${instrument.symbol} · ${instrument.exchange} · ${instrument.sector || 'Equity'}`;
+          document.getElementById('stock-live-price').textContent = formatCurrency(instrument.price);
+          const change = document.getElementById('stock-live-change');
+          change.textContent = `${instrument.change >= 0 ? '+' : ''}${Number(instrument.change).toFixed(2)}%`;
+          change.className = instrument.change >= 0 ? 'positive' : 'negative';
+          document.getElementById('stock-live-updated').textContent = 'Dashboard demo snapshot · not live';
+          document.getElementById('stock-detail-status').textContent =
+            'All values come from the seeded dashboard demo dataset. No Kite or historical CSV data is used here.';
+          document.getElementById('stock-detail-metrics').innerHTML = [
+            ['Sector', escapeHtml(instrument.sector || '—')],
+            ['Volume', Number(instrument.volume || 0).toLocaleString('en-IN')],
+            ['High', formatOptionalCurrency(instrument.high)],
+            ['Low', formatOptionalCurrency(instrument.low)],
+            ['Open', formatOptionalCurrency(instrument.open)],
+            ['Previous close', formatOptionalCurrency(instrument.previous_close)],
+          ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join('');
+          document.getElementById('stock-detail-add').dataset.add = instrument.symbol;
+          document.getElementById('stock-detail-add').dataset.exchange = instrument.exchange;
+          document.getElementById('order-price').value = instrument.price;
+          document.getElementById('order-trigger-price').value = instrument.price;
+        } catch (error) {
+          document.getElementById('stock-detail-status').textContent = error.message;
+          selectedInstrument = null;
+        }
+      }
+
+      async function addToWatchlist(symbol, exchange) {
+        try {
+          await apiRequest('/api/watchlist', { method: 'POST', body: JSON.stringify({ symbol, exchange }) });
+          window.alert(`${symbol} added to watchlist`);
+        } catch (error) {
+          window.alert(error.message);
+        }
+      }
+
+      document.addEventListener('click', async (event) => {
+        const detailButton = event.target.closest('[data-detail]');
+        const addButton = event.target.closest('[data-add]');
+        if (event.target.closest('#stock-detail-close')) {
+          detailsPanel.hidden = true;
+          selectedInstrument = null;
+        } else if (detailButton) {
+          await showInstrument(detailButton.dataset.detail, detailButton.dataset.exchange);
+        } else if (addButton) {
+          await addToWatchlist(addButton.dataset.add, addButton.dataset.exchange);
+        } else if (!event.target.closest('.instrument-search')) {
+          suggestions.hidden = true;
+        }
+      });
+
+      document.getElementById('active-sort').addEventListener('change', () => {
+        renderMarketTable('market-active', marketOverview?.most_active || [], 6, 'Market data unavailable. No values are displayed.');
+      });
+      document.getElementById('sector-sort').addEventListener('change', () => renderSectors(marketOverview?.sectors || []));
+      searchInput.addEventListener('input', () => renderTable(instruments));
+      exchangeInput.addEventListener('input', () => renderTable(instruments));
       document.getElementById('logout-btn').addEventListener('click', logoutUser);
+      document.getElementById('order-form').addEventListener('submit', previewOrder);
+      document.getElementById('order-type').addEventListener('change', updateOrderFields);
+      document.getElementById('order-form').addEventListener('input', () => {
+        document.getElementById('order-preview').hidden = true;
+        document.getElementById('order-status').textContent = '';
+      });
+      document.getElementById('order-form').addEventListener('change', () => {
+        document.getElementById('order-preview').hidden = true;
+        document.getElementById('order-status').textContent = '';
+      });
+      document.getElementById('order-edit').addEventListener('click', () => {
+        document.getElementById('order-preview').hidden = true;
+        document.getElementById('order-status').textContent = '';
+      });
+      document.getElementById('order-confirm').addEventListener('click', confirmOrder);
       menuToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
       bindSidebarNavigation();
-      renderMarketChart();
+      updateOrderFields();
       loadMarketData();
-      setInterval(loadMarketData, 8000);
+      loadMarketOverview();
     </script>
   </body>
 </html>

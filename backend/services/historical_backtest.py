@@ -52,6 +52,60 @@ def get_historical_universe() -> list[dict[str, str | int]]:
     ]
 
 
+def _read_demo_research_history() -> dict[str, list[dict[str, str | float | int]]]:
+    candles_by_symbol: dict[str, list[dict[str, str | float | int]]] = {}
+    with HISTORICAL_DATA_PATH.open('r', encoding='utf-8-sig', newline='') as source:
+        reader = csv.DictReader(source)
+        required = {'timestamp', 'symbol', 'open', 'high', 'low', 'close', 'volume'}
+        if not reader.fieldnames or not required.issubset(reader.fieldnames):
+            raise ValueError('Historical CSV must contain timestamp, symbol, OHLC, and volume columns.')
+        for row in reader:
+            try:
+                raw_symbol = row['symbol'].strip().upper()
+                if not raw_symbol.endswith('.NS'):
+                    continue
+                timestamp = int(row['timestamp'])
+                candle = {
+                    'time': datetime.fromtimestamp(timestamp, timezone.utc).date().isoformat(),
+                    'open': float(row['open']),
+                    'high': float(row['high']),
+                    'low': float(row['low']),
+                    'close': float(row['close']),
+                    'volume': float(row['volume']),
+                }
+            except (AttributeError, TypeError, ValueError, OverflowError) as error:
+                raise ValueError('Historical CSV contains an invalid demo candle.') from error
+            symbol = raw_symbol[:-3]
+            candles_by_symbol.setdefault(symbol, []).append(candle)
+    for candles in candles_by_symbol.values():
+        candles.sort(key=lambda candle: str(candle['time']))
+    return candles_by_symbol
+
+
+def get_demo_research_universe() -> list[dict[str, str | int]]:
+    return [
+        {'symbol': symbol, 'exchange': 'NSE', 'observations': len(candles)}
+        for symbol, candles in sorted(_read_demo_research_history().items())
+        if len(candles) >= 190
+    ]
+
+
+def get_demo_research_candles(symbol: str, exchange: str, timeframe: str) -> list[dict[str, str | float | int]]:
+    normalized_symbol = symbol.strip().upper()
+    normalized_exchange = exchange.strip().upper()
+    if normalized_exchange != 'NSE':
+        raise LookupError('Bundled demo history is available for NSE instruments only.')
+    if timeframe not in {'1Y', '5Y'}:
+        raise ValueError('Choose a supported historical period.')
+
+    candles_by_symbol = _read_demo_research_history()
+    available_candles = candles_by_symbol.get(normalized_symbol, [])
+    if len(available_candles) < 190:
+        raise LookupError(f'{normalized_symbol} is not available in the bundled demo history.')
+
+    return available_candles[-(252 if timeframe == '1Y' else 1260):]
+
+
 def run_historical_backtest(symbol: str, initial_capital: float) -> dict[str, str | int | float]:
     normalized_symbol = symbol.strip().upper()
     values: list[tuple[date, float]] | None = _read_history().get(normalized_symbol)

@@ -79,6 +79,57 @@ def test_alpha_research_api_uses_real_candles_for_requested_instrument(monkeypat
     assert response.get_json()['data'] == result
 
 
+def test_alpha_research_api_uses_bundled_demo_candles_without_kite(monkeypatch):
+    candles = make_candles()
+    result = {'symbol': 'ADANIENT', 'factor_ranking': []}
+    monkeypatch.setattr(
+        alpha_routes, 'get_demo_research_candles',
+        lambda symbol, exchange, timeframe: candles,
+    )
+    monkeypatch.setattr(
+        alpha_routes, 'find_instrument',
+        lambda *_: (_ for _ in ()).throw(AssertionError('Demo mode must not query the Kite catalog')),
+    )
+    monkeypatch.setattr(
+        alpha_routes, 'analyze_alpha',
+        lambda historical, symbol, exchange, timeframe: result,
+    )
+    client = app.test_client()
+    login = client.post('/api/auth/login', json={
+        'email': 'demo@algotrade.com', 'password': 'demo123',
+    })
+    headers = {'Authorization': f"Bearer {login.get_json()['token']}"}
+    response = client.post('/api/alpha-research', headers=headers, json={
+        'symbol': 'adanient', 'exchange': 'nse', 'timeframe': '1y', 'source': 'demo',
+    })
+
+    assert response.status_code == 200
+    assert response.get_json()['data']['provider'] == 'Bundled historical CSV demo data (not Kite Connect)'
+
+
+def test_demo_research_candles_load_from_bundled_csv(tmp_path, monkeypatch):
+    from backend.services import historical_backtest
+
+    csv_path = tmp_path / 'candles.csv'
+    start = 1_735_689_600
+    with csv_path.open('w', encoding='utf-8', newline='') as destination:
+        destination.write('timestamp,symbol,open,high,low,close,volume\n')
+        for index in range(300):
+            destination.write(
+                f'{start + index * 86400},ADANIENT.NS,100,102,99,101,{1000 + index}\n'
+            )
+        destination.write(f'{start},IGNORED.BO,100,102,99,101,1000\n')
+    monkeypatch.setattr(historical_backtest, 'HISTORICAL_DATA_PATH', csv_path)
+
+    universe = historical_backtest.get_demo_research_universe()
+    candles = historical_backtest.get_demo_research_candles('adanient', 'NSE', '1Y')
+
+    assert universe == [{'symbol': 'ADANIENT', 'exchange': 'NSE', 'observations': 300}]
+    assert len(candles) == 252
+    assert candles[0]['close'] == 101
+    assert candles[-1]['volume'] == 1299
+
+
 def test_alpha_research_api_validates_request_and_reports_unavailable_kite(monkeypatch):
     client = app.test_client()
     login = client.post('/api/auth/login', json={

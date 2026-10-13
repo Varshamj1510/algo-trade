@@ -41,16 +41,17 @@
             <div class="panel-header alpha-header">
               <div>
                 <div class="panel-title">Historical Alpha Research</div>
-                <p class="subtitle">Build technical factors from real daily candles, compare models, rank factors, and inspect latent representations.</p>
+                <p class="subtitle">Compare factor models using bundled historical demo candles or your authorized Kite Connect data.</p>
               </div>
               <form id="research-form" class="alpha-controls">
-                <label>Symbol<input id="research-symbol" value="RELIANCE" maxlength="30" required /></label>
+                <label>Data source<select id="research-source"><option value="demo" selected>Bundled demo data</option><option value="kite">Kite Connect</option></select></label>
+                <label>Symbol<input id="research-symbol" list="research-symbols" value="ADANIENT" maxlength="30" required /><datalist id="research-symbols"></datalist></label>
                 <label>Exchange<select id="research-exchange"><option>NSE</option><option>BSE</option></select></label>
                 <label>History<select id="research-timeframe"><option value="1Y" selected>1 year</option><option value="5Y">5 years</option></select></label>
                 <button class="primary-button" id="research-submit" type="submit">Run research</button>
               </form>
             </div>
-            <p id="research-status" class="analysis-status" role="status">Connect Kite from Market Data, then run research on a supported NSE/BSE instrument.</p>
+            <p id="research-status" class="analysis-status" role="status">Loading available bundled demo symbols…</p>
             <div id="research-results" hidden>
               <div class="alpha-summary" id="alpha-summary"></div>
               <div class="alpha-columns">
@@ -91,6 +92,9 @@
       const form = document.getElementById('research-form');
       const status = document.getElementById('research-status');
       const results = document.getElementById('research-results');
+      const sourceInput = document.getElementById('research-source');
+      const exchangeInput = document.getElementById('research-exchange');
+      const symbolOptions = document.getElementById('research-symbols');
       if (!requireAuth()) throw new Error('Not authenticated');
       const user = parseUser();
       if (user) {
@@ -143,7 +147,7 @@
       function renderResearch(data) {
         const alpha = data.composite_alpha;
         document.getElementById('alpha-summary').innerHTML = `
-          <article><span>Composite Alpha</span><strong class="alpha-${safe(alpha.direction.toLowerCase())}">${safe(alpha.direction)}</strong><small>Score ${safe(alpha.score)} · ${safe(data.symbol)} (${safe(data.exchange)})</small></article>
+          <article><span>Composite Alpha</span><strong class="alpha-${safe(alpha.direction.toLowerCase())}">${safe(alpha.direction)}</strong><small>Score ${safe(alpha.score)} · ${safe(data.symbol)} (${safe(data.exchange)}) · ${safe(data.provider)}</small></article>
           <article><span>Historical sample</span><strong>${safe(data.candle_count)} daily candles</strong><small>${safe(data.candle_range.start.slice(0, 10))} to ${safe(data.candle_range.end.slice(0, 10))} · ${safe(data.training_rows)} labeled rows</small></article>
           <article><span>Ensemble estimate</span><strong>${safe(pct(data.model_predictions.ensemble))}</strong><small>Mean of Random Forest and XGBoost</small></article>
         `;
@@ -173,6 +177,36 @@
         results.hidden = false;
       }
 
+      function updateResearchSource() {
+        const demoMode = sourceInput.value === 'demo';
+        exchangeInput.querySelector('option[value="BSE"]')?.toggleAttribute('disabled', demoMode);
+        if (demoMode && exchangeInput.value !== 'NSE') exchangeInput.value = 'NSE';
+        status.textContent = demoMode
+          ? 'Using bundled historical demo candles (not Kite market data).'
+          : 'Kite Connect requires an authorized Kite session.';
+      }
+
+      async function loadDemoSymbols() {
+        try {
+          const response = await apiRequest('/api/alpha-research/instruments');
+          symbolOptions.replaceChildren(...response.data.map(({ symbol }) => {
+            const option = document.createElement('option');
+            option.value = symbol;
+            return option;
+          }));
+          if (!response.data.some(({ symbol }) => symbol === document.getElementById('research-symbol').value)) {
+            document.getElementById('research-symbol').value = response.data[0]?.symbol || '';
+          }
+          updateResearchSource();
+        } catch (error) {
+          status.textContent = error.message || 'Could not load bundled demo symbols.';
+        }
+      }
+
+      sourceInput.addEventListener('change', updateResearchSource);
+      updateResearchSource();
+      loadDemoSymbols();
+
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const button = document.getElementById('research-submit');
@@ -180,10 +214,11 @@
           symbol: document.getElementById('research-symbol').value.trim().toUpperCase(),
           exchange: document.getElementById('research-exchange').value,
           timeframe: document.getElementById('research-timeframe').value,
+          source: sourceInput.value,
         };
         button.disabled = true;
         button.textContent = 'Researching…';
-        status.textContent = 'Loading Kite historical candles and fitting research models…';
+        status.textContent = `Loading ${sourceInput.value === 'demo' ? 'bundled demo' : 'Kite'} historical candles and fitting research models…`;
         results.hidden = true;
         try {
           const response = await apiRequest('/api/alpha-research', {

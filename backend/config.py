@@ -1,5 +1,9 @@
 import os
+import re
+from pathlib import Path
+
 from dotenv import load_dotenv
+from sqlalchemy.engine import make_url
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 load_dotenv(os.path.join(BASE_DIR, '.env'))
@@ -10,6 +14,22 @@ database_uri = os.getenv(
 )
 if database_uri.startswith('postgres://'):
     database_uri = database_uri.replace('postgres://', 'postgresql://', 1)
+if database_uri.startswith('sqlite:'):
+    database_url = make_url(database_uri)
+    database_name = database_url.database
+    if database_name and database_name != ':memory:' and not database_name.startswith('file:'):
+        if os.name != 'nt' and re.match(r'^[A-Za-z]:[\\/]', database_name):
+            raise RuntimeError(
+                'DATABASE_URL points to a Windows SQLite path. Remove it from Render '
+                'or configure a Render Postgres database.'
+            )
+        database_path = Path(database_name)
+        if not database_path.is_absolute():
+            database_path = Path(BASE_DIR) / database_path
+        database_path.parent.mkdir(parents=True, exist_ok=True)
+        database_uri = database_url.set(database=str(database_path)).render_as_string(
+            hide_password=False
+        )
 
 secret_key = os.getenv('SECRET_KEY')
 jwt_secret_key = os.getenv('JWT_SECRET_KEY')

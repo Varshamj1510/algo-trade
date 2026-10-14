@@ -5,11 +5,24 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from backend.database import db
 from backend.models import PaperAccount, PaperTrade
-from backend.services.instrument_catalog import find_demo_instrument, get_demo_instruments
+from backend.services.instrument_catalog import get_demo_instruments
+from backend.services.kite_market import (
+    KiteAPIError,
+    KiteConfigurationError,
+    get_live_quotes,
+)
 
 
 bp = Blueprint('paper_trading', __name__, url_prefix='/api/paper-trading')
 STARTING_CASH = 100000.0
+
+
+def _quote_price(quote):
+    try:
+        price = float((quote or {}).get('price'))
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return price if math.isfinite(price) and price > 0 else None
 
 
 def _account_for_user(user_id):
@@ -21,11 +34,7 @@ def _account_for_user(user_id):
     return account
 
 
-def _account_snapshot(user_id):
-    account = _account_for_user(user_id)
-    trades = PaperTrade.query.filter_by(user_id=user_id).order_by(
-        PaperTrade.created_at.asc(), PaperTrade.id.asc(),
-    ).all()
+def _positions_and_pnl(trades):
     positions = {}
     realized_pnl = 0.0
 
@@ -48,16 +57,32 @@ def _account_snapshot(user_id):
             if position['quantity'] == 0:
                 position['average_price'] = 0.0
 
-    instruments = {
-        (item['exchange'], item['symbol']): item
-        for item in get_demo_instruments()
+    return positions, realized_pnl
+
+
+def _account_snapshot(user_id, market_quotes=None):
+    account = _account_for_user(user_id)
+    trades = PaperTrade.query.filter_by(user_id=user_id).order_by(
+        PaperTrade.created_at.asc(), PaperTrade.id.asc(),
+    ).all()
+    positions, realized_pnl = _positions_and_pnl(trades)
+    open_positions = {
+        key: position for key, position in positions.items()
+        if position['quantity'] > 0
     }
+    if market_quotes is None and open_positions:
+        market_quotes = get_live_quotes([
+            {'exchange': exchange, 'symbol': symbol}
+            for exchange, symbol in open_positions
+        ])
+    market_quotes = market_quotes or {}
+
     holdings = []
-    for key, position in sorted(positions.items()):
-        if position['quantity'] <= 0:
-            continue
-        instrument = instruments[key]
-        market_price = float(instrument['price'])
+    for key, position in sorted(open_positions.items()):
+        quote = market_quotes.get(key)
+        market_price = _quote_price(quote)
+        if market_price is None:
+            raise KiteAPIError(f'Kite quote is unavailable for {key[0]}:{key[1]}; account values were not refreshed.')
         market_value = market_price * position['quantity']
         invested = position['average_price'] * position['quantity']
         holdings.append({
@@ -85,7 +110,6 @@ def _account_snapshot(user_id):
                 'symbol': item['symbol'],
                 'exchange': item['exchange'],
                 'name': item['name'],
-                'price': item['price'],
             }
             for item in get_demo_instruments()
         ],
@@ -95,8 +119,40 @@ def _account_snapshot(user_id):
 @bp.route('/account', methods=['GET'])
 @jwt_required()
 def get_paper_account():
-    snapshot = _account_snapshot(int(get_jwt_identity()))
-    return jsonify({'success': True, 'data': snapshot, 'source': 'seeded demo prices; virtual trades only'})
+    try:
+        snapshot = _account_snapshot(int(get_jwt_identity()))
+    except KiteConfigurationError as error:
+        return jsonify({'success': False, 'message': str(error)}), 503
+    except KiteAPIError as error:
+        return jsonify({'success': False, 'message': str(error)}), 502
+    return jsonify({'success': True, 'data': snapshot, 'source': 'Kite quotes; virtual trades only'})
+
+
+@bp.route('/quote', methods=['GET'])
+@jwt_required()
+def get_paper_quote():
+    symbol = request.args.get('symbol', '').strip().upper()
+    exchange = request.args.get('exchange', 'NSE').strip().upper()
+    if not symbol or len(symbol) > 20 or exchange not in {'NSE', 'BSE'}:
+        return jsonify({'success': False, 'message': 'Provide a valid NSE or BSE symbol.'}), 400
+    try:
+        quotes = get_live_quotes([{'symbol': symbol, 'exchange': exchange}])
+    except KiteConfigurationError as error:
+        return jsonify({'success': False, 'message': str(error)}), 503
+    except KiteAPIError as error:
+        return jsonify({'success': False, 'message': str(error)}), 502
+    quote = quotes.get((exchange, symbol))
+    price = _quote_price(quote)
+    if price is None:
+        return jsonify({
+            'success': False,
+            'message': f'No Kite market quote is available for {exchange}:{symbol}.',
+        }), 404
+    return jsonify({
+        'success': True,
+        'data': {'symbol': symbol, 'exchange': exchange, 'price': round(price, 2)},
+        'source': 'Kite Connect quote; virtual trading only',
+    })
 
 
 @bp.route('/trades', methods=['POST'])
@@ -110,7 +166,7 @@ def create_paper_trade():
     exchange = payload.get('exchange', 'NSE')
     side = payload.get('side')
     if not isinstance(symbol, str) or not symbol.strip() or len(symbol.strip()) > 20:
-        return jsonify({'success': False, 'message': 'Enter a valid demo symbol.'}), 400
+        return jsonify({'success': False, 'message': 'Enter a valid Kite-listed symbol.'}), 400
     if not isinstance(exchange, str) or exchange.strip().upper() not in {'NSE', 'BSE'}:
         return jsonify({'success': False, 'message': 'Exchange must be NSE or BSE.'}), 400
     if not isinstance(side, str) or side.strip().upper() not in {'BUY', 'SELL'}:
@@ -126,25 +182,58 @@ def create_paper_trade():
         return jsonify({'success': False, 'message': 'Quantity must be a positive whole number.'}), 400
     quantity = int(parsed_quantity)
 
-    instrument = find_demo_instrument(symbol.strip(), exchange.strip())
-    if not instrument or not math.isfinite(float(instrument['price'])) or instrument['price'] <= 0:
-        return jsonify({'success': False, 'message': 'Choose a symbol with a valid seeded demo price.'}), 404
-
     side = side.strip().upper()
-    price = float(instrument['price'])
-    trade_value = round(price * quantity, 2)
+    symbol = symbol.strip().upper()
+    exchange = exchange.strip().upper()
     user_id = int(get_jwt_identity())
     account = _account_for_user(user_id)
+    existing_trades = PaperTrade.query.filter_by(user_id=user_id).order_by(
+        PaperTrade.created_at.asc(), PaperTrade.id.asc(),
+    ).all()
+    positions, _ = _positions_and_pnl(existing_trades)
+    quote_keys = {
+        key for key, position in positions.items()
+        if position['quantity'] > 0
+    }
+    quote_keys.add((exchange, symbol))
+    try:
+        quotes = get_live_quotes([
+            {'symbol': quote_symbol, 'exchange': quote_exchange}
+            for quote_exchange, quote_symbol in sorted(quote_keys)
+        ])
+    except KiteConfigurationError as error:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(error)}), 503
+    except KiteAPIError as error:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(error)}), 502
+
+    price = _quote_price(quotes.get((exchange, symbol)))
+    if price is None:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'No Kite market quote is available for {exchange}:{symbol}.',
+        }), 404
+    for quote_exchange, quote_symbol in quote_keys:
+        if _quote_price(quotes.get((quote_exchange, quote_symbol))) is None:
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'message': f'Kite quote is unavailable for {quote_exchange}:{quote_symbol}; no virtual trade was placed.',
+            }), 502
+
+    trade_value = round(price * quantity, 2)
 
     if side == 'BUY' and trade_value > account.cash_balance:
         db.session.rollback()
         return jsonify({'success': False, 'message': 'Insufficient virtual cash for this buy.'}), 400
     if side == 'SELL':
         buys = PaperTrade.query.filter_by(
-            user_id=user_id, symbol=instrument['symbol'], exchange=instrument['exchange'], side='BUY',
+            user_id=user_id, symbol=symbol, exchange=exchange, side='BUY',
         ).all()
         sells = PaperTrade.query.filter_by(
-            user_id=user_id, symbol=instrument['symbol'], exchange=instrument['exchange'], side='SELL',
+            user_id=user_id, symbol=symbol, exchange=exchange, side='SELL',
         ).all()
         available = sum(trade.quantity for trade in buys) - sum(trade.quantity for trade in sells)
         if quantity > available:
@@ -159,17 +248,18 @@ def create_paper_trade():
 
     trade = PaperTrade(
         user_id=user_id,
-        symbol=instrument['symbol'],
-        exchange=instrument['exchange'],
+        symbol=symbol,
+        exchange=exchange,
         side=side,
         quantity=quantity,
         price=price,
     )
     db.session.add(trade)
     db.session.commit()
+    snapshot = _account_snapshot(user_id, market_quotes=quotes)
     return jsonify({
         'success': True,
-        'message': f'Virtual {side.lower()} filled at the seeded demo price.',
+        'message': f'Virtual {side.lower()} filled at the Kite quote. No broker order was sent.',
         'data': trade.to_dict(),
-        'account': _account_snapshot(user_id),
+        'account': snapshot,
     }), 201

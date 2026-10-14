@@ -44,7 +44,7 @@
             <div class="panel-header">
               <div>
                 <div class="panel-title">Practice with virtual cash</div>
-                <p class="subtitle">Each account starts with ₹1,00,000. Trades fill immediately at seeded demo prices.</p>
+                <p class="subtitle">Each account starts with ₹1,00,000. Trades use authorized Kite Connect quotes, but remain virtual.</p>
               </div>
               <span class="date-pill">SIMULATED · NO BROKER ORDERS</span>
             </div>
@@ -60,7 +60,7 @@
 
           <section class="panel">
             <div class="panel-header">
-              <div><div class="panel-title">Place a virtual trade</div><p class="subtitle">Whole-share NSE demo instruments only.</p></div>
+              <div><div class="panel-title">Place a virtual trade</div><p class="subtitle">Whole-share NSE instruments using Kite Connect quotes.</p></div>
             </div>
             <form id="paper-trade-form" class="order-form">
               <label>Instrument
@@ -74,14 +74,15 @@
               </label>
               <button class="primary-btn" id="paper-submit" type="submit">Place virtual trade</button>
             </form>
-            <p class="order-ticket-note">Buy orders use virtual cash; sells are limited to shares held in this account. No real money or broker is involved.</p>
+            <div id="paper-quote-status" class="market-data-status" role="status" aria-live="polite">Select an instrument to load its Kite quote.</div>
+            <p class="order-ticket-note">Buy orders use virtual cash; sells are limited to shares held in this account. No real money or broker order is involved.</p>
           </section>
 
           <section class="panel">
             <div class="panel-header"><div class="panel-title">Open positions</div></div>
             <div style="overflow-x:auto;">
               <table class="portfolio-table">
-                <thead><tr><th>Symbol</th><th>Quantity</th><th>Average cost</th><th>Demo price</th><th>Market value</th><th>Unrealized P&amp;L</th></tr></thead>
+                <thead><tr><th>Symbol</th><th>Quantity</th><th>Average cost</th><th>Kite quote</th><th>Market value</th><th>Unrealized P&amp;L</th></tr></thead>
                 <tbody id="paper-holdings"><tr><td colspan="6" class="empty-state">Loading positions…</td></tr></tbody>
               </table>
             </div>
@@ -96,7 +97,7 @@
               </table>
             </div>
           </section>
-          <p class="market-data-status">Educational simulator only. Seeded sample prices are not live quotes. Virtual trades are not sent to Kite or any exchange, and results do not represent actual trading performance.</p>
+          <p class="market-data-status">Educational simulator only. Quotes require an authorized Kite Connect session. Virtual trades are not sent to Kite or any exchange, and results do not represent actual trading performance.</p>
         </div>
       </main>
     </div>
@@ -104,6 +105,7 @@
     <script src="/js/api.js"></script>
     <script>
       const status = document.getElementById('paper-status');
+      const quoteStatus = document.getElementById('paper-quote-status');
       const form = document.getElementById('paper-trade-form');
       const user = parseUser();
       if (!requireAuth()) throw new Error('Not authenticated');
@@ -158,7 +160,7 @@
         const instrumentSelect = document.getElementById('paper-symbol');
         const selected = instrumentSelect.value;
         instrumentSelect.innerHTML = account.instruments.map((instrument) =>
-          `<option value="${escapeHtml(instrument.exchange)}:${escapeHtml(instrument.symbol)}">${escapeHtml(instrument.symbol)} · ${escapeHtml(instrument.name)} — ${money(instrument.price)}</option>`
+          `<option value="${escapeHtml(instrument.exchange)}:${escapeHtml(instrument.symbol)}">${escapeHtml(instrument.symbol)} · ${escapeHtml(instrument.name)}</option>`
         ).join('');
         if (account.instruments.some((instrument) => `${instrument.exchange}:${instrument.symbol}` === selected)) {
           instrumentSelect.value = selected;
@@ -169,10 +171,27 @@
         try {
           const response = await apiRequest('/api/paper-trading/account');
           renderAccount(response.data);
-          status.textContent = 'Paper account ready · seeded demo prices · virtual trades only.';
+          status.textContent = 'Virtual account ready · Kite quotes · no broker orders.';
+          await loadSelectedQuote();
         } catch (error) {
           status.textContent = error.message || 'Could not load the virtual account.';
           if (/authorization|token has expired/i.test(error.message || '')) logoutUser();
+        }
+      }
+
+      async function loadSelectedQuote() {
+        const [exchange, symbol] = document.getElementById('paper-symbol').value.split(':');
+        if (!exchange || !symbol) {
+          quoteStatus.textContent = 'Choose an instrument to load its Kite quote.';
+          return;
+        }
+        quoteStatus.textContent = 'Loading Kite Connect quote…';
+        try {
+          const params = new URLSearchParams({ symbol, exchange });
+          const response = await apiRequest(`/api/paper-trading/quote?${params}`);
+          quoteStatus.textContent = `Kite quote for ${exchange}:${symbol}: ${money(response.data.price)}. Final virtual fill uses the quote returned when you place the trade.`;
+        } catch (error) {
+          quoteStatus.textContent = error.message || 'Could not load a Kite quote.';
         }
       }
 
@@ -181,7 +200,7 @@
         const button = document.getElementById('paper-submit');
         const [exchange, symbol] = document.getElementById('paper-symbol').value.split(':');
         button.disabled = true;
-        status.textContent = 'Filling virtual trade at the seeded demo price…';
+        status.textContent = 'Filling virtual trade at the Kite quote…';
         try {
           const response = await apiRequest('/api/paper-trading/trades', {
             method: 'POST',
@@ -202,6 +221,7 @@
         }
       });
 
+      document.getElementById('paper-symbol').addEventListener('change', loadSelectedQuote);
       document.getElementById('logout-btn').addEventListener('click', logoutUser);
       document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
       bindSidebarNavigation();

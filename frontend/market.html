@@ -155,7 +155,7 @@
             <section class="order-ticket" aria-labelledby="order-ticket-title">
               <div>
                 <div class="panel-title" id="order-ticket-title">Virtual trade</div>
-                <div class="muted">Place a simulated trade using seeded demo prices. No broker orders are sent.</div>
+                <div class="muted">Place a simulated trade using an authorized Kite Connect quote. No broker orders are sent.</div>
               </div>
               <div class="market-data-status" id="market-paper-cash">Loading virtual cash…</div>
               <form id="order-form" class="order-form">
@@ -170,7 +170,7 @@
                 </label>
                 <button class="secondary-btn" type="submit">Preview virtual trade</button>
               </form>
-              <p class="order-ticket-note">Virtual account only: buys use virtual cash, and sells are limited to shares you hold. This does not place a real order.</p>
+              <p class="order-ticket-note">Kite Connect must be authorized for quotes. Buys use virtual cash; sells are limited to shares held. This does not place a real order.</p>
               <div id="order-preview" class="order-preview" aria-live="polite" hidden>
                 <div class="panel-title">Virtual trade preview</div>
                 <dl id="order-preview-details"></dl>
@@ -199,6 +199,7 @@
       let instruments = [];
       let marketOverview = null;
       let selectedInstrument = null;
+      let selectedQuotePrice = null;
       const sectorNames = ['IT', 'Banking', 'Financial Services', 'Auto', 'Pharma', 'FMCG', 'Metals', 'Energy', 'Infrastructure', 'Defense', 'Power', 'Other'];
       let paperCashBalance = null;
       const user = parseUser();
@@ -371,18 +372,13 @@
         document.getElementById('order-form').reset();
         document.getElementById('order-preview').hidden = true;
         document.getElementById('order-status').textContent = '';
+        selectedQuotePrice = null;
       }
 
-      function previewOrder(event) {
+      async function previewOrder(event) {
         event.preventDefault();
         if (!selectedInstrument) return;
         const status = document.getElementById('order-status');
-        const referencePrice = Number(selectedInstrument.currentPrice);
-        if (!Number.isFinite(referencePrice) || referencePrice <= 0) {
-          status.textContent = 'A current quote is required before this order can be previewed.';
-          return;
-        }
-
         const side = document.getElementById('order-side').value;
         const quantity = Number(document.getElementById('order-quantity').value);
         if (!Number.isFinite(quantity) || !Number.isInteger(quantity) || quantity <= 0) {
@@ -390,15 +386,35 @@
           return;
         }
 
+        const submitButton = document.querySelector('#order-form button[type="submit"]');
+        submitButton.disabled = true;
+        status.textContent = 'Getting a quote from Kite Connect…';
+        try {
+          const params = new URLSearchParams({
+            symbol: selectedInstrument.symbol,
+            exchange: selectedInstrument.exchange,
+          });
+          const quote = await apiRequest(`/api/paper-trading/quote?${params}`);
+          selectedQuotePrice = Number(quote.data.price);
+          if (!Number.isFinite(selectedQuotePrice) || selectedQuotePrice <= 0) {
+            throw new Error('Kite returned an invalid quote for this instrument.');
+          }
+        } catch (error) {
+          status.textContent = error.message;
+          return;
+        } finally {
+          submitButton.disabled = false;
+        }
+
         const previewRows = [
           ['Instrument', `${selectedInstrument.symbol} · ${selectedInstrument.exchange}`],
           ['Side', side],
-          ['Execution', 'Immediate virtual fill'],
+          ['Execution', 'Immediate virtual fill using Kite quote'],
           ['Quantity', String(quantity)],
-          ['Seeded demo fill price', formatCurrency(referencePrice)],
+          ['Kite quote', formatCurrency(selectedQuotePrice)],
           ['Available virtual cash', paperCashBalance == null ? 'Loading…' : formatCurrency(paperCashBalance)],
         ];
-        previewRows.push(['Virtual trade value', formatCurrency(referencePrice * quantity)]);
+        previewRows.push(['Estimated virtual trade value', formatCurrency(selectedQuotePrice * quantity)]);
         document.getElementById('order-preview-details').innerHTML = previewRows.map(([label, value]) => `
           <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>
         `).join('');
@@ -480,7 +496,6 @@
           selectedInstrument = {
             symbol: instrument.symbol,
             exchange: instrument.exchange,
-            currentPrice: Number(instrument.price),
           };
           document.getElementById('stock-detail-name').textContent = instrument.name || instrument.symbol;
           document.getElementById('stock-detail-symbol').textContent =
@@ -543,10 +558,12 @@
       document.getElementById('order-form').addEventListener('input', () => {
         document.getElementById('order-preview').hidden = true;
         document.getElementById('order-status').textContent = '';
+      selectedQuotePrice = null;
       });
       document.getElementById('order-form').addEventListener('change', () => {
-        document.getElementById('order-preview').hidden = true;
-        document.getElementById('order-status').textContent = '';
+      document.getElementById('order-preview').hidden = true;
+      document.getElementById('order-status').textContent = '';
+      selectedQuotePrice = null;
       });
       document.getElementById('order-edit').addEventListener('click', () => {
         document.getElementById('order-preview').hidden = true;

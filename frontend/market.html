@@ -154,9 +154,10 @@
             <div class="stock-detail-metrics" id="stock-detail-metrics"></div>
             <section class="order-ticket" aria-labelledby="order-ticket-title">
               <div>
-                <div class="panel-title" id="order-ticket-title">Trade</div>
-                <div class="muted">Review the order details before saving it to the demo order book.</div>
+                <div class="panel-title" id="order-ticket-title">Virtual trade</div>
+                <div class="muted">Place a simulated trade using seeded demo prices. No broker orders are sent.</div>
               </div>
+              <div class="market-data-status" id="market-paper-cash">Loading virtual cash…</div>
               <form id="order-form" class="order-form">
                 <label>Side
                   <select id="order-side">
@@ -164,32 +165,18 @@
                     <option value="SELL">Sell</option>
                   </select>
                 </label>
-                <label>Order type
-                  <select id="order-type">
-                    <option value="MARKET">Market</option>
-                    <option value="LIMIT">Limit</option>
-                    <option value="STOP_LOSS">Stop-loss limit</option>
-                    <option value="STOP_LOSS_MARKET">Stop-loss market</option>
-                  </select>
-                </label>
                 <label>Quantity
                   <input id="order-quantity" type="number" min="1" step="1" value="1" required />
                 </label>
-                <label id="order-price-field" hidden><span id="order-price-label">Limit price</span>
-                  <input id="order-price" type="number" min="0.01" step="0.01" />
-                </label>
-                <label id="order-trigger-field" hidden>Trigger price
-                  <input id="order-trigger-price" type="number" min="0.01" step="0.01" />
-                </label>
-                <button class="secondary-btn" type="submit">Preview order</button>
+                <button class="secondary-btn" type="submit">Preview virtual trade</button>
               </form>
-              <p class="order-ticket-note">Demo only: confirming saves an order in this app and does not send it to Kite or an exchange.</p>
+              <p class="order-ticket-note">Virtual account only: buys use virtual cash, and sells are limited to shares you hold. This does not place a real order.</p>
               <div id="order-preview" class="order-preview" aria-live="polite" hidden>
-                <div class="panel-title">Order preview</div>
+                <div class="panel-title">Virtual trade preview</div>
                 <dl id="order-preview-details"></dl>
                 <div class="order-actions">
                   <button class="secondary-btn" id="order-edit" type="button">Edit order</button>
-                  <button class="primary-btn" id="order-confirm" type="button">Confirm order</button>
+                  <button class="primary-btn" id="order-confirm" type="button">Confirm virtual trade</button>
                 </div>
               </div>
               <div id="order-status" class="market-data-status" role="status" aria-live="polite"></div>
@@ -213,6 +200,7 @@
       let marketOverview = null;
       let selectedInstrument = null;
       const sectorNames = ['IT', 'Banking', 'Financial Services', 'Auto', 'Pharma', 'FMCG', 'Metals', 'Energy', 'Infrastructure', 'Defense', 'Power', 'Other'];
+      let paperCashBalance = null;
       const user = parseUser();
       if (!requireAuth()) { throw new Error('Not authenticated'); }
       if (user) {
@@ -379,28 +367,10 @@
         return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
       }
 
-      function updateOrderFields() {
-        const orderType = document.getElementById('order-type').value;
-        const hasLimitPrice = orderType === 'LIMIT' || orderType === 'STOP_LOSS';
-        const hasTriggerPrice = orderType === 'STOP_LOSS' || orderType === 'STOP_LOSS_MARKET';
-        const priceField = document.getElementById('order-price-field');
-        const triggerField = document.getElementById('order-trigger-field');
-        const priceInput = document.getElementById('order-price');
-        const triggerInput = document.getElementById('order-trigger-price');
-        priceField.hidden = !hasLimitPrice;
-        triggerField.hidden = !hasTriggerPrice;
-        priceInput.required = hasLimitPrice;
-        triggerInput.required = hasTriggerPrice;
-        document.getElementById('order-price-label').textContent = orderType === 'STOP_LOSS'
-          ? 'Stop-loss limit price'
-          : 'Limit price';
-      }
-
       function resetOrderTicket() {
         document.getElementById('order-form').reset();
         document.getElementById('order-preview').hidden = true;
         document.getElementById('order-status').textContent = '';
-        updateOrderFields();
       }
 
       function previewOrder(event) {
@@ -414,36 +384,21 @@
         }
 
         const side = document.getElementById('order-side').value;
-        const orderType = document.getElementById('order-type').value;
         const quantity = Number(document.getElementById('order-quantity').value);
-        const limitPrice = Number(document.getElementById('order-price').value);
-        const triggerPrice = Number(document.getElementById('order-trigger-price').value);
-        const usesLimitPrice = orderType === 'LIMIT' || orderType === 'STOP_LOSS';
-        const usesTriggerPrice = orderType === 'STOP_LOSS' || orderType === 'STOP_LOSS_MARKET';
-        const estimatePrice = usesLimitPrice ? limitPrice : referencePrice;
-        if (!Number.isFinite(quantity) || quantity <= 0
-            || usesLimitPrice && (!Number.isFinite(limitPrice) || limitPrice <= 0)
-            || usesTriggerPrice && (!Number.isFinite(triggerPrice) || triggerPrice <= 0)) {
-          status.textContent = 'Enter a valid quantity and the required order prices.';
+        if (!Number.isFinite(quantity) || !Number.isInteger(quantity) || quantity <= 0) {
+          status.textContent = 'Enter a positive whole-share quantity.';
           return;
         }
 
-        const orderTypeNames = {
-          MARKET: 'Market',
-          LIMIT: 'Limit',
-          STOP_LOSS: 'Stop-loss limit',
-          STOP_LOSS_MARKET: 'Stop-loss market',
-        };
         const previewRows = [
           ['Instrument', `${selectedInstrument.symbol} · ${selectedInstrument.exchange}`],
           ['Side', side],
-          ['Order type', orderTypeNames[orderType]],
+          ['Execution', 'Immediate virtual fill'],
           ['Quantity', String(quantity)],
-          ['Reference price', formatCurrency(referencePrice)],
+          ['Seeded demo fill price', formatCurrency(referencePrice)],
+          ['Available virtual cash', paperCashBalance == null ? 'Loading…' : formatCurrency(paperCashBalance)],
         ];
-        if (usesLimitPrice) previewRows.push(['Limit price', formatCurrency(limitPrice)]);
-        if (usesTriggerPrice) previewRows.push(['Trigger price', formatCurrency(triggerPrice)]);
-        previewRows.push(['Estimated order value', formatCurrency(estimatePrice * quantity)]);
+        previewRows.push(['Virtual trade value', formatCurrency(referencePrice * quantity)]);
         document.getElementById('order-preview-details').innerHTML = previewRows.map(([label, value]) => `
           <div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>
         `).join('');
@@ -455,31 +410,40 @@
         if (!selectedInstrument) return;
         const confirmButton = document.getElementById('order-confirm');
         const status = document.getElementById('order-status');
-        const orderType = document.getElementById('order-type').value;
-        const usesLimitPrice = orderType === 'LIMIT' || orderType === 'STOP_LOSS';
-        const usesTriggerPrice = orderType === 'STOP_LOSS' || orderType === 'STOP_LOSS_MARKET';
         const payload = {
           symbol: selectedInstrument.symbol,
           exchange: selectedInstrument.exchange,
           side: document.getElementById('order-side').value,
-          order_type: orderType,
           quantity: Number(document.getElementById('order-quantity').value),
-          price: usesLimitPrice ? Number(document.getElementById('order-price').value) : 0,
-          trigger_price: usesTriggerPrice ? Number(document.getElementById('order-trigger-price').value) : null,
         };
         confirmButton.disabled = true;
-        status.textContent = 'Saving demo order...';
+        status.textContent = 'Filling virtual trade at the seeded demo price…';
         try {
-          const result = await apiRequest('/api/orders', {
+          const result = await apiRequest('/api/paper-trading/trades', {
             method: 'POST',
             body: JSON.stringify(payload),
           });
           document.getElementById('order-preview').hidden = true;
-          status.textContent = `Order #${result.data.id} saved as ${result.data.status} in the demo order book. It was not sent to a broker.`;
+          paperCashBalance = Number(result.account.cash_balance);
+          document.getElementById('market-paper-cash').textContent =
+            `Available virtual cash: ${formatCurrency(paperCashBalance)}`;
+          status.textContent = `${result.message} New virtual cash balance: ${formatCurrency(paperCashBalance)}.`;
         } catch (error) {
           status.textContent = error.message;
         } finally {
           confirmButton.disabled = false;
+        }
+      }
+
+      async function loadPaperCash() {
+        try {
+          const response = await apiRequest('/api/paper-trading/account');
+          paperCashBalance = Number(response.data.cash_balance);
+          document.getElementById('market-paper-cash').textContent =
+            `Available virtual cash: ${formatCurrency(paperCashBalance)} · ₹${Number(response.data.starting_cash).toLocaleString('en-IN')} starting balance`;
+        } catch (error) {
+          document.getElementById('market-paper-cash').textContent =
+            `Virtual account unavailable: ${error.message}`;
         }
       }
 
@@ -538,8 +502,6 @@
           ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join('');
           document.getElementById('stock-detail-add').dataset.add = instrument.symbol;
           document.getElementById('stock-detail-add').dataset.exchange = instrument.exchange;
-          document.getElementById('order-price').value = instrument.price;
-          document.getElementById('order-trigger-price').value = instrument.price;
         } catch (error) {
           document.getElementById('stock-detail-status').textContent = error.message;
           selectedInstrument = null;
@@ -578,7 +540,6 @@
       exchangeInput.addEventListener('input', () => renderTable(instruments));
       document.getElementById('logout-btn').addEventListener('click', logoutUser);
       document.getElementById('order-form').addEventListener('submit', previewOrder);
-      document.getElementById('order-type').addEventListener('change', updateOrderFields);
       document.getElementById('order-form').addEventListener('input', () => {
         document.getElementById('order-preview').hidden = true;
         document.getElementById('order-status').textContent = '';
@@ -594,7 +555,7 @@
       document.getElementById('order-confirm').addEventListener('click', confirmOrder);
       menuToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
       bindSidebarNavigation();
-      updateOrderFields();
+      loadPaperCash();
       loadMarketData();
       loadMarketOverview();
     </script>

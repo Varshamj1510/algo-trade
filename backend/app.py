@@ -14,6 +14,7 @@ from backend.routes.protection_routes import bp as protection_bp
 from backend.routes.strategy_routes import bp as strategy_bp
 from backend.routes.alpha_research_routes import bp as alpha_research_bp
 from backend.routes.paper_trading_routes import bp as paper_trading_bp
+from backend.routes.candlestick_routes import bp as candlestick_chart_bp
 from backend.seed import seed_demo_data
 from backend.services.instrument_catalog import (
     find_demo_instrument,
@@ -49,6 +50,7 @@ app.register_blueprint(protection_bp)
 app.register_blueprint(strategy_bp)
 app.register_blueprint(alpha_research_bp)
 app.register_blueprint(paper_trading_bp)
+app.register_blueprint(candlestick_chart_bp)
 init_db(app)
 
 with app.app_context():
@@ -93,6 +95,11 @@ def strategies_page():
 @app.route('/alpha-research')
 def alpha_research_page():
     return send_file(str(BASE_DIR / 'frontend' / 'alpha-research.html'))
+
+
+@app.route('/candlestick-chart')
+def candlestick_chart_page():
+    return send_file(str(BASE_DIR / 'frontend' / 'candlestick-chart.html'))
 
 
 @app.route('/portfolio')

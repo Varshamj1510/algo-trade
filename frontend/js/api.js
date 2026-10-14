@@ -90,6 +90,18 @@ function bindSidebarNavigation() {
     sidebarNav.insertBefore(item, profileItem || null);
   }
 
+  if (sidebarNav && !sidebarNav.querySelector('[data-page="candlestick-chart"]')) {
+    const item = document.createElement('li');
+    item.className = 'nav-item';
+    if (window.location.pathname === '/candlestick-chart') {
+      item.classList.add('active');
+    }
+    item.dataset.page = 'candlestick-chart';
+    item.innerHTML = '<i class="fa-solid fa-chart-simple"></i> Candlesticks';
+    const profileItem = sidebarNav.querySelector('[data-page="profile"]');
+    sidebarNav.insertBefore(item, profileItem || null);
+  }
+
   document.querySelectorAll('.nav-item[data-page]').forEach((item) => {
     item.style.cursor = 'pointer';
     item.onclick = () => {

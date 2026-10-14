@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlgoTrade | CSV Candlestick Chart</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <style>
+      .candle-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+      .candle-controls label { display: grid; gap: 6px; color: var(--muted); font-size: .82rem; }
+      .candle-controls select { min-width: 150px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-strong); color: var(--text); }
+      .candle-chart-wrap { width: 100%; min-height: 330px; overflow-x: auto; }
+      .candle-chart { display: block; width: 100%; min-width: 680px; height: 430px; }
+      .candle-grid-line { stroke: rgba(142,161,190,.17); stroke-width: 1; }
+      .candle-axis-label { fill: var(--muted); font-size: 12px; }
+      .candle-up { fill: #20d79a; stroke: #20d79a; }
+      .candle-down { fill: #ff5f7a; stroke: #ff5f7a; }
+      .candle-doji { stroke-width: 2; }
+      .candle-pattern-marker { fill: #f7c948; stroke: #07111f; stroke-width: 2; }
+      .candle-pattern-number { fill: #07111f; font-size: 9px; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
+      .candle-legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: .8rem; }
+      .candle-legend span { display: inline-flex; align-items: center; gap: 6px; }
+      .candle-swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+      .candle-pattern-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+      .candle-pattern-item { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: .84rem; }
+      .candle-pattern-item small { color: var(--muted); }
+      @media (max-width: 720px) { .candle-chart { height: 360px; } }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand"><div class="brand-mark">AI</div><h1>AlgoTrade</h1></div>
+        <ul class="sidebar-nav">
+          <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
+          <li class="nav-item" data-page="market"><i class="fa-solid fa-chart-column"></i> Market Data</li>
+          <li class="nav-item" data-page="signals"><i class="fa-solid fa-bolt"></i> Trade Signals</li>
+          <li class="nav-item" data-page="strategies"><i class="fa-solid fa-diagram-project"></i> Strategies</li>
+          <li class="nav-item" data-page="portfolio"><i class="fa-solid fa-wallet"></i> Portfolio</li>
+          <li class="nav-item" data-page="backtesting"><i class="fa-solid fa-flask-vial"></i> Backtesting</li>
+          <li class="nav-item active" data-page="candlestick-chart"><i class="fa-solid fa-chart-simple"></i> Candlesticks</li>
+          <li class="nav-item" data-page="reports"><i class="fa-solid fa-file-lines"></i> Reports</li>
+          <li class="nav-item" data-page="watchlist"><i class="fa-solid fa-star"></i> Watchlist</li>
+          <li class="nav-item" data-page="alerts"><i class="fa-solid fa-bell"></i> Alerts</li>
+          <li class="nav-item" data-page="profile"><i class="fa-solid fa-user"></i> Profile Settings</li>
+          <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</li>
+        </ul>
+      </aside>
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu" id="menu-toggle" type="button" aria-label="Toggle menu"><i class="fa fa-bars"></i></button>
+            <span class="page-title">CSV Candlestick Chart</span>
+          </div>
+          <div class="topbar-right">
+            <div class="user-chip"><div class="avatar" id="user-avatar">V</div><div><div class="user-name" id="top-user-name">Investor</div><div class="user-plan">Historical demo data</div></div></div>
+          </div>
+        </header>
+        <div class="content-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Historical OHLC candlesticks</div>
+                <p class="subtitle">Daily candles loaded from the bundled CSV. Pattern tags are calculated from these candles; data is not live.</p>
+              </div>
+              <form id="chart-controls" class="candle-controls">
+                <label>CSV symbol<select id="chart-symbol" required></select></label>
+                <label>History<select id="chart-timeframe"><option value="3M">3 months</option><option value="6M">6 months</option><option value="1Y" selected>1 year</option><option value="5Y">5 years</option></select></label>
+                <button class="primary-btn" id="chart-load" type="submit">Load chart</button>
+              </form>
+            </div>
+            <p id="chart-status" class="market-data-status" role="status" aria-live="polite">Loading CSV symbols…</p>
+            <div class="candle-legend">
+              <span><i class="candle-swatch" style="background:#20d79a"></i> Close above open</span>
+              <span><i class="candle-swatch" style="background:#ff5f7a"></i> Close below open</span>
+              <span><i class="candle-swatch" style="background:#f7c948"></i> Detected pattern</span>
+            </div>
+            <div id="candle-chart-wrap" class="candle-chart-wrap" role="img" aria-label="Historical daily candlestick chart"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-header">
+              <div><div class="panel-title">Detected candlestick patterns</div><p class="subtitle">Pattern recognition is educational and does not predict future prices.</p></div>
+              <span class="date-pill" id="pattern-count">0 patterns</span>
+            </div>
+            <div id="pattern-list" class="candle-pattern-list"><p class="muted">Load a chart to see patterns.</p></div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="/js/api.js"></script>
+    <script>
+      const symbolSelect = document.getElementById('chart-symbol');
+      const timeframeSelect = document.getElementById('chart-timeframe');
+      const status = document.getElementById('chart-status');
+      const chartWrap = document.getElementById('candle-chart-wrap');
+      const patternList = document.getElementById('pattern-list');
+      const user = parseUser();
+      if (!requireAuth()) throw new Error('Not authenticated');
+      if (user) {
+        document.getElementById('top-user-name').textContent = user.full_name || user.username;
+        document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        })[character]);
+      }
+
+      function money(value) {
+        return formatCurrency(value, 2);
+      }
+
+      function renderCandles(candles, patterns) {
+        chartWrap.replaceChildren();
+        if (!candles.length) {
+          chartWrap.textContent = 'No candles were returned for this symbol and period.';
+          return;
+        }
+        const visible = candles.slice(-100);
+        const startIndex = candles.length - visible.length;
+        const width = 1000;
+        const height = 430;
+        const plot = { left: 72, right: 970, top: 24, bottom: 330, volumeBottom: 388 };
+        const prices = visible.flatMap((candle) => [Number(candle.high), Number(candle.low)]);
+        let minPrice = Math.min(...prices);
+        let maxPrice = Math.max(...prices);
+        const padding = Math.max((maxPrice - minPrice) * 0.08, maxPrice * 0.002);
+        minPrice -= padding;
+        maxPrice += padding;
+        const priceY = (price) => plot.top + (maxPrice - price) / (maxPrice - minPrice) * (plot.bottom - plot.top);
+        const slotWidth = (plot.right - plot.left) / visible.length;
+        const candleWidth = Math.max(2, Math.min(10, slotWidth * 0.62));
+        const maxVolume = Math.max(...visible.map((candle) => Number(candle.volume) || 0), 1);
+        const visiblePatterns = patterns.filter((pattern) => pattern.index >= startIndex);
+        const patternsAtIndex = new Map();
+        visiblePatterns.forEach((pattern) => {
+          const index = pattern.index - startIndex;
+          if (!patternsAtIndex.has(index)) patternsAtIndex.set(index, []);
+          patternsAtIndex.get(index).push(pattern);
+        });
+        const parts = [`<svg class="candle-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Daily OHLC candlesticks with volume and pattern markers">`];
+        for (let tick = 0; tick <= 4; tick += 1) {
+          const y = plot.top + tick * (plot.bottom - plot.top) / 4;
+          const price = maxPrice - tick * (maxPrice - minPrice) / 4;
+          parts.push(`<line class="candle-grid-line" x1="${plot.left}" x2="${plot.right}" y1="${y}" y2="${y}"/>`);
+          parts.push(`<text class="candle-axis-label" x="${plot.left - 8}" y="${y + 4}" text-anchor="end">${money(price)}</text>`);
+        }
+        parts.push(`<text class="candle-axis-label" x="${plot.left}" y="${plot.volumeBottom + 23}">Volume</text>`);
+        visible.forEach((candle, index) => {
+          const x = plot.left + slotWidth * (index + 0.5);
+          const open = Number(candle.open);
+          const close = Number(candle.close);
+          const high = Number(candle.high);
+          const low = Number(candle.low);
+          const up = close >= open;
+          const className = up ? 'candle-up' : 'candle-down';
+          const bodyTop = priceY(Math.max(open, close));
+          const bodyBottom = priceY(Math.min(open, close));
+          const bodyHeight = Math.max(1.5, bodyBottom - bodyTop);
+          const volumeHeight = (Number(candle.volume) || 0) / maxVolume * 48;
+          const title = `${candle.time} · O ${money(open)} H ${money(high)} L ${money(low)} C ${money(close)} · Vol ${Number(candle.volume || 0).toLocaleString('en-IN')}`;
+          parts.push(`<g><title>${escapeHtml(title)}</title>`);
+          parts.push(`<line class="${className}" x1="${x}" x2="${x}" y1="${priceY(high)}" y2="${priceY(low)}" stroke-width="1.3"/>`);
+          parts.push(`<rect class="${className} ${bodyHeight <= 2 ? 'candle-doji' : ''}" x="${x - candleWidth / 2}" y="${bodyTop}" width="${candleWidth}" height="${bodyHeight}"/>`);
+          parts.push(`<rect class="${className}" opacity=".55" x="${x - candleWidth / 2}" y="${plot.volumeBottom - volumeHeight}" width="${candleWidth}" height="${volumeHeight}"/>`);
+          const markedPatterns = patternsAtIndex.get(index) || [];
+          if (markedPatterns.length) {
+            const markerY = Math.max(14, priceY(high) - 13);
+            parts.push(`<circle class="candle-pattern-marker" cx="${x}" cy="${markerY}" r="8"/>`);
+            parts.push(`<text class="candle-pattern-number" x="${x}" y="${markerY}">${markedPatterns.length}</text>`);
+          }
+          if (index === 0 || index === visible.length - 1 || index % Math.ceil(visible.length / 6) === 0) {
+            parts.push(`<text class="candle-axis-label" x="${x}" y="${plot.volumeBottom + 42}" text-anchor="middle">${escapeHtml(String(candle.time).slice(0, 10))}</text>`);
+          }
+          parts.push('</g>');
+        });
+        parts.push('</svg>');
+        chartWrap.innerHTML = parts.join('');
+
+        const recentPatterns = [...patterns].slice(-30).reverse();
+        document.getElementById('pattern-count').textContent = `${patterns.length} detected`;
+        patternList.innerHTML = recentPatterns.length ? recentPatterns.map((pattern) => `
+          <div class="candle-pattern-item">
+            <span>${escapeHtml(pattern.name)} <small>${escapeHtml(pattern.direction)}</small></span>
+            <small>${escapeHtml(pattern.date)}</small>
+          </div>
+        `).join('') : '<p class="muted">No supported patterns detected in this period.</p>';
+      }
+
+      async function loadChart() {
+        const symbol = symbolSelect.value;
+        if (!symbol) return;
+        const button = document.getElementById('chart-load');
+        button.disabled = true;
+        status.textContent = `Loading ${symbol} OHLC data from the bundled CSV…`;
+        try {
+          const params = new URLSearchParams({ symbol, timeframe: timeframeSelect.value });
+          const response = await apiRequest(`/api/candlestick-chart?${params}`);
+          const { candles, patterns, provider } = response.data;
+          renderCandles(candles, patterns);
+          status.textContent = `${symbol} · NSE · ${candles.length} daily candles · ${candles[0]?.time || ''} to ${candles[candles.length - 1]?.time || ''} · ${provider}`;
+        } catch (error) {
+          chartWrap.textContent = error.message || 'Could not load CSV candles.';
+          status.textContent = error.message || 'Could not load CSV candles.';
+          patternList.innerHTML = '<p class="muted">Patterns unavailable.</p>';
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      async function loadSymbols() {
+        try {
+          const response = await apiRequest('/api/candlestick-chart/instruments');
+          const symbols = response.data || [];
+          symbolSelect.innerHTML = symbols.map((item) =>
+            `<option value="${escapeHtml(item.symbol)}">${escapeHtml(item.symbol)} · ${Number(item.observations).toLocaleString('en-IN')} days</option>`
+          ).join('');
+          if (!symbols.length) {
+            status.textContent = 'No supported symbols are available in the bundled CSV.';
+            return;
+          }
+          await loadChart();
+        } catch (error) {
+          status.textContent = error.message || 'Could not load symbols from the bundled CSV.';
+        }
+      }
+
+      document.getElementById('chart-controls').addEventListener('submit', (event) => {
+        event.preventDefault();
+        loadChart();
+      });
+      document.getElementById('logout-btn').addEventListener('click', logoutUser);
+      document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+      bindSidebarNavigation();
+      loadSymbols();
+    </script>
+  </body>
+</html>

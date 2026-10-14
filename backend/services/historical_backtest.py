@@ -75,6 +75,16 @@ def _read_demo_research_history() -> dict[str, list[dict[str, str | float | int]
                 }
             except (AttributeError, TypeError, ValueError, OverflowError) as error:
                 raise ValueError('Historical CSV contains an invalid demo candle.') from error
+            prices = [candle[key] for key in ('open', 'high', 'low', 'close', 'volume')]
+            if (
+                not all(math.isfinite(value) for value in prices)
+                or min(prices[:4]) <= 0
+                or candle['volume'] < 0
+                or candle['high'] < max(candle['open'], candle['close'])
+                or candle['low'] > min(candle['open'], candle['close'])
+                or candle['high'] < candle['low']
+            ):
+                raise ValueError('Historical CSV contains an invalid demo candle.')
             symbol = raw_symbol[:-3]
             candles_by_symbol.setdefault(symbol, []).append(candle)
     for candles in candles_by_symbol.values():
@@ -104,6 +114,120 @@ def get_demo_research_candles(symbol: str, exchange: str, timeframe: str) -> lis
         raise LookupError(f'{normalized_symbol} is not available in the bundled demo history.')
 
     return available_candles[-(252 if timeframe == '1Y' else 1260):]
+
+
+def get_csv_chart_candles(symbol: str, timeframe: str) -> list[dict[str, str | float | int]]:
+    normalized_symbol = symbol.strip().upper()
+    if timeframe not in {'3M', '6M', '1Y', '5Y'}:
+        raise ValueError('Choose a supported chart period.')
+    candles = _read_demo_research_history().get(normalized_symbol, [])
+    if not candles:
+        raise LookupError(f'{normalized_symbol} is not available in the bundled historical CSV.')
+    windows = {'3M': 63, '6M': 126, '1Y': 252, '5Y': 1260}
+    return candles[-windows[timeframe]:]
+
+
+def detect_candlestick_patterns(candles: list[dict[str, str | float | int]]) -> list[dict[str, str | int]]:
+    patterns = []
+    for index, candle in enumerate(candles):
+        open_price = float(candle['open'])
+        high = float(candle['high'])
+        low = float(candle['low'])
+        close = float(candle['close'])
+        candle_range = high - low
+        if candle_range <= 0:
+            continue
+        body = abs(close - open_price)
+        upper_shadow = high - max(open_price, close)
+        lower_shadow = min(open_price, close) - low
+        previous = candles[index - 1] if index else None
+        prior_trend = candles[max(0, index - 5):index]
+        rising = len(prior_trend) >= 3 and float(prior_trend[-1]['close']) > float(prior_trend[0]['close'])
+        falling = len(prior_trend) >= 3 and float(prior_trend[-1]['close']) < float(prior_trend[0]['close'])
+        found = []
+
+        if body <= candle_range * 0.1:
+            found.append(('Doji', 'neutral'))
+        elif (
+            body <= candle_range * 0.3
+            and upper_shadow > body
+            and lower_shadow > body
+        ):
+            found.append(('Spinning top', 'neutral'))
+        elif (
+            body >= candle_range * 0.9
+            and upper_shadow <= candle_range * 0.05
+            and lower_shadow <= candle_range * 0.05
+        ):
+            found.append(('Marubozu', 'bullish' if close > open_price else 'bearish'))
+        if (
+            falling and lower_shadow >= max(body * 2, candle_range * 0.55)
+            and upper_shadow <= candle_range * 0.15
+            and close >= low + candle_range * 0.6
+        ):
+            found.append(('Hammer', 'bullish'))
+        if (
+            rising and upper_shadow >= max(body * 2, candle_range * 0.55)
+            and lower_shadow <= candle_range * 0.15
+            and close <= low + candle_range * 0.4
+        ):
+            found.append(('Shooting star', 'bearish'))
+
+        if previous:
+            previous_open = float(previous['open'])
+            previous_close = float(previous['close'])
+            previous_body_high = max(previous_open, previous_close)
+            previous_body_low = min(previous_open, previous_close)
+            current_body_high = max(open_price, close)
+            current_body_low = min(open_price, close)
+            if previous_close < previous_open and close > open_price and (
+                open_price <= previous_close and close >= previous_open
+            ):
+                found.append(('Bullish engulfing', 'bullish'))
+            elif previous_close > previous_open and close < open_price and (
+                open_price >= previous_close and close <= previous_open
+            ):
+                found.append(('Bearish engulfing', 'bearish'))
+            elif (
+                previous_close < previous_open and close > open_price
+                and current_body_low >= previous_body_low
+                and current_body_high <= previous_body_high
+            ):
+                found.append(('Bullish harami', 'bullish'))
+            elif (
+                previous_close > previous_open and close < open_price
+                and current_body_low >= previous_body_low
+                and current_body_high <= previous_body_high
+            ):
+                found.append(('Bearish harami', 'bearish'))
+
+        if index >= 2:
+            first, middle = candles[index - 2:index]
+            first_open, first_close = float(first['open']), float(first['close'])
+            middle_open, middle_close = float(middle['open']), float(middle['close'])
+            midpoint = (first_open + first_close) / 2
+            middle_range = float(middle['high']) - float(middle['low'])
+            if (
+                first_close < first_open and middle_range > 0
+                and abs(middle_close - middle_open) <= middle_range * 0.35
+                and close > open_price and close > midpoint
+            ):
+                found.append(('Morning star', 'bullish'))
+            elif (
+                first_close > first_open and middle_range > 0
+                and abs(middle_close - middle_open) <= middle_range * 0.35
+                and close < open_price and close < midpoint
+            ):
+                found.append(('Evening star', 'bearish'))
+
+        for name, direction in found:
+            patterns.append({
+                'index': index,
+                'date': str(candle['time']),
+                'name': name,
+                'direction': direction,
+            })
+    return patterns
 
 
 def run_historical_backtest(symbol: str, initial_capital: float) -> dict[str, str | int | float]:

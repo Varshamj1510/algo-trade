@@ -305,7 +305,7 @@ class PaperAccount(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
-    cash_balance = db.Column(db.Float, nullable=False, default=100000.0)
+    cash_balance = db.Column(db.Float, nullable=False, default=1500000.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -331,5 +331,35 @@ class PaperTrade(db.Model):
             'quantity': self.quantity,
             'price': round(self.price, 2),
             'value': round(self.price * self.quantity, 2),
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
+        }
+
+
+class PaperFutureTrade(db.Model):
+    __tablename__ = 'paper_future_trades'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    symbol = db.Column(db.String(30), nullable=False)
+    expiry = db.Column(db.Date, nullable=False)
+    side = db.Column(db.String(4), nullable=False)
+    lots = db.Column(db.Integer, nullable=False)
+    lot_size = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    def to_dict(self):
+        value = self.price * self.lot_size * self.lots
+        return {
+            'id': self.id,
+            'symbol': self.symbol,
+            'exchange': 'NFO',
+            'expiry': self.expiry.isoformat(),
+            'side': self.side,
+            'lots': self.lots,
+            'lot_size': self.lot_size,
+            'quantity': self.lots * self.lot_size,
+            'price': round(self.price, 2),
+            'value': round(value, 2),
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
         }

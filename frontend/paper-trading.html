@@ -44,7 +44,7 @@
             <div class="panel-header">
               <div>
                 <div class="panel-title">Practice with virtual cash</div>
-                <p class="subtitle">Each account starts with ₹1,00,000. Trades use authorized Kite Connect quotes, but remain virtual.</p>
+                <p class="subtitle">Each account starts with ₹15,00,000. Trades use authorized Kite Connect quotes, but remain virtual.</p>
               </div>
               <span class="date-pill">SIMULATED · NO BROKER ORDERS</span>
             </div>
@@ -53,7 +53,7 @@
 
           <section class="stats-grid" aria-label="Virtual account summary">
             <article class="stat-card"><div class="stat-header"><span>Available cash</span><span class="stat-icon"><i class="fa-solid fa-money-bill-wave"></i></span></div><div class="stat-value" id="paper-cash">--</div><div class="stat-trend">Virtual buying power</div></article>
-            <article class="stat-card"><div class="stat-header"><span>Holdings value</span><span class="stat-icon"><i class="fa-solid fa-briefcase"></i></span></div><div class="stat-value" id="paper-market-value">--</div><div class="stat-trend">Seeded sample prices</div></article>
+            <article class="stat-card"><div class="stat-header"><span>Holdings value</span><span class="stat-icon"><i class="fa-solid fa-briefcase"></i></span></div><div class="stat-value" id="paper-market-value">--</div><div class="stat-trend">Current Kite quotes</div></article>
             <article class="stat-card"><div class="stat-header"><span>Total equity</span><span class="stat-icon"><i class="fa-solid fa-chart-pie"></i></span></div><div class="stat-value" id="paper-equity">--</div><div class="stat-trend">Cash plus holdings</div></article>
             <article class="stat-card"><div class="stat-header"><span>Realized / unrealized P&amp;L</span><span class="stat-icon"><i class="fa-solid fa-arrow-trend-up"></i></span></div><div class="stat-value" id="paper-pnl">--</div><div class="stat-trend" id="paper-pnl-detail">Virtual results only</div></article>
           </section>
@@ -76,6 +76,30 @@
             </form>
             <div id="paper-quote-status" class="market-data-status" role="status" aria-live="polite">Select an instrument to load its Kite quote.</div>
             <p class="order-ticket-note">Buy orders use virtual cash; sells are limited to shares held in this account. No real money or broker order is involved.</p>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">NIFTY 50 futures simulator</div>
+                <p class="subtitle">Choose an active NIFTY 50 futures expiry from Kite. Buys reserve the full contract notional from virtual cash.</p>
+              </div>
+              <span class="date-pill">VIRTUAL ONLY · FULL NOTIONAL</span>
+            </div>
+            <form id="paper-future-form" class="order-form">
+              <label>NIFTY futures contract
+                <select id="paper-future-symbol" required></select>
+              </label>
+              <label>Side
+                <select id="paper-future-side"><option value="BUY">Buy / open long</option><option value="SELL">Sell / close long</option></select>
+              </label>
+              <label>Lots
+                <input id="paper-future-lots" type="number" min="1" step="1" value="1" required />
+              </label>
+              <button class="primary-btn" id="paper-future-submit" type="submit">Place virtual futures trade</button>
+            </form>
+            <div id="paper-future-status" class="market-data-status" role="status" aria-live="polite">Loading active NIFTY futures contracts from Kite…</div>
+            <p class="order-ticket-note">Futures trading carries significant risk. This simulator uses full contract notional—not exchange margin—and never submits an order to Kite.</p>
           </section>
 
           <section class="panel">
@@ -107,6 +131,9 @@
       const status = document.getElementById('paper-status');
       const quoteStatus = document.getElementById('paper-quote-status');
       const form = document.getElementById('paper-trade-form');
+      const futureForm = document.getElementById('paper-future-form');
+      const futureStatus = document.getElementById('paper-future-status');
+      let futureContracts = [];
       const user = parseUser();
       if (!requireAuth()) throw new Error('Not authenticated');
       if (user) {
@@ -195,6 +222,48 @@
         }
       }
 
+      async function loadNiftyFutures() {
+        const select = document.getElementById('paper-future-symbol');
+        select.innerHTML = '<option value="">Loading Kite futures…</option>';
+        try {
+          const response = await apiRequest('/api/paper-trading/futures');
+          futureContracts = response.data || [];
+          select.innerHTML = futureContracts.map((contract) => `
+            <option value="${escapeHtml(contract.symbol)}">
+              ${escapeHtml(contract.symbol)} · Expiry ${escapeHtml(contract.expiry)} · ${Number(contract.lot_size).toLocaleString('en-IN')} units/lot
+            </option>
+          `).join('') || '<option value="">No active NIFTY 50 futures found</option>';
+          if (!futureContracts.length) {
+            futureStatus.textContent = 'Kite returned no active NIFTY 50 futures contracts.';
+            return;
+          }
+          await loadSelectedFutureQuote();
+        } catch (error) {
+          select.innerHTML = '<option value="">NIFTY futures unavailable</option>';
+          futureStatus.textContent = error.message || 'Could not load active NIFTY futures from Kite.';
+        }
+      }
+
+      async function loadSelectedFutureQuote() {
+        const symbol = document.getElementById('paper-future-symbol').value;
+        const contract = futureContracts.find((item) => item.symbol === symbol);
+        if (!contract) {
+          futureStatus.textContent = 'Choose an active NIFTY futures contract.';
+          return;
+        }
+        futureStatus.textContent = 'Loading NIFTY futures quote from Kite Connect…';
+        try {
+          const params = new URLSearchParams({ symbol, exchange: 'NFO' });
+          const response = await apiRequest(`/api/paper-trading/quote?${params}`);
+          const lots = Number(document.getElementById('paper-future-lots').value);
+          const notional = response.data.price * contract.lot_size * (Number.isInteger(lots) && lots > 0 ? lots : 1);
+          futureStatus.textContent =
+            `Kite quote: ${money(response.data.price)} · ${contract.lot_size} units/lot · Full-notional estimate: ${money(notional)}.`;
+        } catch (error) {
+          futureStatus.textContent = error.message || 'Could not load the NIFTY futures quote.';
+        }
+      }
+
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const button = document.getElementById('paper-submit');
@@ -221,11 +290,45 @@
         }
       });
 
+      futureForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = document.getElementById('paper-future-submit');
+        const contract = futureContracts.find((item) =>
+          item.symbol === document.getElementById('paper-future-symbol').value
+        );
+        if (!contract) {
+          futureStatus.textContent = 'Select an active NIFTY futures contract from Kite.';
+          return;
+        }
+        button.disabled = true;
+        futureStatus.textContent = 'Filling virtual NIFTY futures trade at the Kite quote…';
+        try {
+          const response = await apiRequest('/api/paper-trading/futures/trades', {
+            method: 'POST',
+            body: JSON.stringify({
+              symbol: contract.symbol,
+              side: document.getElementById('paper-future-side').value,
+              lots: Number(document.getElementById('paper-future-lots').value),
+            }),
+          });
+          renderAccount(response.account);
+          status.textContent = response.message;
+          futureStatus.textContent = `${response.message} ${contract.expiry} expiry; ${contract.lot_size} units per lot.`;
+        } catch (error) {
+          futureStatus.textContent = error.message || 'Virtual NIFTY futures trade could not be completed.';
+        } finally {
+          button.disabled = false;
+        }
+      });
+
       document.getElementById('paper-symbol').addEventListener('change', loadSelectedQuote);
+      document.getElementById('paper-future-symbol').addEventListener('change', loadSelectedFutureQuote);
+      document.getElementById('paper-future-lots').addEventListener('input', loadSelectedFutureQuote);
       document.getElementById('logout-btn').addEventListener('click', logoutUser);
       document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
       bindSidebarNavigation();
       loadAccount();
+      loadNiftyFutures();
     </script>
   </body>
 </html>

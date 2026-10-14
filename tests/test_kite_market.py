@@ -120,6 +120,42 @@ def test_live_quote_requests_are_batched_at_two_hundred_instruments(monkeypatch)
     assert len(quotes) == 201
 
 
+def test_kite_instrument_master_includes_only_active_nifty_50_futures(monkeypatch):
+    csv_data = (
+        'instrument_token,exchange,tradingsymbol,name,expiry,lot_size,instrument_type,segment\n'
+        '101,NFO,NIFTY26DECFUT,NIFTY 50,2099-12-31,65,FUT,NFO-FUT\n'
+        '102,NFO,NIFTYBANK26DECFUT,NIFTY BANK,2099-12-31,30,FUT,NFO-FUT\n'
+        '103,NFO,RELIANCE26DECFUT,RELIANCE,2099-12-31,250,FUT,NFO-FUT\n'
+        '201,NSE,RELIANCE,RELIANCE INDUSTRIES,,1,EQ,NSE\n'
+    ).encode()
+
+    class InstrumentResponse:
+        status_code = 200
+        content = csv_data
+
+        def raise_for_status(self):
+            return None
+
+    monkeypatch.setattr(kite_market, '_auth', lambda: ('test-key', 'test-token'))
+    monkeypatch.setattr(kite_market, '_instrument_cache', None)
+    monkeypatch.setattr(kite_market.requests, 'get', lambda *args, **kwargs: InstrumentResponse())
+
+    instruments = kite_market._load_instruments()
+    futures = kite_market.get_nifty_futures()
+
+    assert ('NSE', 'RELIANCE') in instruments
+    assert ('NFO', 'NIFTY26DECFUT') in instruments
+    assert ('NFO', 'NIFTYBANK26DECFUT') not in instruments
+    assert ('NFO', 'RELIANCE26DECFUT') not in instruments
+    assert futures == [{
+        'symbol': 'NIFTY26DECFUT',
+        'exchange': 'NFO',
+        'name': 'NIFTY 50',
+        'expiry': '2099-12-31',
+        'lot_size': 65,
+    }]
+
+
 def test_exchange_request_token_posts_kite_checksum(monkeypatch):
     monkeypatch.setenv('KITE_API_KEY', 'kite-key')
     monkeypatch.setenv('KITE_API_SECRET', 'kite-secret')

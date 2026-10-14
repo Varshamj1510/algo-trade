@@ -260,20 +260,55 @@ def _load_instruments():
             symbol = (row.get('tradingsymbol') or '').upper()
             instrument_type = (row.get('instrument_type') or '').upper()
             segment = (row.get('segment') or '').upper()
-            if not symbol or not row.get('instrument_token') or exchange not in ('NSE', 'BSE'):
+            is_equity_or_index = exchange in ('NSE', 'BSE') and (
+                instrument_type == 'EQ' or segment == 'INDICES'
+            )
+            is_nifty_future = (
+                exchange == 'NFO'
+                and segment == 'NFO-FUT'
+                and instrument_type == 'FUT'
+                and (row.get('name') or '').strip().upper() == 'NIFTY 50'
+            )
+            if not symbol or not row.get('instrument_token') or not (is_equity_or_index or is_nifty_future):
                 continue
-            if instrument_type == 'EQ' or segment == 'INDICES':
-                instruments[(exchange, symbol)] = {
-                    'instrument_token': str(row['instrument_token']),
-                    'name': row.get('name') or symbol,
-                    'instrument_type': instrument_type or 'INDEX',
-                    'exchange': exchange,
-                    'symbol': symbol,
-                }
+            instrument = {
+                'instrument_token': str(row['instrument_token']),
+                'name': row.get('name') or symbol,
+                'instrument_type': instrument_type or 'INDEX',
+                'exchange': exchange,
+                'symbol': symbol,
+            }
+            if is_nifty_future:
+                instrument['expiry'] = row.get('expiry')
+                instrument['lot_size'] = int(row.get('lot_size') or 0)
+            instruments[(exchange, symbol)] = instrument
 
         _instrument_cache = instruments
         _instrument_cache_at = now
         return instruments
+
+
+def get_nifty_futures():
+    today = datetime.now(ZoneInfo('Asia/Kolkata')).date()
+    contracts = []
+    for (exchange, symbol), instrument in _load_instruments().items():
+        if exchange != 'NFO' or instrument['instrument_type'] != 'FUT':
+            continue
+        try:
+            expiry = datetime.fromisoformat(instrument['expiry']).date()
+            lot_size = int(instrument['lot_size'])
+        except (TypeError, ValueError):
+            continue
+        if expiry < today or lot_size <= 0:
+            continue
+        contracts.append({
+            'symbol': symbol,
+            'exchange': exchange,
+            'name': instrument['name'],
+            'expiry': expiry.isoformat(),
+            'lot_size': lot_size,
+        })
+    return sorted(contracts, key=lambda contract: (contract['expiry'], contract['symbol']))
 
 
 def _instrument_lookup_key(instrument):

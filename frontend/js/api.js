@@ -54,6 +54,18 @@ function parseUser() {
 
 function bindSidebarNavigation() {
   const sidebarNav = document.querySelector('.sidebar-nav');
+  if (sidebarNav && !sidebarNav.querySelector('[data-page="paper-trading"]')) {
+    const item = document.createElement('li');
+    item.className = 'nav-item';
+    if (window.location.pathname === '/paper-trading') {
+      item.classList.add('active');
+    }
+    item.dataset.page = 'paper-trading';
+    item.innerHTML = '<i class="fa-solid fa-shuffle"></i> Virtual Trading';
+    const profileItem = sidebarNav.querySelector('[data-page="profile"]');
+    sidebarNav.insertBefore(item, profileItem || null);
+  }
+
   if (sidebarNav && !sidebarNav.querySelector('[data-page="alpha-research"]')) {
     const item = document.createElement('li');
     item.className = 'nav-item';

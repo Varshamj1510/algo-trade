@@ -13,6 +13,7 @@ from backend.models import Alert, BacktestResult, Holding, Order, Report, Signal
 from backend.routes.protection_routes import bp as protection_bp
 from backend.routes.strategy_routes import bp as strategy_bp
 from backend.routes.alpha_research_routes import bp as alpha_research_bp
+from backend.routes.paper_trading_routes import bp as paper_trading_bp
 from backend.seed import seed_demo_data
 from backend.services.instrument_catalog import (
     find_demo_instrument,
@@ -47,6 +48,7 @@ jwt = JWTManager(app)
 app.register_blueprint(protection_bp)
 app.register_blueprint(strategy_bp)
 app.register_blueprint(alpha_research_bp)
+app.register_blueprint(paper_trading_bp)
 init_db(app)
 
 with app.app_context():
@@ -96,6 +98,11 @@ def alpha_research_page():
 @app.route('/portfolio')
 def portfolio_page():
     return send_file(str(BASE_DIR / 'frontend' / 'portfolio.html'))
+
+
+@app.route('/paper-trading')
+def paper_trading_page():
+    return send_file(str(BASE_DIR / 'frontend' / 'paper-trading.html'))
 
 
 @app.route('/backtesting')

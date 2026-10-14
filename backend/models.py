@@ -298,3 +298,38 @@ class Order(db.Model):
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else '',
             'estimated_value': round((self.price or 0) * self.quantity, 2),
         }
+
+
+class PaperAccount(db.Model):
+    __tablename__ = 'paper_accounts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
+    cash_balance = db.Column(db.Float, nullable=False, default=100000.0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class PaperTrade(db.Model):
+    __tablename__ = 'paper_trades'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    symbol = db.Column(db.String(20), nullable=False)
+    exchange = db.Column(db.String(10), nullable=False, default='NSE')
+    side = db.Column(db.String(4), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'symbol': self.symbol,
+            'exchange': self.exchange,
+            'side': self.side,
+            'quantity': self.quantity,
+            'price': round(self.price, 2),
+            'value': round(self.price * self.quantity, 2),
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
+        }

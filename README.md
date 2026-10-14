@@ -17,6 +17,7 @@ A full-stack algorithmic trading dashboard starter with a React frontend and a F
 - SQLite database placeholder for trade records
 - Strategy library with saved, user-scoped BUY/SELL condition rules and manual snapshot previews
 - Authenticated order-protection calculator for stop/target levels, risk-based position size, and estimated trade risk
+- Per-account virtual trading with ₹1,00,000 starting cash, simulated fills at seeded demo prices, and no broker order submission
 - Kite-backed signal analysis with RSI, MACD, EMA/SMA, Bollinger bands, VWAP, ATR, OBV, volume context, and candle charts
 - Kite-backed alpha research with historical feature engineering, Random Forest/XGBoost estimates, factor ranking, PCA, autoencoder latent factors, and rolling composite-alpha weights
 
@@ -63,6 +64,7 @@ The default SQLite database is suitable only for a temporary demo: Render's serv
 - `GET /api/market/overview` - locally calculated overview using seeded dashboard demo instruments (not live)
 - `GET /api/market/indices`, `/api/market/gainers`, `/api/market/losers`, `/api/market/active`, `/api/market/sectors` - overview sections
 - `GET /api/watchlist`, `POST /api/watchlist`, `DELETE /api/watchlist/<symbol>?exchange=<exchange>` - user watchlist
+- `GET /api/paper-trading/account` and `POST /api/paper-trading/trades` - read the signed-in user's paper account and simulate whole-share BUY/SELL fills at seeded demo prices
 - `POST /api/protection/calculate` - calculate stop-loss, take-profit, position-size, trailing-stop, and risk/reward estimates; requires a JWT bearer token and does not place or save orders
 - `GET /api/strategies` and `POST /api/strategies` - list the signed-in user's strategies and save validated indicator-rule strategies
 - `POST /api/strategies/preview` - evaluate BUY/SELL rules against explicitly supplied indicator snapshot values; requires a JWT bearer token
@@ -74,6 +76,8 @@ Open `/strategies` and select **New Strategy** to create BUY and SELL condition 
 Open `/order-protection` to use the calculator. Supply entry price, stop-loss, account balance, and risk percentage. Quantity, take-profit, and trailing-stop distance are optional; loss/profit estimates require quantity, while risk/reward requires a take-profit price. Position size is a fractional estimate and excludes fees, slippage, and exchange lot-size constraints.
 
 Open `/signals` to view illustrative BUY/SELL/HOLD signals calculated from seeded dashboard demo-stock daily changes. These are not live quotes, technical analysis, or trading advice.
+
+Open `/paper-trading` to practice with a separate virtual account seeded with ₹1,00,000 per user. Whole-share trades fill immediately at the app's seeded demo prices; buys are limited by virtual cash and sells by held quantity. The simulator does not submit orders to Kite or any exchange and is not connected to the illustrative seeded portfolio.
 
 Open `/backtesting` to run the 20/50-day moving-average crossover on the historical closes in `symbols.csv/adani.csv`. The page lists the file's supported symbols and coverage dates; it does not use dashboard demo values or Kite. Results exclude fees, slippage, and dividends and are historical illustrations, not a performance guarantee.
 

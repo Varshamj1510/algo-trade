@@ -111,7 +111,7 @@ with app.app_context():
 
 @app.route('/')
 def index():
-    return redirect('/register')
+    return send_file(str(BASE_DIR / 'frontend' / 'register.html'))
 
 
 @app.route('/login')

@@ -10,19 +10,19 @@ A full-stack algorithmic trading dashboard starter with a React frontend and a F
 
 ## Features
 
-- Seeded dashboard demo prices across Market Data, Watchlist, and Portfolio; selecting a top gainer opens its simulated candlestick chart and virtual trade panel
+- Market dashboard with stock search, watchlists, portfolio views, charts, and virtual trading
 - Technical analysis indicators: RSI, MACD, moving average, VWAP
 - Buy/sell signal generation
 - Historical CSV-based 20/50-day moving-average backtesting
-- SQLite database placeholder for trade records
+- SQLite database for local development; PostgreSQL recommended for deployment
 - Strategy library with saved, user-scoped BUY/SELL condition rules and manual snapshot previews
 - Hugging Face AI financial-sentiment analysis for user-provided headlines and article excerpts
 - Authenticated order-protection calculator for stop/target levels, risk-based position size, and estimated trade risk
-- Per-account virtual stock trading with ₹15,00,000 starting cash, demo-only cash top-ups, seeded prices, and amount-based BUY prompts that calculate whole-share paper trades; no real payments or broker orders are submitted
-- Trading Academy with free and ₹199/month Premium learning catalogs, a 30-day no-payment Premium demo, and server-side YouTube Data API lesson search (`YOUTUBE_API_KEY`)
+- Per-account virtual stock trading with ₹15,00,000 starting cash and virtual trades; no real payments or broker orders are submitted
+- Trading Academy with YouTube Data API lesson search (`YOUTUBE_API_KEY`) restricted to trading education
 - Kite-backed signal analysis with RSI, MACD, EMA/SMA, Bollinger bands, VWAP, ATR, OBV, volume context, and candle charts
 - Kite-backed alpha research with historical feature engineering, Random Forest/XGBoost estimates, factor ranking, PCA, autoencoder latent factors, and rolling composite-alpha weights
-- User-scoped, one-time above/below price alerts with browser notifications, quiet hours, and live Kite Connect quote checks
+- User-scoped, one-time above/below price alerts with browser notifications, quiet hours, and Kite Connect quote checks
 
 ## Frontend setup
 
@@ -44,12 +44,54 @@ python app.py
 
 ## Deploy on Render
 
-Create a **Web Service** from this repository with the repository root as the root directory. Render can use the root `requirements.txt` and `Procfile`; if setting commands manually, use:
+Create a **Web Service** from this repository with the repository root as the root directory. Use:
 
 - Build command: `pip install -r requirements.txt`
 - Start command: `gunicorn --bind 0.0.0.0:$PORT run:app`
 
-Set `SECRET_KEY` and `JWT_SECRET_KEY` as separate, strong random secrets in the Render service's **Environment** settings. Do not use the placeholder values in `.env.example`, commit a `.env` file, or share secrets in chat. Set `KITE_API_KEY`, `KITE_API_SECRET`, and `KITE_REDIRECT_URI` only if enabling Kite Connect; the redirect URI must be `https://<your-render-service>.onrender.com/kite/callback` and must match the URI configured for the Kite app.
+Create a separate Render **Background Worker** for closed-page price-alert delivery:
+
+```text
+python -m backend.alert_worker
+```
+
+Use the same production database and environment values in both services. Render provides the `PORT` value automatically. Use PostgreSQL for persistent deployment data; do not use a local SQLite path on Render.
+
+Required production variables:
+
+```dotenv
+SECRET_KEY=<strong-random-secret>
+JWT_SECRET_KEY=<strong-random-secret>
+OTP_HASH_SECRET=<strong-random-secret>
+DATABASE_URL=<Render-PostgreSQL-connection-string>
+APP_ORIGIN=https://<your-service>.onrender.com
+WEBAUTHN_ORIGIN=https://<your-service>.onrender.com
+RP_ID=<your-service>.onrender.com
+RP_NAME=AlphaMind
+```
+
+Optional integrations:
+
+```dotenv
+KITE_API_KEY=<kite-api-key>
+KITE_API_SECRET=<kite-api-secret>
+KITE_ACCESS_TOKEN=
+KITE_REDIRECT_URI=https://<your-service>.onrender.com/kite/callback
+YOUTUBE_API_KEY=<youtube-data-api-v3-key>
+GEMINI_API_KEY=<gemini-api-key>
+HUGGINGFACE_API_TOKEN=<huggingface-token>
+```
+
+Browser push variables must be configured in both the Web Service and Background Worker:
+
+```dotenv
+VAPID_PUBLIC_KEY=<vapid-public-key>
+VAPID_PRIVATE_KEY=<vapid-private-key>
+VAPID_SUBJECT=mailto:<contact-email>
+PRICE_ALERT_POLL_SECONDS=30
+```
+
+Configure the same callback URL in the Kite Connect developer portal. Keep all real keys in Render Environment settings only; never commit `.env` or paste secrets into source control.
 
 Email-code sign-in is optional. Configure these server-side variables in `.env` locally or in the hosting provider's environment settings; never expose them in frontend code:
 
@@ -68,7 +110,7 @@ The equivalent `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FRO
 
 ## Price alerts
 
-Open `/alerts` to create and manage above/below price conditions. Enabling notifications requests browser permission and registers that browser for Web Push. Price conditions are checked against Kite Connect live quotes only; seeded/demo prices never trigger them. Kite credentials, a valid Kite session, VAPID keys, and the background alert worker are required for notifications while the page is closed. The worker polls every 30 seconds by default; quiet hours use the browser's configured timezone and keep triggered notifications pending until quiet hours end. A triggered alert fires once; reset it only after the live quote has moved back outside its condition, or change its target/direction.
+Open `/alerts` to create and manage above/below price conditions. Enabling notifications requests browser permission and registers that browser for Web Push. Price conditions are checked against Kite Connect quotes. Kite credentials, a valid Kite session, VAPID keys, and the background alert worker are required for notifications while the page is closed. The worker polls every 30 seconds by default; quiet hours use the browser's configured timezone and keep triggered notifications pending until quiet hours end. A triggered alert fires once; reset it only after the quote has moved outside its condition, or change its target/direction.
 
 Generate a VAPID key pair once and keep the private key secret. For local development, run `python -m backend.generate_vapid_keys` once; it writes the pair to the ignored `.env` file without printing the keys. Set the same `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and a real contact such as `VAPID_SUBJECT=mailto:you@example.com` in the production server and worker environments. Then start the web app and alert worker in separate terminals:
 

@@ -323,11 +323,11 @@ def request_login_otp():
     db.session.add(login_code)
 
     message = EmailMessage()
-    message['Subject'] = 'Your AlphaMind sign-in code'
+    message['Subject'] = 'Your AlgoMind sign-in code'
     message['From'] = app.config['MAIL_DEFAULT_SENDER']
     message['To'] = email
     message.set_content(
-        f'Your AlphaMind sign-in code is {code}. It expires in 10 minutes. '
+        f'Your AlgoMind sign-in code is {code}. It expires in 10 minutes. '
         'If you did not request this code, you can ignore this email.'
     )
 
@@ -824,7 +824,7 @@ def kite_callback():
             'Kite did not authorize this account for the configured Kite Connect app. '
             'If Kite reports that the user is not enabled for the app, the app owner must '
             'enable this Zerodha account in the Kite Connect developer console, or Kite '
-            'Connect support must resolve the app access. AlphaMind cannot grant this '
+            'Connect support must resolve the app access. AlgoMind cannot grant this '
             'permission. After access is enabled, start the connection again from Market Data.',
             403,
         )

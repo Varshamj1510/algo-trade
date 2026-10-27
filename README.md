@@ -1,4 +1,4 @@
-# AI Algo Trading
+# AlgoMind
 
 A full-stack algorithmic trading dashboard starter with a React frontend and a Flask backend.
 
@@ -67,7 +67,7 @@ DATABASE_URL=<Render-PostgreSQL-connection-string>
 APP_ORIGIN=https://<your-service>.onrender.com
 WEBAUTHN_ORIGIN=https://<your-service>.onrender.com
 RP_ID=<your-service>.onrender.com
-RP_NAME=AlphaMind
+RP_NAME=AlgoMind
 ```
 
 Optional integrations:
@@ -102,7 +102,7 @@ MAIL_USE_TLS=true
 MAIL_USE_SSL=false
 MAIL_USERNAME=your-smtp-username
 MAIL_PASSWORD=your-smtp-password
-MAIL_DEFAULT_SENDER=AlphaMind <no-reply@example.com>
+MAIL_DEFAULT_SENDER=AlgoMind <no-reply@example.com>
 ```
 
 Use the sender address authorized by your SMTP provider. Email sign-in returns a setup error until a mail server, port, and sender are configured.
@@ -128,7 +128,7 @@ Optional secure sign-in methods are available alongside account-password and ema
 
 ```dotenv
 WEBAUTHN_RP_ID=your-site.example.com
-WEBAUTHN_RP_NAME=AlphaMind
+WEBAUTHN_RP_NAME=AlgoMind
 WEBAUTHN_ORIGIN=https://your-site.example.com
 ```
 
@@ -170,7 +170,7 @@ Open `/signals` to view illustrative BUY/SELL/HOLD signals calculated from seede
 
 Open `/sentiment` to analyze a headline or excerpt using the Hugging Face financial sentiment model, with Google Gemini as an alternative when Hugging Face inference credits are unavailable. If Hugging Face is not configured, Gemini is used directly. The page displays negative, neutral, and positive class scores and identifies the provider used; it does not fetch news automatically. Text is sent to the selected provider through the server, so do not submit private or sensitive information. Gemini scores are estimates rather than calibrated probabilities. Sentiment can miss context or sarcasm and is educational—not trading advice or a prediction of market movement.
 
-The Dashboard includes a centered AlphaMind AI chat assistant. It answers educational questions about trading concepts, indicators, risk management, and app features using Google Gemini. Chat history is kept only in the open browser page and sent to Gemini for replies; AlphaMind does not persist it. The endpoint is limited to 10 requests per user per minute. The assistant has no live quote, news, or account-data access and is not a source of personalized financial advice.
+The Dashboard includes a centered AlgoMind AI chat assistant. It answers educational questions about trading concepts, indicators, risk management, and app features using Google Gemini. Chat history is kept only in the open browser page and sent to Gemini for replies; AlgoMind does not persist it. The endpoint is limited to 10 requests per user per minute. The assistant has no live quote, news, or account-data access and is not a source of personalized financial advice.
 
 To enable AI sentiment analysis locally, configure either or both providers in the project-root `.env` file (next to `run.py`):
 
@@ -182,7 +182,7 @@ To enable AI sentiment analysis locally, configure either or both providers in t
    GEMINI_API_KEY=your_google_api_key
    ```
 
-3. Restart the Flask app. Hugging Face is tried first; if it reports that provider credits are unavailable, AlphaMind uses Gemini when `GEMINI_API_KEY` is configured. If only the Gemini key is configured, Gemini is used directly. Google AI Studio has its own model availability, quotas, and pricing; check the [Gemini API pricing and limits](https://ai.google.dev/gemini-api/docs/pricing) for your account.
+3. Restart the Flask app. Hugging Face is tried first; if it reports that provider credits are unavailable, AlgoMind uses Gemini when `GEMINI_API_KEY` is configured. If only the Gemini key is configured, Gemini is used directly. Google AI Studio has its own model availability, quotas, and pricing; check the [Gemini API pricing and limits](https://ai.google.dev/gemini-api/docs/pricing) for your account.
 
 Keep both keys server-side; never commit `.env` or share keys in chat. For deployment, set whichever provider keys you use in the hosting service's environment settings. Without a configured key, the API returns a setup message rather than falling back to a misleading local heuristic.
 
@@ -194,7 +194,7 @@ Open `/backtesting` to run the 20/50-day moving-average crossover on the histori
 
 Open `/alpha-research` for the historical research workspace. Choose **Bundled demo data** to use the repository's historical OHLCV CSV without Kite credentials, or **Kite Connect** to use candles from an authorized account. Demo mode supports the NSE symbols listed by the page and uses bundled historical CSV candles; these are not Kite data and are separate from the seeded demo quotes shown on Market Data. The workspace engineers 18 price, trend, volatility, momentum, and volume factors; fits Random Forest and XGBoost regressors to estimate the next five-session return; evaluates each model on a chronological holdout; ranks factors by rank information coefficient and model importance; and computes PCA and autoencoder latent representations. Composite alpha uses signed factor z-scores weighted by recent absolute rank IC, with a history chart showing how that composition changes. Research requires at least 120 usable labeled rows; unavailable or insufficient data is reported rather than replaced with generated prices. Results are exploratory research, not trade instructions or guaranteed returns. No predictions or factor outputs are persisted.
 
-Kite Connect API access is separate from signing in to Zerodha. Configure `KITE_API_KEY`, `KITE_API_SECRET`, and `KITE_REDIRECT_URI` in the project `.env`, then use the Kite connection flow for features that require live Kite data. The Market Data page itself uses seeded demo stocks only. The access token is held only in the running server process and must be renewed after it expires or the server restarts. If Kite reports that a user is not enabled for the configured app, the account must be enabled for that app by its owner or Kite Connect support; AlphaMind cannot grant that permission. Existing `/api/orders` entries are local demo records and are not submitted to Zerodha. This application does not place live broker orders.
+Kite Connect API access is separate from signing in to Zerodha. Configure `KITE_API_KEY`, `KITE_API_SECRET`, and `KITE_REDIRECT_URI` in the project `.env`, then use the Kite connection flow for features that require live Kite data. The Market Data page itself uses seeded demo stocks only. The access token is held only in the running server process and must be renewed after it expires or the server restarts. If Kite reports that a user is not enabled for the configured app, the account must be enabled for that app by its owner or Kite Connect support; AlgoMind cannot grant that permission. Existing `/api/orders` entries are local demo records and are not submitted to Zerodha. This application does not place live broker orders.
 
 ## Market overview data
 

@@ -17,7 +17,7 @@ INFERENCE_URL = (
     f'https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ID}:generateContent'
 )
 SYSTEM_INSTRUCTION = (
-    'You are AlphaMind, a concise educational assistant for a paper-trading and market-analysis app. '
+    'You are AlgoMind, a concise educational assistant for a paper-trading and market-analysis app. '
     'Help explain investing concepts, technical indicators, risk management, and the app features. '
     'Do not claim to have live market data, current quotes, news access, or access to the user account. '
     'The dashboard uses simulated demo prices. Do not give personalized buy/sell instructions, guarantee '
@@ -82,7 +82,7 @@ def chat_with_gemini(messages):
     api_key = os.getenv('GEMINI_API_KEY', '').strip()
     if not api_key:
         raise AssistantConfigurationError(
-            'Google Gemini is not configured. Add GEMINI_API_KEY to the project .env file and restart AlphaMind.'
+            'Google Gemini is not configured. Add GEMINI_API_KEY to the project .env file and restart AlgoMind.'
         )
 
     try:

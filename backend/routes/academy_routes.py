@@ -94,7 +94,7 @@ def search_youtube_lessons():
     if not api_key:
         return jsonify({
             'success': False,
-            'message': 'YouTube search is not configured. Add YOUTUBE_API_KEY to the server environment and restart AlphaMind.',
+            'message': 'YouTube search is not configured. Add YOUTUBE_API_KEY to the server environment and restart AlgoMind.',
         }), 503
 
     try:

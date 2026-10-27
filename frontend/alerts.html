@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlphaMind | Alerts</title>
+    <title>AlgoMind | Alerts</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   </head>
@@ -12,7 +12,7 @@
       <aside class="sidebar" id="sidebar">
         <div class="brand">
           <div class="brand-mark">AI</div>
-          <h1>AlphaMind</h1>
+          <h1>AlgoMind</h1>
         </div>
         <ul class="sidebar-nav">
           <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
@@ -50,7 +50,7 @@
           <section class="panel alerts-intro">
             <div>
               <div class="panel-title">Price alerts</div>
-              <p class="market-data-status">Choose a stock and target. AlphaMind checks your condition against Kite Connect quotes and notifies you when it is met.</p>
+              <p class="market-data-status">Choose a stock and target. AlgoMind checks your condition against Kite Connect quotes and notifies you when it is met.</p>
             </div>
             <div id="alerts-status" class="alerts-status" role="status" aria-live="polite">Checking alert service…</div>
           </section>
@@ -380,7 +380,7 @@
         const delivered = [];
         for (const alert of pending) {
           try {
-            const notification = new Notification('AlphaMind price alert', {
+            const notification = new Notification('AlgoMind price alert', {
               body: alert.notification_text,
               tag: `price-alert-${alert.id}`,
             });

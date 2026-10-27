@@ -44,7 +44,7 @@ def test_dashboard_includes_centered_ai_chat():
     assert response.status_code == 200
     page = response.get_data(as_text=True)
     assert 'dashboard-ai-chat' in page
-    assert 'Ask AlphaMind AI' in page
+    assert 'Ask AlgoMind AI' in page
     assert '/api/ai-assistant/chat' in page
 
 

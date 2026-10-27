@@ -9,7 +9,7 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  event.waitUntil(self.registration.showNotification(payload.title || 'AlphaMind price alert', {
+  event.waitUntil(self.registration.showNotification(payload.title || 'AlgoMind price alert', {
     body: payload.body || 'A saved price alert condition was met.',
     tag: payload.tag || 'alphamind-price-alert',
     data: { url: '/alerts' },

@@ -39,7 +39,7 @@ def _quiet_hours_active(settings, now=None):
 
 def _send_to_subscription(subscription, alert):
     payload = json.dumps({
-        'title': 'AlphaMind price alert',
+        'title': 'AlgoMind price alert',
         'body': (
             f'{alert.name} ({alert.symbol}) reached ₹{alert.triggered_price:,.2f}; '
             f'your {alert.direction} ₹{alert.target_price:,.2f} target was met.'

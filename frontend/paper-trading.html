@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlgoTrade | Virtual Trading</title>
+    <title>AlphaMind | Virtual Trading</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   </head>
-  <body>
+  <body class="paper-trading-page">
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
-        <div class="brand"><div class="brand-mark">AI</div><h1>AlgoTrade</h1></div>
+        <div class="brand"><div class="brand-mark">AI</div><h1>AlphaMind</h1></div>
         <ul class="sidebar-nav">
           <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
           <li class="nav-item" data-page="market"><i class="fa-solid fa-chart-column"></i> Market Data</li>
@@ -44,24 +44,56 @@
             <div class="panel-header">
               <div>
                 <div class="panel-title">Practice with virtual cash</div>
-                <p class="subtitle">Each account starts with ₹15,00,000. Trades use authorized Kite Connect quotes, but remain virtual.</p>
+                <p class="subtitle">Each account starts with ₹15,00,000. Stock trades use app-provided prices and stay virtual.</p>
               </div>
-              <span class="date-pill">SIMULATED · NO BROKER ORDERS</span>
+              <div class="paper-account-actions">
+                <span class="date-pill">VIRTUAL ONLY · NO BROKER ORDERS</span>
+                <button class="secondary-btn" id="paper-add-cash-open" type="button"><i class="fa-solid fa-plus"></i> Add practice funds</button>
+              </div>
             </div>
             <div id="paper-status" class="market-data-status" role="status" aria-live="polite">Loading paper account…</div>
           </section>
 
+          <dialog class="paper-cash-dialog" id="paper-cash-dialog" aria-labelledby="paper-cash-title">
+            <form id="paper-cash-form">
+              <div class="paper-cash-dialog-header">
+                <div>
+                  <p class="paper-cash-kicker">PRACTICE ACCOUNT</p>
+                  <h2 id="paper-cash-title">Add virtual money</h2>
+                </div>
+                <button class="icon-button" id="paper-cash-close" type="button" aria-label="Close add virtual money"><i class="fa-solid fa-xmark"></i></button>
+              </div>
+              <p class="paper-cash-description">Practice with virtual funds. This does not charge a payment method or transfer real money.</p>
+              <label class="paper-cash-amount-label" for="paper-cash-amount">Amount to add</label>
+              <div class="paper-cash-input-wrap"><span aria-hidden="true">₹</span><input id="paper-cash-amount" type="number" min="1" max="1000000" step="1" value="5000" required /></div>
+              <div class="paper-cash-presets" aria-label="Suggested practice amounts">
+                <button type="button" data-cash-amount="100">+₹100</button>
+                <button type="button" data-cash-amount="5000">+₹5,000</button>
+                <button type="button" data-cash-amount="10000">+₹10,000</button>
+              </div>
+              <div class="paper-cash-balance"><span><i class="fa-solid fa-wallet"></i> Available virtual cash</span><strong id="paper-cash-current">--</strong></div>
+              <p class="paper-cash-message" id="paper-cash-message" role="status" aria-live="polite"></p>
+              <button class="primary-btn paper-cash-submit" id="paper-cash-submit" type="submit">Add virtual money</button>
+            </form>
+          </dialog>
+
           <section class="stats-grid" aria-label="Virtual account summary">
             <article class="stat-card"><div class="stat-header"><span>Available cash</span><span class="stat-icon"><i class="fa-solid fa-money-bill-wave"></i></span></div><div class="stat-value" id="paper-cash">--</div><div class="stat-trend">Virtual buying power</div></article>
-            <article class="stat-card"><div class="stat-header"><span>Holdings value</span><span class="stat-icon"><i class="fa-solid fa-briefcase"></i></span></div><div class="stat-value" id="paper-market-value">--</div><div class="stat-trend">Current Kite quotes</div></article>
+            <article class="stat-card"><div class="stat-header"><span>Holdings value</span><span class="stat-icon"><i class="fa-solid fa-briefcase"></i></span></div><div class="stat-value" id="paper-market-value">--</div><div class="stat-trend">Current app prices</div></article>
             <article class="stat-card"><div class="stat-header"><span>Total equity</span><span class="stat-icon"><i class="fa-solid fa-chart-pie"></i></span></div><div class="stat-value" id="paper-equity">--</div><div class="stat-trend">Cash plus holdings</div></article>
             <article class="stat-card"><div class="stat-header"><span>Realized / unrealized P&amp;L</span><span class="stat-icon"><i class="fa-solid fa-arrow-trend-up"></i></span></div><div class="stat-value" id="paper-pnl">--</div><div class="stat-trend" id="paper-pnl-detail">Virtual results only</div></article>
           </section>
 
           <section class="panel">
             <div class="panel-header">
-              <div><div class="panel-title">Place a virtual trade</div><p class="subtitle">Whole-share NSE instruments using Kite Connect quotes.</p></div>
+              <div><div class="panel-title">Place a virtual trade</div><p class="subtitle">Review an algorithm, then choose BUY or SELL. Orders never reach a broker.</p></div>
             </div>
+            <div class="paper-strategy-controls">
+              <label for="paper-strategy">Strategy</label>
+              <select id="paper-strategy"><option value="">Loading strategies…</option></select>
+              <button class="secondary-btn" id="paper-strategy-review" type="button">Review strategy</button>
+            </div>
+            <div id="paper-strategy-result" class="paper-strategy-result" role="status" aria-live="polite" hidden></div>
             <form id="paper-trade-form" class="order-form">
               <label>Instrument
                 <select id="paper-symbol" required></select>
@@ -74,39 +106,15 @@
               </label>
               <button class="primary-btn" id="paper-submit" type="submit">Place virtual trade</button>
             </form>
-            <div id="paper-quote-status" class="market-data-status" role="status" aria-live="polite">Select an instrument to load its Kite quote.</div>
+            <div id="paper-quote-status" class="market-data-status" role="status" aria-live="polite">Select an instrument to load its virtual price.</div>
             <p class="order-ticket-note">Buy orders use virtual cash; sells are limited to shares held in this account. No real money or broker order is involved.</p>
-          </section>
-
-          <section class="panel">
-            <div class="panel-header">
-              <div>
-                <div class="panel-title">NIFTY 50 futures simulator</div>
-                <p class="subtitle">Choose an active NIFTY 50 futures expiry from Kite. Buys reserve the full contract notional from virtual cash.</p>
-              </div>
-              <span class="date-pill">VIRTUAL ONLY · FULL NOTIONAL</span>
-            </div>
-            <form id="paper-future-form" class="order-form">
-              <label>NIFTY futures contract
-                <select id="paper-future-symbol" required></select>
-              </label>
-              <label>Side
-                <select id="paper-future-side"><option value="BUY">Buy / open long</option><option value="SELL">Sell / close long</option></select>
-              </label>
-              <label>Lots
-                <input id="paper-future-lots" type="number" min="1" step="1" value="1" required />
-              </label>
-              <button class="primary-btn" id="paper-future-submit" type="submit">Place virtual futures trade</button>
-            </form>
-            <div id="paper-future-status" class="market-data-status" role="status" aria-live="polite">Loading active NIFTY futures contracts from Kite…</div>
-            <p class="order-ticket-note">Futures trading carries significant risk. This simulator uses full contract notional—not exchange margin—and never submits an order to Kite.</p>
           </section>
 
           <section class="panel">
             <div class="panel-header"><div class="panel-title">Open positions</div></div>
             <div style="overflow-x:auto;">
               <table class="portfolio-table">
-                <thead><tr><th>Symbol</th><th>Quantity</th><th>Average cost</th><th>Kite quote</th><th>Market value</th><th>Unrealized P&amp;L</th></tr></thead>
+                <thead><tr><th>Symbol</th><th>Quantity</th><th>Average cost</th><th>Current price</th><th>Market value</th><th>Unrealized P&amp;L</th></tr></thead>
                 <tbody id="paper-holdings"><tr><td colspan="6" class="empty-state">Loading positions…</td></tr></tbody>
               </table>
             </div>
@@ -121,19 +129,21 @@
               </table>
             </div>
           </section>
-          <p class="market-data-status">Educational simulator only. Quotes require an authorized Kite Connect session. Virtual trades are not sent to Kite or any exchange, and results do not represent actual trading performance.</p>
+          <p class="market-data-status">Educational virtual trading only. Stock orders use app-provided prices. Strategy reviews use bundled historical candles and are informational, not financial advice.</p>
         </div>
       </main>
     </div>
 
+    <script src="/js/stock-logo.js"></script>
     <script src="/js/api.js"></script>
     <script>
       const status = document.getElementById('paper-status');
       const quoteStatus = document.getElementById('paper-quote-status');
       const form = document.getElementById('paper-trade-form');
-      const futureForm = document.getElementById('paper-future-form');
-      const futureStatus = document.getElementById('paper-future-status');
-      let futureContracts = [];
+      const cashDialog = document.getElementById('paper-cash-dialog');
+      const cashForm = document.getElementById('paper-cash-form');
+      const cashAmount = document.getElementById('paper-cash-amount');
+      const cashMessage = document.getElementById('paper-cash-message');
       const user = parseUser();
       if (!requireAuth()) throw new Error('Not authenticated');
       if (user) {
@@ -153,6 +163,7 @@
 
       function renderAccount(account) {
         document.getElementById('paper-cash').textContent = money(account.cash_balance);
+        document.getElementById('paper-cash-current').textContent = money(account.cash_balance);
         document.getElementById('paper-market-value').textContent = money(account.market_value);
         document.getElementById('paper-equity').textContent = money(account.total_equity);
         const pnl = document.getElementById('paper-pnl');
@@ -165,7 +176,7 @@
         const holdings = document.getElementById('paper-holdings');
         holdings.innerHTML = account.holdings.length ? account.holdings.map((holding) => `
           <tr>
-            <td>${escapeHtml(holding.symbol)}</td>
+            <td><span class="stock-name-with-logo">${stockLogoMarkup(holding.symbol)}${escapeHtml(holding.symbol)}</span></td>
             <td>${Number(holding.quantity).toLocaleString('en-IN')}</td>
             <td>${money(holding.average_price)}</td>
             <td>${money(holding.current_price)}</td>
@@ -177,7 +188,7 @@
         trades.innerHTML = account.trades.length ? account.trades.map((trade) => `
           <tr>
             <td>${escapeHtml(trade.created_at)}</td>
-            <td>${escapeHtml(trade.symbol)}</td>
+            <td><span class="stock-name-with-logo">${stockLogoMarkup(trade.symbol)}${escapeHtml(trade.symbol)}</span></td>
             <td class="${trade.side === 'BUY' ? 'positive' : 'negative'}">${escapeHtml(trade.side)}</td>
             <td>${Number(trade.quantity).toLocaleString('en-IN')}</td>
             <td>${money(trade.price)}</td>
@@ -198,7 +209,7 @@
         try {
           const response = await apiRequest('/api/paper-trading/account');
           renderAccount(response.data);
-          status.textContent = 'Virtual account ready · Kite quotes · no broker orders.';
+          status.textContent = 'Virtual account ready · app prices · no broker orders.';
           await loadSelectedQuote();
         } catch (error) {
           status.textContent = error.message || 'Could not load the virtual account.';
@@ -209,67 +220,82 @@
       async function loadSelectedQuote() {
         const [exchange, symbol] = document.getElementById('paper-symbol').value.split(':');
         if (!exchange || !symbol) {
-          quoteStatus.textContent = 'Choose an instrument to load its Kite quote.';
+          quoteStatus.textContent = 'Choose an instrument to load its virtual price.';
           return;
         }
-        quoteStatus.textContent = 'Loading Kite Connect quote…';
+        quoteStatus.textContent = 'Loading virtual price…';
         try {
           const params = new URLSearchParams({ symbol, exchange });
           const response = await apiRequest(`/api/paper-trading/quote?${params}`);
-          quoteStatus.textContent = `Kite quote for ${exchange}:${symbol}: ${money(response.data.price)}. Final virtual fill uses the quote returned when you place the trade.`;
+          quoteStatus.textContent = `Virtual price for ${exchange}:${symbol}: ${money(response.data.price)}. Your order fills at the app-provided price.`;
         } catch (error) {
-          quoteStatus.textContent = error.message || 'Could not load a Kite quote.';
+          quoteStatus.textContent = error.message || 'Could not load a virtual price.';
         }
       }
 
-      async function loadNiftyFutures() {
-        const select = document.getElementById('paper-future-symbol');
-        select.innerHTML = '<option value="">Loading Kite futures…</option>';
+      function renderConditionResults(title, conditions, logic) {
+        const matched = conditions.filter((condition) => condition.matched).length;
+        return `<div class="paper-condition-group">
+          <strong>${escapeHtml(title)} · ${matched}/${conditions.length} matched (${escapeHtml(logic)})</strong>
+          <ul>${conditions.map((condition) => `
+            <li><span class="${condition.matched ? 'positive' : 'negative'}">${condition.matched ? 'Matched' : 'Not met'}</span>
+              ${escapeHtml(condition.label)} · actual ${Number(condition.actual).toLocaleString('en-IN', { maximumFractionDigits: 4 })}
+            </li>`).join('')}</ul>
+        </div>`;
+      }
+
+      async function loadPaperStrategies() {
+        const select = document.getElementById('paper-strategy');
         try {
-          const response = await apiRequest('/api/paper-trading/futures');
-          futureContracts = response.data || [];
-          select.innerHTML = futureContracts.map((contract) => `
-            <option value="${escapeHtml(contract.symbol)}">
-              ${escapeHtml(contract.symbol)} · Expiry ${escapeHtml(contract.expiry)} · ${Number(contract.lot_size).toLocaleString('en-IN')} units/lot
-            </option>
-          `).join('') || '<option value="">No active NIFTY 50 futures found</option>';
-          if (!futureContracts.length) {
-            futureStatus.textContent = 'Kite returned no active NIFTY 50 futures contracts.';
-            return;
-          }
-          await loadSelectedFutureQuote();
+          const response = await apiRequest('/api/paper-trading/strategies');
+          const strategies = response.data || [];
+          select.innerHTML = strategies.map((strategy) =>
+            `<option value="${escapeHtml(strategy.id)}">${escapeHtml(strategy.name)}${strategy.is_custom ? ' · saved' : ''}</option>`
+          ).join('') || '<option value="">No strategies available</option>';
         } catch (error) {
-          select.innerHTML = '<option value="">NIFTY futures unavailable</option>';
-          futureStatus.textContent = error.message || 'Could not load active NIFTY futures from Kite.';
+          select.innerHTML = '<option value="">Strategies unavailable</option>';
+          const resultBox = document.getElementById('paper-strategy-result');
+          resultBox.hidden = false;
+          resultBox.textContent = error.message || 'Could not load strategies.';
         }
       }
 
-      async function loadSelectedFutureQuote() {
-        const symbol = document.getElementById('paper-future-symbol').value;
-        const contract = futureContracts.find((item) => item.symbol === symbol);
-        if (!contract) {
-          futureStatus.textContent = 'Choose an active NIFTY futures contract.';
+      document.getElementById('paper-strategy-review').addEventListener('click', async () => {
+        const reviewButton = document.getElementById('paper-strategy-review');
+        const resultBox = document.getElementById('paper-strategy-result');
+        const strategyId = document.getElementById('paper-strategy').value;
+        const [exchange, symbol] = document.getElementById('paper-symbol').value.split(':');
+        resultBox.hidden = false;
+        if (!strategyId || exchange !== 'NSE' || !symbol) {
+          resultBox.textContent = 'Choose a strategy and NSE stock to review.';
           return;
         }
-        futureStatus.textContent = 'Loading NIFTY futures quote from Kite Connect…';
+        resultBox.textContent = 'Calculating the strategy conditions…';
+        reviewButton.disabled = true;
         try {
-          const params = new URLSearchParams({ symbol, exchange: 'NFO' });
-          const response = await apiRequest(`/api/paper-trading/quote?${params}`);
-          const lots = Number(document.getElementById('paper-future-lots').value);
-          const notional = response.data.price * contract.lot_size * (Number.isInteger(lots) && lots > 0 ? lots : 1);
-          futureStatus.textContent =
-            `Kite quote: ${money(response.data.price)} · ${contract.lot_size} units/lot · Full-notional estimate: ${money(notional)}.`;
+          const response = await apiRequest('/api/paper-trading/strategy-review', {
+            method: 'POST',
+            body: JSON.stringify({ strategy_id: strategyId, symbol }),
+          });
+          const review = response.data;
+          resultBox.innerHTML = `
+            <div class="paper-strategy-heading">${escapeHtml(review.strategy_name)} · <span class="stock-name-with-logo">${stockLogoMarkup(review.symbol)}${escapeHtml(review.symbol)}</span></div>
+            <p>${escapeHtml(review.description)} History through ${escapeHtml(review.history_through)}. This is an explanation, not an automatic order.</p>
+            ${renderConditionResults('Entry conditions', review.buy_conditions, review.buy_logic)}
+            ${renderConditionResults('Exit conditions', review.sell_conditions, review.sell_logic)}`;
         } catch (error) {
-          futureStatus.textContent = error.message || 'Could not load the NIFTY futures quote.';
+          resultBox.textContent = error.message || 'Could not review this strategy for the selected instrument.';
+        } finally {
+          reviewButton.disabled = false;
         }
-      }
+      });
 
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const button = document.getElementById('paper-submit');
         const [exchange, symbol] = document.getElementById('paper-symbol').value.split(':');
         button.disabled = true;
-        status.textContent = 'Filling virtual trade at the Kite quote…';
+        status.textContent = 'Filling virtual trade at the app-provided price…';
         try {
           const response = await apiRequest('/api/paper-trading/trades', {
             method: 'POST',
@@ -290,45 +316,53 @@
         }
       });
 
-      futureForm.addEventListener('submit', async (event) => {
+      document.getElementById('paper-symbol').addEventListener('change', () => {
+        const resultBox = document.getElementById('paper-strategy-result');
+        resultBox.hidden = true;
+        resultBox.replaceChildren();
+        loadSelectedQuote();
+      });
+      document.getElementById('paper-add-cash-open').addEventListener('click', () => {
+        cashMessage.textContent = '';
+        cashDialog.showModal();
+      });
+      document.getElementById('paper-cash-close').addEventListener('click', () => cashDialog.close());
+      document.querySelectorAll('[data-cash-amount]').forEach((button) => {
+        button.addEventListener('click', () => {
+          cashAmount.value = button.dataset.cashAmount;
+          cashAmount.focus();
+        });
+      });
+      cashForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const button = document.getElementById('paper-future-submit');
-        const contract = futureContracts.find((item) =>
-          item.symbol === document.getElementById('paper-future-symbol').value
-        );
-        if (!contract) {
-          futureStatus.textContent = 'Select an active NIFTY futures contract from Kite.';
+        const amount = Number(cashAmount.value);
+        const submitButton = document.getElementById('paper-cash-submit');
+        if (!Number.isInteger(amount) || amount < 1 || amount > 1000000) {
+          cashMessage.textContent = 'Enter a whole-rupee amount between ₹1 and ₹10,00,000.';
           return;
         }
-        button.disabled = true;
-        futureStatus.textContent = 'Filling virtual NIFTY futures trade at the Kite quote…';
+        submitButton.disabled = true;
+        cashMessage.textContent = 'Adding practice funds…';
         try {
-          const response = await apiRequest('/api/paper-trading/futures/trades', {
+          const response = await apiRequest('/api/paper-trading/account/add-virtual-cash', {
             method: 'POST',
-            body: JSON.stringify({
-              symbol: contract.symbol,
-              side: document.getElementById('paper-future-side').value,
-              lots: Number(document.getElementById('paper-future-lots').value),
-            }),
+            body: JSON.stringify({ amount }),
           });
           renderAccount(response.account);
+          cashMessage.textContent = response.message;
           status.textContent = response.message;
-          futureStatus.textContent = `${response.message} ${contract.expiry} expiry; ${contract.lot_size} units per lot.`;
         } catch (error) {
-          futureStatus.textContent = error.message || 'Virtual NIFTY futures trade could not be completed.';
+          cashMessage.textContent = error.message || 'Could not add practice funds.';
+          if (/authorization|token has expired/i.test(error.message || '')) logoutUser();
         } finally {
-          button.disabled = false;
+          submitButton.disabled = false;
         }
       });
-
-      document.getElementById('paper-symbol').addEventListener('change', loadSelectedQuote);
-      document.getElementById('paper-future-symbol').addEventListener('change', loadSelectedFutureQuote);
-      document.getElementById('paper-future-lots').addEventListener('input', loadSelectedFutureQuote);
       document.getElementById('logout-btn').addEventListener('click', logoutUser);
       document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
       bindSidebarNavigation();
       loadAccount();
-      loadNiftyFutures();
+      loadPaperStrategies();
     </script>
   </body>
 </html>

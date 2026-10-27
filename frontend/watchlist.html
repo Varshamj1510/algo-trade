@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlgoTrade | Watchlist</title>
+    <title>AlphaMind | Watchlist</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   </head>
@@ -12,7 +12,7 @@
       <aside class="sidebar" id="sidebar">
         <div class="brand">
           <div class="brand-mark">AI</div>
-          <h1>AlgoTrade</h1>
+          <h1>AlphaMind</h1>
         </div>
         <ul class="sidebar-nav">
           <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
@@ -64,7 +64,7 @@
           <section class="panel">
             <div class="panel-header">
               <div>
-                <div class="panel-title">Tracked Demo Securities</div>
+                <div class="panel-title">Tracked Securities</div>
                 <div id="watchlist-status" class="market-data-status" role="status"></div>
               </div>
             </div>
@@ -79,6 +79,7 @@
       </main>
     </div>
 
+    <script src="/js/stock-logo.js"></script>
     <script src="/js/api.js"></script>
     <script>
       const user = parseUser();
@@ -105,10 +106,10 @@
         try {
           const result = await apiRequest('/api/watchlist');
           const items = result.data || [];
-          watchlistStatus.textContent = `${items.length} tracked instruments · seeded dashboard demo prices · not live.`;
+          watchlistStatus.textContent = `${items.length} tracked instruments.`;
           watchlistBody.innerHTML = items.length ? items.map((item) => `
             <tr>
-              <td>${escapeHtml(item.symbol)}</td><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.exchange)}</td>
+              <td><span class="stock-name-with-logo">${stockLogoMarkup(item.symbol, item.name)}${escapeHtml(item.symbol)}</span></td><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.exchange)}</td>
               <td>${item.price == null ? '--' : formatCurrency(item.price)}</td>
               <td class="${item.change == null ? 'muted' : item.change >= 0 ? 'positive' : 'negative'}">${item.change == null ? '--' : `${item.change >= 0 ? '+' : ''}${Number(item.change).toFixed(2)}%`}</td>
               <td><button class="secondary-btn" data-remove="${escapeHtml(item.watchlist_id)}" title="Remove from watchlist"><i class="fa-solid fa-trash"></i></button></td>
@@ -135,7 +136,7 @@
           const result = await apiRequest(`/api/instruments/search?${params}`);
           suggestions.innerHTML = (result.data || []).map((instrument) => `
             <button class="suggestion-item" data-detail="${escapeHtml(instrument.symbol)}" data-exchange="${escapeHtml(instrument.exchange)}">
-              <strong>${escapeHtml(instrument.symbol)}</strong><span>${escapeHtml(instrument.name)}</span><small>${escapeHtml(instrument.exchange)}</small>
+              <span class="suggestion-symbol">${stockLogoMarkup(instrument.symbol, instrument.name)}<strong>${escapeHtml(instrument.symbol)}</strong></span><span>${escapeHtml(instrument.name)}</span><small>${escapeHtml(instrument.exchange)}</small>
             </button>
           `).join('') || '<div class="suggestion-empty">No instruments found</div>';
           suggestions.hidden = false;
@@ -154,7 +155,7 @@
         const result = await apiRequest(`/api/instruments/${encodeURIComponent(symbol)}?${params}`);
         const instrument = result.data;
         detailsPanel.innerHTML = `
-          <div><div class="instrument-detail-heading">${escapeHtml(instrument.name)}</div><div class="muted">${escapeHtml(instrument.symbol)} · ${escapeHtml(instrument.exchange)} · ${escapeHtml(instrument.instrument_type || 'EQUITY')}</div></div>
+          <div><div class="instrument-detail-heading stock-name-with-logo">${stockLogoMarkup(instrument.symbol, instrument.name)}${escapeHtml(instrument.name)}</div><div class="muted">${escapeHtml(instrument.symbol)} · ${escapeHtml(instrument.exchange)} · ${escapeHtml(instrument.instrument_type || 'EQUITY')}</div></div>
           <div class="instrument-detail-metrics"><span>Price<strong>${formatCurrency(instrument.price)}</strong></span><span>Change<strong class="${instrument.change >= 0 ? 'positive' : 'negative'}">${instrument.change >= 0 ? '+' : ''}${Number(instrument.change).toFixed(2)}%</strong></span><span>Sector<strong>${escapeHtml(instrument.sector || '—')}</strong></span></div>
           <button class="secondary-btn" data-add="${escapeHtml(instrument.symbol)}" data-exchange="${escapeHtml(instrument.exchange)}"><i class="fa-solid fa-star"></i> Add to Watchlist</button>
         `;

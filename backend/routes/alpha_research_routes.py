@@ -26,7 +26,7 @@ def research_instruments():
         return jsonify({
             'success': True,
             'data': get_demo_research_universe(),
-            'provider': 'Bundled historical CSV demo data',
+            'provider': 'Bundled historical CSV data',
         })
     except (OSError, ValueError) as error:
         return jsonify({'success': False, 'message': str(error)}), 503
@@ -50,7 +50,7 @@ def research_alpha():
     if not isinstance(timeframe, str) or timeframe.strip().upper() not in SUPPORTED_TIMEFRAMES:
         return jsonify({'success': False, 'message': 'Choose a supported historical period.'}), 400
     if not isinstance(source, str) or source.strip().lower() not in SUPPORTED_SOURCES:
-        return jsonify({'success': False, 'message': 'Choose Kite Connect or bundled demo data.'}), 400
+        return jsonify({'success': False, 'message': 'Choose Kite Connect or bundled historical data.'}), 400
 
     symbol = symbol.strip().upper()
     exchange = exchange.strip().upper()
@@ -67,7 +67,7 @@ def research_alpha():
             candles = get_historical_candles(instrument, timeframe)
         result = analyze_alpha(candles, symbol, exchange, timeframe)
         if source == 'demo':
-            result['provider'] = 'Bundled historical CSV demo data (not Kite Connect)'
+            result['provider'] = 'Bundled historical CSV data (not Kite Connect)'
     except LookupError as error:
         return jsonify({'success': False, 'message': str(error)}), 404
     except AlphaResearchError as error:

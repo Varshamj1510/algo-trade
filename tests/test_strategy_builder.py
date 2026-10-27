@@ -35,6 +35,46 @@ def test_strategy_preview_returns_buy_when_only_buy_rules_match():
     assert result['sell_matches'] is False
 
 
+def test_strategy_preview_compares_two_indicator_snapshots():
+    data = {
+        'buy_logic': 'AND',
+        'buy_conditions': [{'indicator': 'ema', 'operator': 'gt', 'compare_to': 'sma'}],
+        'sell_logic': 'AND',
+        'sell_conditions': [{'indicator': 'ema', 'operator': 'lt', 'compare_to': 'sma'}],
+    }
+    rules = validate_strategy_rules(data)
+
+    result = preview_strategy(rules, {'ema': 105, 'sma': 100})
+
+    assert result['signal'] == 'BUY'
+    assert result['buy_results'][0]['label'] == 'EMA > SMA'
+    assert result['buy_results'][0]['expected'] == 100
+    assert result['sell_matches'] is False
+
+
+@pytest.mark.parametrize('condition', [
+    {'indicator': 'ema', 'operator': 'gt', 'compare_to': 'unsupported'},
+    {'indicator': 'ema', 'operator': 'gt', 'compare_to': 'ema'},
+    {'indicator': 'ema', 'operator': 'gt', 'compare_to': 'sma', 'value': 1},
+])
+def test_strategy_rules_reject_invalid_indicator_comparisons(condition):
+    data = sample_rules()
+    data['buy_conditions'] = [condition]
+
+    with pytest.raises(ValueError):
+        validate_strategy_rules(data)
+
+
+def test_strategy_preview_requires_both_compared_indicator_values():
+    data = sample_rules()
+    data['buy_conditions'] = [{'indicator': 'price', 'operator': 'gt', 'compare_to': 'vwap'}]
+    data['sell_conditions'] = [{'indicator': 'price', 'operator': 'lt', 'compare_to': 'vwap'}]
+    rules = validate_strategy_rules(data)
+
+    with pytest.raises(ValueError, match='VWAP value is required'):
+        preview_strategy(rules, {'price': 101})
+
+
 def test_strategy_preview_returns_hold_when_buy_and_sell_match():
     data = {
         'buy_logic': 'OR',

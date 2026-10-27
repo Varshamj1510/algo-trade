@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlgoTrade | Market</title>
+    <title>AlphaMind | Market</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   </head>
@@ -12,7 +12,7 @@
       <aside class="sidebar" id="sidebar">
         <div class="brand">
           <div class="brand-mark">AI</div>
-          <h1>AlgoTrade</h1>
+          <h1>AlphaMind</h1>
         </div>
         <ul class="sidebar-nav">
           <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
@@ -51,8 +51,8 @@
           <section class="panel market-overview-panel">
             <div class="panel-header">
               <div>
-                <div class="panel-title">Dashboard Demo Market Overview</div>
-                <div class="market-data-status" id="market-data-status">Loading dashboard demo data...</div>
+                <div class="panel-title">Market Overview</div>
+                <div class="market-data-status" id="market-data-status">Loading market data...</div>
                 <div class="market-data-status" id="market-coverage"></div>
               </div>
               <div class="market-overview-meta">
@@ -106,16 +106,16 @@
 
           <section class="panel">
             <div class="panel-header">
-              <div class="panel-title">Demo data only</div>
+              <div class="panel-title">Market data</div>
             </div>
-            <p class="market-data-status">This page uses the same seeded sample stocks as the dashboard. Values are examples, not live quotes; Kite data and historical CSV rows are not used here.</p>
+            <p class="market-data-status">Prices are shown below. Kite Connect quotes and historical CSV data are not used here.</p>
           </section>
 
           <section class="table-card">
             <div class="panel-header">
               <div>
-                <div class="panel-title">Market Watch · Dashboard demo stocks</div>
-                <div class="market-data-status" id="market-list-status">Loading dashboard demo stocks...</div>
+                <div class="panel-title">Market Watch</div>
+                <div class="market-data-status" id="market-list-status">Loading instruments...</div>
               </div>
               <div class="instrument-search-controls">
                 <div class="instrument-search">
@@ -149,17 +149,28 @@
             <div class="stock-live-row">
               <strong id="stock-live-price">--</strong>
               <span id="stock-live-change" class="muted">--</span>
-              <span id="stock-live-updated" class="muted">Dashboard demo snapshot · not live</span>
+              <span id="stock-live-updated" class="muted"></span>
             </div>
+            <section class="stock-chart-preview" aria-label="Stock chart">
+              <div class="stock-chart-heading"><span id="stock-chart-title">Select a top gainer to view its chart</span></div>
+              <div class="stock-chart-timeframe" aria-label="Chart interval"><span class="active">5m</span><span>1D</span><span>1W</span><span>1M</span></div>
+              <div id="stock-chart-wrap" class="stock-chart-wrap" role="img" aria-label="Candlestick chart"></div>
+              <p>Generated candles for the selected stock.</p>
+            </section>
             <div class="stock-detail-metrics" id="stock-detail-metrics"></div>
             <section class="order-ticket" aria-labelledby="order-ticket-title">
               <div>
-                <div class="panel-title" id="order-ticket-title">Virtual trade</div>
-                <div class="muted">Place a simulated trade using an authorized Kite Connect quote. No broker orders are sent.</div>
+                <div class="panel-title" id="order-ticket-title">Practice trade</div>
+                <div class="muted">Preview a practice BUY or SELL with virtual funds. Nothing is sent to a broker.</div>
               </div>
               <div class="market-data-status" id="market-paper-cash">Loading virtual cash…</div>
+              <a class="market-demo-account-link" href="/paper-trading"><i class="fa-solid fa-wallet"></i> Manage practice balance</a>
               <form id="order-form" class="order-form">
-                <label>Side
+                <div class="order-side-tabs" role="group" aria-label="Practice trade side">
+                  <button class="active" type="button" data-order-side="BUY" aria-pressed="true">BUY</button>
+                  <button type="button" data-order-side="SELL" aria-pressed="false">SELL</button>
+                </div>
+                <label hidden>Side
                   <select id="order-side">
                     <option value="BUY">Buy</option>
                     <option value="SELL">Sell</option>
@@ -168,25 +179,50 @@
                 <label>Quantity
                   <input id="order-quantity" type="number" min="1" step="1" value="1" required />
                 </label>
-                <button class="secondary-btn" type="submit">Preview virtual trade</button>
+                <button class="primary-btn" id="order-submit" type="submit">BUY</button>
               </form>
-              <p class="order-ticket-note">Kite Connect must be authorized for quotes. Buys use virtual cash; sells are limited to shares held. This does not place a real order.</p>
+              <p class="order-ticket-note">BUY asks how much virtual cash to use. No payment, broker connection, or real order is involved.</p>
               <div id="order-preview" class="order-preview" aria-live="polite" hidden>
-                <div class="panel-title">Virtual trade preview</div>
+                <div class="panel-title">Practice order preview</div>
                 <dl id="order-preview-details"></dl>
                 <div class="order-actions">
                   <button class="secondary-btn" id="order-edit" type="button">Edit order</button>
-                  <button class="primary-btn" id="order-confirm" type="button">Confirm virtual trade</button>
+                  <button class="primary-btn" id="order-confirm" type="button">Confirm practice trade</button>
                 </div>
               </div>
+              <dialog class="buy-order-dialog" id="buy-order-dialog" aria-labelledby="buy-order-title">
+                <form id="buy-order-form">
+                  <div class="paper-cash-dialog-header">
+                    <div>
+                      <p class="paper-cash-kicker">PRACTICE TRADE · NO REAL MONEY</p>
+                      <h2 id="buy-order-title">How much to invest?</h2>
+                    </div>
+                    <button class="icon-button" id="buy-order-close" type="button" aria-label="Close practice buy"><i class="fa-solid fa-xmark"></i></button>
+                  </div>
+                  <p class="paper-cash-description">Choose a virtual amount for <strong id="buy-order-symbol">this stock</strong>. We’ll calculate whole shares at the displayed price.</p>
+                  <label class="paper-cash-amount-label" for="buy-order-amount">Amount to invest</label>
+                  <div class="paper-cash-input-wrap"><span aria-hidden="true">₹</span><input id="buy-order-amount" type="number" min="1" max="10000000" step="1" placeholder="Enter an amount" required /></div>
+                  <div class="paper-cash-presets" aria-label="Suggested virtual investment amounts">
+                    <button type="button" data-buy-amount="100">₹100</button>
+                    <button type="button" data-buy-amount="5000">₹5,000</button>
+                    <button type="button" data-buy-amount="10000">₹10,000</button>
+                  </div>
+                  <div class="buy-order-estimate" id="buy-order-estimate" aria-live="polite"></div>
+                  <button class="secondary-btn buy-order-topup" id="buy-order-topup" type="button" hidden>Add practice funds</button>
+                  <div class="paper-cash-balance"><span><i class="fa-solid fa-wallet"></i> Available virtual cash</span><strong id="buy-order-balance">--</strong></div>
+                  <p class="paper-cash-message" id="buy-order-message" role="status" aria-live="polite"></p>
+                  <button class="primary-btn paper-cash-submit" id="buy-order-confirm" type="submit">Confirm practice buy</button>
+                </form>
+              </dialog>
               <div id="order-status" class="market-data-status" role="status" aria-live="polite"></div>
             </section>
-            <p id="stock-detail-status" class="market-data-status" role="status">Seeded dashboard demo values only · not live data.</p>
+            <p id="stock-detail-status" class="market-data-status" role="status"></p>
           </section>
         </div>
       </main>
     </div>
 
+    <script src="/js/stock-logo.js"></script>
     <script src="/js/api.js"></script>
     <script>
       const tableBody = document.querySelector('#market-table tbody');
@@ -196,6 +232,10 @@
       const exchangeInput = document.getElementById('exchange-filter');
       const suggestions = document.getElementById('instrument-suggestions');
       const detailsPanel = document.getElementById('instrument-details');
+      const buyOrderDialog = document.getElementById('buy-order-dialog');
+      const buyOrderForm = document.getElementById('buy-order-form');
+      const buyOrderAmount = document.getElementById('buy-order-amount');
+      const buyOrderMessage = document.getElementById('buy-order-message');
       let instruments = [];
       let marketOverview = null;
       let selectedInstrument = null;
@@ -209,18 +249,32 @@
         document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
       }
 
-      function renderIndexCards(summary = {}) {
+      function renderIndexCards(summary = {}, gainers = []) {
         const cards = document.getElementById('index-cards');
+        const topGainer = gainers.find((item) => Number(item.change) > 0);
         cards.innerHTML = [
-          ['Demo instruments', summary.instruments],
+          `<article class="index-card demo-summary-card">
+            <div class="index-card-top"><span class="index-card-name">Top Gainer</span></div>
+            ${topGainer ? `
+              <button class="market-gainer-select" type="button" data-detail="${escapeHtml(topGainer.symbol)}" data-exchange="${escapeHtml(topGainer.exchange || 'NSE')}" aria-label="Open ${escapeHtml(topGainer.name || topGainer.symbol)} chart and practice trade">
+                <strong class="index-card-price market-top-gainer-name">${stockLogoMarkup(topGainer.symbol, topGainer.name, 'medium')}${escapeHtml(topGainer.name || topGainer.symbol)}</strong>
+                <span>Open chart &amp; practice trade <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></span>
+              </button>
+            ` : '<strong class="index-card-price market-top-gainer-name">--</strong>'}
+            <div class="index-card-change"><small>${topGainer
+              ? `${escapeHtml(topGainer.symbol || '')} · ↑ +${Number(topGainer.change).toFixed(2)}% · ${escapeHtml(formatOptionalCurrency(topGainer.price))}`
+              : 'No advancing instrument in this snapshot'}</small></div>
+          </article>`,
           ['Advancing', summary.advancers],
           ['Declining', summary.decliners],
-        ].map(([name, count]) => {
+        ].map((card) => {
+          if (typeof card === 'string') return card;
+          const [name, count] = card;
           return `
             <article class="index-card demo-summary-card">
-              <div class="index-card-top"><span class="index-card-name">${escapeHtml(name)}</span><span class="index-card-updated">Demo only</span></div>
+              <div class="index-card-top"><span class="index-card-name">${escapeHtml(name)}</span></div>
               <strong class="index-card-price">${count == null ? '--' : Number(count).toLocaleString('en-IN')}</strong>
-              <div class="index-card-change"><small>Seeded dashboard sample stocks</small></div>
+              <div class="index-card-change"><small>Market values</small></div>
             </article>
           `;
         }).join('');
@@ -228,6 +282,88 @@
 
       function formatOptionalCurrency(value) {
         return value == null ? '--' : formatCurrency(value);
+      }
+
+      function renderDemoCandles(instrument) {
+        const chartWrap = document.getElementById('stock-chart-wrap');
+        const currentPrice = Number(instrument.price);
+        const changePercent = Number(instrument.change) || 0;
+        if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
+          chartWrap.textContent = 'A chart is unavailable for this instrument.';
+          return;
+        }
+
+        let seed = Array.from(instrument.symbol).reduce(
+          (value, character) => Math.imul(value ^ character.charCodeAt(0), 16777619) >>> 0,
+          2166136261,
+        );
+        const random = () => {
+          seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+          return seed / 4294967296;
+        };
+        const previousClose = currentPrice / (1 + Math.max(-99, changePercent) / 100);
+        const candles = [];
+        let previous = previousClose;
+        for (let index = 0; index < 36; index += 1) {
+          const progress = (index + 1) / 36;
+          const baseline = previousClose + (currentPrice - previousClose) * progress;
+          const drift = (random() - 0.5) * currentPrice * 0.006;
+          const close = index === 35 ? currentPrice : Math.max(0.01, baseline + drift);
+          const open = previous;
+          const spread = Math.max(currentPrice * 0.001, Math.abs(close - open) * (0.5 + random()));
+          candles.push({
+            open,
+            close,
+            high: Math.max(open, close) + spread * random(),
+            low: Math.max(0.01, Math.min(open, close) - spread * random()),
+            volume: 0.18 + random() * 0.82,
+          });
+          previous = close;
+        }
+
+        const width = 900;
+        const height = 250;
+        const plotRight = 822;
+        const plotTop = 16;
+        const plotBottom = 178;
+        const volumeBottom = 228;
+        const minPrice = Math.min(...candles.map((candle) => candle.low));
+        const maxPrice = Math.max(...candles.map((candle) => candle.high));
+        const range = maxPrice - minPrice || currentPrice * 0.01;
+        const yForPrice = (price) => plotBottom - ((price - minPrice) / range) * (plotBottom - plotTop);
+        const step = plotRight / candles.length;
+        const candleWidth = Math.max(4, step * 0.52);
+        const volumeMax = Math.max(...candles.map((candle) => candle.volume));
+        const parts = [`<svg class="stock-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(instrument.symbol)} 5-minute candlestick chart">`];
+
+        for (let tick = 0; tick <= 4; tick += 1) {
+          const y = plotTop + ((plotBottom - plotTop) / 4) * tick;
+          const price = maxPrice - (range / 4) * tick;
+          parts.push(`<line class="stock-chart-grid" x1="0" y1="${y.toFixed(2)}" x2="${plotRight}" y2="${y.toFixed(2)}"></line>`);
+          parts.push(`<text class="stock-chart-axis-label" x="${plotRight + 10}" y="${(y + 4).toFixed(2)}">${formatCurrency(price)}</text>`);
+        }
+
+        candles.forEach((candle, index) => {
+          const x = step * index + step / 2;
+          const rising = candle.close >= candle.open;
+          const color = rising ? 'up' : 'down';
+          const openY = yForPrice(candle.open);
+          const closeY = yForPrice(candle.close);
+          const bodyTop = Math.min(openY, closeY);
+          const bodyHeight = Math.max(1.5, Math.abs(closeY - openY));
+          const volumeHeight = (candle.volume / volumeMax) * 34;
+          parts.push(`<line class="stock-candle-wick ${color}" x1="${x.toFixed(2)}" y1="${yForPrice(candle.high).toFixed(2)}" x2="${x.toFixed(2)}" y2="${yForPrice(candle.low).toFixed(2)}"></line>`);
+          parts.push(`<rect class="stock-candle-body ${color}" x="${(x - candleWidth / 2).toFixed(2)}" y="${bodyTop.toFixed(2)}" width="${candleWidth.toFixed(2)}" height="${bodyHeight.toFixed(2)}" rx="1"></rect>`);
+          parts.push(`<rect class="stock-chart-volume ${color}" x="${(x - candleWidth / 2).toFixed(2)}" y="${(volumeBottom - volumeHeight).toFixed(2)}" width="${candleWidth.toFixed(2)}" height="${volumeHeight.toFixed(2)}" rx="1"></rect>`);
+        });
+
+        parts.push(`<line class="stock-chart-current-line" x1="0" y1="${yForPrice(currentPrice).toFixed(2)}" x2="${plotRight}" y2="${yForPrice(currentPrice).toFixed(2)}"></line>`);
+        parts.push(`<text class="stock-chart-axis-label stock-chart-current-label" x="${plotRight + 10}" y="${(yForPrice(currentPrice) + 4).toFixed(2)}">${formatCurrency(currentPrice)}</text>`);
+        parts.push(`<text class="stock-chart-time-label" x="0" y="${height - 5}">09:15</text>`);
+        parts.push(`<text class="stock-chart-time-label" x="${plotRight / 2}" y="${height - 5}" text-anchor="middle">12:00</text>`);
+        parts.push(`<text class="stock-chart-time-label" x="${plotRight}" y="${height - 5}" text-anchor="end">15:30</text>`);
+        parts.push('</svg>');
+        chartWrap.innerHTML = parts.join('');
       }
 
       function renderMarketTable(targetId, items, columns, emptyText) {
@@ -247,7 +383,9 @@
           const changeClass = item.change == null ? 'muted' : Number(item.change) >= 0 ? 'positive' : 'negative';
           const changeText = item.change == null ? '--' : `${Number(item.change) >= 0 ? '↑ +' : '↓ '}${Number(item.change).toFixed(2)}%`;
           return `<tr>
-            <td class="overview-stock-name">${escapeHtml(item.name || '--')}${targetId === 'market-active' ? '' : `<small>${escapeHtml(item.symbol || '--')}</small>`}</td>
+            <td class="overview-stock-name">${targetId === 'market-gainers'
+              ? `<button class="overview-stock-open" type="button" data-detail="${escapeHtml(item.symbol)}" data-exchange="${escapeHtml(item.exchange || 'NSE')}" aria-label="Open ${escapeHtml(item.name || item.symbol)} chart and practice trade"><span class="stock-name-with-logo">${stockLogoMarkup(item.symbol, item.name)}<span>${escapeHtml(item.name || '--')}<small>${escapeHtml(item.symbol || '--')} · click to trade</small></span></span></button>`
+              : `<span class="stock-name-with-logo">${stockLogoMarkup(item.symbol, item.name)}<span>${escapeHtml(item.name || '--')}${targetId === 'market-active' ? '' : `<small>${escapeHtml(item.symbol || '--')}</small>`}</span></span>`}</td>
             ${targetId === 'market-active' ? `<td>${escapeHtml(item.symbol || '--')}</td>` : ''}
             <td>${formatOptionalCurrency(item.price)}</td>
             <td class="${changeClass}">${changeText}</td>
@@ -287,7 +425,7 @@
         try {
           const result = await apiRequest('/api/market/overview');
           marketOverview = result.data;
-          renderIndexCards(marketOverview.summary || {});
+          renderIndexCards(marketOverview.summary || {}, marketOverview.gainers || []);
           renderMarketTable('market-gainers', marketOverview.gainers || [], 5, 'No gainers are available for this snapshot.');
           renderMarketTable('market-losers', marketOverview.losers || [], 5, 'No losers are available for this snapshot.');
           renderMarketTable('market-active', marketOverview.most_active || [], 6, 'No activity data is available for this snapshot.');
@@ -296,9 +434,9 @@
           const coverage = marketOverview.coverage || {};
           document.getElementById('market-coverage').textContent = coverage.available_stocks == null
             ? ''
-            : `${coverage.available_stocks} seeded dashboard demo stocks · not live`;
-          document.getElementById('market-session').textContent = 'Demo data · not live';
-          document.getElementById('market-updated').textContent = 'No live market snapshot';
+            : `${coverage.available_stocks} instruments`;
+          document.getElementById('market-session').textContent = 'Market session';
+          document.getElementById('market-updated').textContent = 'No current market snapshot';
         } catch (error) {
           if (error.message && (error.message.includes('Authorization') || error.message.includes('Token has expired'))) {
             logoutUser();
@@ -312,7 +450,7 @@
           renderMarketTable('market-losers', [], 5, 'Market data unavailable. No values are displayed.');
           renderMarketTable('market-active', [], 6, 'Market data unavailable. No values are displayed.');
           renderSectors([]);
-          document.getElementById('market-session').textContent = 'Demo data unavailable';
+          document.getElementById('market-session').textContent = 'Market data unavailable';
           document.getElementById('market-updated').textContent = 'No market snapshot';
         }
       }
@@ -324,7 +462,7 @@
           renderTable(instruments);
           const coverage = data.coverage || {};
           document.getElementById('market-list-status').textContent =
-            `Dashboard demo data (not live): ${coverage.demo_instruments || 0} of ${coverage.listed_instruments || 0} instruments displayed.`;
+            `${coverage.demo_instruments || 0} of ${coverage.listed_instruments || 0} instruments displayed.`;
         } catch (error) {
           if (error.message && (error.message.includes('Authorization') || error.message.includes('Token has expired'))) {
             logoutUser();
@@ -342,13 +480,13 @@
         const filtered = stocks.filter((stock) => (!query || stock.symbol.toLowerCase().includes(query) || (stock.name || '').toLowerCase().includes(query))
           && (!exchange || stock.exchange.toLowerCase().includes(exchange)));
         if (!filtered.length) {
-          tableBody.innerHTML = '<tr><td colspan="12" class="empty-state">No matching demo instruments found.</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="12" class="empty-state">No matching instruments found.</td></tr>';
           return;
         }
 
         tableBody.innerHTML = filtered.map((stock) => `
           <tr>
-            <td>${escapeHtml(stock.symbol)}</td>
+            <td><span class="stock-name-with-logo">${stockLogoMarkup(stock.symbol, stock.name)}${escapeHtml(stock.symbol)}</span></td>
             <td>${escapeHtml(stock.name)}</td>
             <td>${escapeHtml(stock.exchange)}</td>
             <td>${escapeHtml(stock.instrument_type || 'EQUITY')}</td>
@@ -370,14 +508,163 @@
 
       function resetOrderTicket() {
         document.getElementById('order-form').reset();
+        setOrderSide('BUY');
+        buyOrderDialog.close();
         document.getElementById('order-preview').hidden = true;
         document.getElementById('order-status').textContent = '';
         selectedQuotePrice = null;
       }
 
+      function setOrderSide(side) {
+        document.getElementById('order-side').value = side;
+        document.getElementById('order-submit').textContent =
+          side === 'BUY' ? 'BUY' : 'Preview practice sell';
+        document.querySelectorAll('[data-order-side]').forEach((button) => {
+          const active = button.dataset.orderSide === side;
+          button.classList.toggle('active', active);
+          button.setAttribute('aria-pressed', String(active));
+        });
+      }
+
+      async function openBuyOrder() {
+        if (!selectedInstrument) return;
+        status.textContent = 'Loading price…';
+        try {
+          const params = new URLSearchParams({
+            symbol: selectedInstrument.symbol,
+            exchange: selectedInstrument.exchange,
+          });
+          const quote = await apiRequest(`/api/paper-trading/quote?${params}`);
+          selectedQuotePrice = Number(quote.data.price);
+          if (!Number.isFinite(selectedQuotePrice) || selectedQuotePrice <= 0) {
+            throw new Error('The app returned an invalid price for this instrument.');
+          }
+          if (!Number.isFinite(paperCashBalance)) {
+            throw new Error('Your virtual account balance is still loading. Please try again.');
+          }
+          document.getElementById('buy-order-symbol').textContent =
+            `${selectedInstrument.symbol} · ${selectedInstrument.exchange} at ${formatCurrency(selectedQuotePrice)} per share`;
+          document.getElementById('buy-order-balance').textContent = formatCurrency(paperCashBalance);
+          buyOrderAmount.value = '';
+          buyOrderMessage.textContent = '';
+          document.getElementById('buy-order-topup').hidden = true;
+          updateBuyOrderEstimate();
+          status.textContent = '';
+          buyOrderDialog.showModal();
+          buyOrderAmount.focus();
+        } catch (error) {
+          status.textContent = error.message || 'Could not load a price.';
+        }
+      }
+
+      function updateBuyOrderEstimate() {
+        const amount = Number(buyOrderAmount.value);
+        const estimate = document.getElementById('buy-order-estimate');
+        const confirmButton = document.getElementById('buy-order-confirm');
+        const topupButton = document.getElementById('buy-order-topup');
+        const validAmount = Number.isInteger(amount) && amount > 0 && amount <= 10000000;
+        if (!validAmount || !Number.isFinite(selectedQuotePrice) || !Number.isFinite(paperCashBalance)) {
+          estimate.textContent = 'Enter a whole-rupee amount up to ₹1,00,00,000 to see your estimated shares.';
+          confirmButton.disabled = true;
+          topupButton.hidden = true;
+          return;
+        }
+        const quantity = Math.floor(amount / selectedQuotePrice);
+        if (quantity < 1) {
+          estimate.textContent = `At least ${formatCurrency(Math.ceil(selectedQuotePrice))} is needed to buy one whole share.`;
+          confirmButton.disabled = true;
+          topupButton.hidden = true;
+          return;
+        }
+        const orderValue = quantity * selectedQuotePrice;
+        const shortfall = Math.ceil(orderValue - paperCashBalance);
+        if (shortfall > 0) {
+          estimate.innerHTML = `<strong>${quantity.toLocaleString('en-IN')} share${quantity === 1 ? '' : 's'}</strong><span>Estimated practice order total: ${formatCurrency(orderValue)}</span><span>Add virtual cash to cover the ${formatCurrency(shortfall)} shortfall.</span>`;
+          topupButton.hidden = false;
+          topupButton.disabled = shortfall > 1000000;
+          topupButton.dataset.amount = String(Math.min(shortfall, 1000000));
+          topupButton.textContent = shortfall > 1000000
+            ? 'Shortfall exceeds the ₹10,00,000 practice top-up limit'
+            : `Add ${formatCurrency(shortfall)} practice funds`;
+          confirmButton.disabled = true;
+          return;
+        }
+        estimate.innerHTML = `<strong>${quantity.toLocaleString('en-IN')} share${quantity === 1 ? '' : 's'}</strong><span>Estimated practice order total: ${formatCurrency(orderValue)}</span><span>Unused amount stays in your virtual cash balance.</span>`;
+        topupButton.hidden = true;
+        confirmButton.disabled = false;
+      }
+
+      async function topUpForBuyOrder() {
+        const button = document.getElementById('buy-order-topup');
+        const amount = Number(button.dataset.amount);
+        if (!Number.isInteger(amount) || amount < 1 || amount > 1000000) return;
+        button.disabled = true;
+        buyOrderMessage.textContent = 'Adding practice funds to your virtual account…';
+        try {
+          const response = await apiRequest('/api/paper-trading/account/add-virtual-cash', {
+            method: 'POST',
+            body: JSON.stringify({ amount }),
+          });
+          paperCashBalance = Number(response.account.cash_balance);
+          document.getElementById('buy-order-balance').textContent = formatCurrency(paperCashBalance);
+          document.getElementById('market-paper-cash').textContent =
+            `Available virtual cash: ${formatCurrency(paperCashBalance)}`;
+          buyOrderMessage.textContent = response.message;
+          updateBuyOrderEstimate();
+        } catch (error) {
+          buyOrderMessage.textContent = error.message || 'Could not add practice funds.';
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      async function confirmBuyOrder(event) {
+        event.preventDefault();
+        if (!selectedInstrument) return;
+        const amount = Number(buyOrderAmount.value);
+        if (!Number.isInteger(amount) || amount <= 0 || amount > 10000000) {
+          buyOrderMessage.textContent = 'Enter a whole-rupee amount up to ₹1,00,00,000.';
+          return;
+        }
+        const quantity = Math.floor(amount / selectedQuotePrice);
+        if (quantity < 1) {
+          buyOrderMessage.textContent = `At least ${formatCurrency(Math.ceil(selectedQuotePrice))} is needed to buy one whole share.`;
+          return;
+        }
+        const confirmButton = document.getElementById('buy-order-confirm');
+        confirmButton.disabled = true;
+        buyOrderMessage.textContent = 'Completing virtual practice trade…';
+        try {
+          const result = await apiRequest('/api/paper-trading/trades', {
+            method: 'POST',
+            body: JSON.stringify({
+              symbol: selectedInstrument.symbol,
+              exchange: selectedInstrument.exchange,
+              side: 'BUY',
+              quantity,
+            }),
+          });
+          paperCashBalance = Number(result.account.cash_balance);
+          document.getElementById('market-paper-cash').textContent =
+            `Available virtual cash: ${formatCurrency(paperCashBalance)}`;
+          buyOrderDialog.close();
+          document.getElementById('order-preview').hidden = true;
+          document.getElementById('order-status').textContent =
+            `${result.message} ${quantity} share${quantity === 1 ? '' : 's'} recorded. New virtual cash balance: ${formatCurrency(paperCashBalance)}.`;
+        } catch (error) {
+          buyOrderMessage.textContent = error.message || 'The practice buy could not be completed.';
+        } finally {
+          confirmButton.disabled = false;
+        }
+      }
+
       async function previewOrder(event) {
         event.preventDefault();
         if (!selectedInstrument) return;
+        if (document.getElementById('order-side').value === 'BUY') {
+          await openBuyOrder();
+          return;
+        }
         const status = document.getElementById('order-status');
         const side = document.getElementById('order-side').value;
         const quantity = Number(document.getElementById('order-quantity').value);
@@ -387,8 +674,7 @@
         }
 
         const submitButton = document.querySelector('#order-form button[type="submit"]');
-        submitButton.disabled = true;
-        status.textContent = 'Getting a quote from Kite Connect…';
+        status.textContent = 'Loading price…';
         try {
           const params = new URLSearchParams({
             symbol: selectedInstrument.symbol,
@@ -396,10 +682,7 @@
           });
           const quote = await apiRequest(`/api/paper-trading/quote?${params}`);
           selectedQuotePrice = Number(quote.data.price);
-          if (!Number.isFinite(selectedQuotePrice) || selectedQuotePrice <= 0) {
-            throw new Error('Kite returned an invalid quote for this instrument.');
-          }
-        } catch (error) {
+            throw new Error('The app returned an invalid price for this instrument.');
           status.textContent = error.message;
           return;
         } finally {
@@ -409,9 +692,9 @@
         const previewRows = [
           ['Instrument', `${selectedInstrument.symbol} · ${selectedInstrument.exchange}`],
           ['Side', side],
-          ['Execution', 'Immediate virtual fill using Kite quote'],
+          ['Execution', 'Virtual fill using displayed price'],
           ['Quantity', String(quantity)],
-          ['Kite quote', formatCurrency(selectedQuotePrice)],
+          ['Price', formatCurrency(selectedQuotePrice)],
           ['Available virtual cash', paperCashBalance == null ? 'Loading…' : formatCurrency(paperCashBalance)],
         ];
         previewRows.push(['Estimated virtual trade value', formatCurrency(selectedQuotePrice * quantity)]);
@@ -433,7 +716,7 @@
           quantity: Number(document.getElementById('order-quantity').value),
         };
         confirmButton.disabled = true;
-        status.textContent = 'Filling virtual trade at the seeded demo price…';
+        status.textContent = 'Filling virtual trade…';
         try {
           const result = await apiRequest('/api/paper-trading/trades', {
             method: 'POST',
@@ -474,7 +757,7 @@
           const result = await apiRequest(`/api/instruments/search?${params}`);
           suggestions.innerHTML = (result.data || []).map((instrument) => `
             <button class="suggestion-item" data-detail="${escapeHtml(instrument.symbol)}" data-exchange="${escapeHtml(instrument.exchange)}" data-price="${escapeHtml(instrument.price)}">
-              <strong>${escapeHtml(instrument.symbol)}</strong><span>${escapeHtml(instrument.name)}</span><small>${escapeHtml(instrument.exchange)}</small>
+              <span class="suggestion-symbol">${stockLogoMarkup(instrument.symbol, instrument.name)}<strong>${escapeHtml(instrument.symbol)}</strong></span><span>${escapeHtml(instrument.name)}</span><small>${escapeHtml(instrument.exchange)}</small>
             </button>
           `).join('') || '<div class="suggestion-empty">No instruments found</div>';
           suggestions.hidden = false;
@@ -504,9 +787,12 @@
           const change = document.getElementById('stock-live-change');
           change.textContent = `${instrument.change >= 0 ? '+' : ''}${Number(instrument.change).toFixed(2)}%`;
           change.className = instrument.change >= 0 ? 'positive' : 'negative';
-          document.getElementById('stock-live-updated').textContent = 'Dashboard demo snapshot · not live';
+          document.getElementById('stock-live-updated').textContent = '';
+          document.getElementById('stock-chart-title').textContent =
+            `${instrument.symbol} · NSE · 5-minute candles`;
+          renderDemoCandles(instrument);
           document.getElementById('stock-detail-status').textContent =
-            'All values come from the seeded dashboard demo dataset. No Kite or historical CSV data is used here.';
+            'No Kite Connect quotes or historical CSV data are used here.';
           document.getElementById('stock-detail-metrics').innerHTML = [
             ['Sector', escapeHtml(instrument.sector || '—')],
             ['Volume', Number(instrument.volume || 0).toLocaleString('en-IN')],
@@ -565,16 +851,42 @@
       document.getElementById('order-status').textContent = '';
       selectedQuotePrice = null;
       });
+      document.querySelectorAll('[data-order-side]').forEach((button) => {
+        button.addEventListener('click', () => {
+          setOrderSide(button.dataset.orderSide);
+          document.getElementById('order-preview').hidden = true;
+          document.getElementById('order-status').textContent = '';
+          selectedQuotePrice = null;
+        });
+      });
       document.getElementById('order-edit').addEventListener('click', () => {
         document.getElementById('order-preview').hidden = true;
         document.getElementById('order-status').textContent = '';
       });
       document.getElementById('order-confirm').addEventListener('click', confirmOrder);
+      document.getElementById('buy-order-close').addEventListener('click', () => buyOrderDialog.close());
+      buyOrderForm.addEventListener('submit', confirmBuyOrder);
+      buyOrderAmount.addEventListener('input', updateBuyOrderEstimate);
+      document.getElementById('buy-order-topup').addEventListener('click', topUpForBuyOrder);
+      document.querySelectorAll('[data-buy-amount]').forEach((button) => {
+        button.addEventListener('click', () => {
+          buyOrderAmount.value = button.dataset.buyAmount;
+          updateBuyOrderEstimate();
+          buyOrderAmount.focus();
+        });
+      });
       menuToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
       bindSidebarNavigation();
       loadPaperCash();
       loadMarketData();
       loadMarketOverview();
+      const requestedInstrument = new URLSearchParams(window.location.search);
+      if (requestedInstrument.has('symbol')) {
+        showInstrument(
+          requestedInstrument.get('symbol'),
+          requestedInstrument.get('exchange') || 'NSE',
+        );
+      }
     </script>
   </body>
 </html>

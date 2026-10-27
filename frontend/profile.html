@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlgoTrade | Profile</title>
+    <title>AlphaMind | Profile</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   </head>
@@ -12,7 +12,7 @@
       <aside class="sidebar" id="sidebar">
         <div class="brand">
           <div class="brand-mark">AI</div>
-          <h1>AlgoTrade</h1>
+          <h1>AlphaMind</h1>
         </div>
         <ul class="sidebar-nav">
           <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
@@ -71,6 +71,44 @@
               </div>
             </form>
           </section>
+
+          <section class="panel auth-settings-panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Secure sign-in</div>
+                <p class="market-data-status">Add a device passkey or a 6-digit PIN. Your account password is required to set up or change sign-in methods.</p>
+              </div>
+            </div>
+            <div id="auth-settings-alert" aria-live="polite"></div>
+            <div class="auth-settings-method">
+              <div class="auth-settings-method-copy">
+                <span class="auth-settings-icon"><i class="fa-solid fa-fingerprint" aria-hidden="true"></i></span>
+                <div><strong>Device passkey</strong><small id="passkey-status">Checking registered devices…</small></div>
+              </div>
+              <button class="secondary-btn" id="add-passkey-btn" type="button">Add this device</button>
+            </div>
+            <form id="pin-setup-form" class="auth-pin-setup">
+              <div class="auth-settings-method-copy">
+                <span class="auth-settings-icon"><i class="fa-solid fa-grip" aria-hidden="true"></i></span>
+                <div><strong>6-digit Alpha PIN</strong><small id="pin-status">Use a PIN that is different from your account password.</small></div>
+              </div>
+              <div class="auth-pin-fields">
+                <div class="form-group">
+                  <label for="setup-pin">New PIN</label>
+                  <input id="setup-pin" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="new-password" placeholder="6 digits" required />
+                </div>
+                <div class="form-group">
+                  <label for="confirm-setup-pin">Confirm PIN</label>
+                  <input id="confirm-setup-pin" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="new-password" placeholder="Repeat PIN" required />
+                </div>
+                <div class="form-group">
+                  <label for="pin-current-password">Account password</label>
+                  <input id="pin-current-password" type="password" autocomplete="current-password" placeholder="Confirm your password" required />
+                </div>
+                <button class="primary-btn" type="submit">Save PIN</button>
+              </div>
+            </form>
+          </section>
         </div>
       </main>
     </div>
@@ -104,6 +142,119 @@
         }
       });
 
+      function showAuthSettingsMessage(message, type = 'success') {
+        const alert = document.createElement('div');
+        alert.className = `alert ${type}`;
+        alert.textContent = message;
+        document.getElementById('auth-settings-alert').replaceChildren(alert);
+      }
+
+      function base64urlToBuffer(value) {
+        const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+        const binary = atob(normalized + '='.repeat((4 - normalized.length % 4) % 4));
+        return Uint8Array.from(binary, (character) => character.charCodeAt(0)).buffer;
+      }
+
+      function bufferToBase64url(value) {
+        const bytes = new Uint8Array(value);
+        let binary = '';
+        bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+      }
+
+      function serializePasskey(credential) {
+        const response = {
+          clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+          attestationObject: bufferToBase64url(credential.response.attestationObject),
+          transports: credential.response.getTransports?.() || [],
+        };
+        return {
+          id: credential.id,
+          rawId: bufferToBase64url(credential.rawId),
+          type: credential.type,
+          response,
+          clientExtensionResults: credential.getClientExtensionResults(),
+          authenticatorAttachment: credential.authenticatorAttachment,
+        };
+      }
+
+      async function refreshAuthMethods() {
+        try {
+          const methods = await apiRequest('/api/auth/methods');
+          document.getElementById('passkey-status').textContent = methods.passkey_count
+            ? `${methods.passkey_count} device${methods.passkey_count === 1 ? '' : 's'} registered`
+            : 'No device passkeys registered yet';
+          document.getElementById('pin-status').textContent = methods.pin_enabled
+            ? 'PIN sign-in is ready. Save a new PIN below to change it.'
+            : 'Choose a 6-digit PIN, then confirm it below.';
+        } catch (error) {
+          showAuthSettingsMessage(error.message || 'Could not load sign-in settings.', 'error');
+        }
+      }
+
+      document.getElementById('add-passkey-btn').addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        if (!window.isSecureContext || !navigator.credentials || !window.PublicKeyCredential) {
+          showAuthSettingsMessage('Device passkeys require a supported browser on HTTPS or localhost.', 'error');
+          return;
+        }
+        button.disabled = true;
+        try {
+          const { challenge_id: challengeId, public_key: publicKey } = await apiRequest(
+            '/api/auth/passkey/register/options',
+            { method: 'POST', body: JSON.stringify({}) }
+          );
+          publicKey.challenge = base64urlToBuffer(publicKey.challenge);
+          publicKey.user.id = base64urlToBuffer(publicKey.user.id);
+          publicKey.excludeCredentials = publicKey.excludeCredentials.map((item) => ({
+            ...item,
+            id: base64urlToBuffer(item.id),
+          }));
+          const credential = await navigator.credentials.create({ publicKey });
+          if (!credential) throw new Error('Passkey setup was cancelled.');
+          const result = await apiRequest('/api/auth/passkey/register/verify', {
+            method: 'POST',
+            body: JSON.stringify({ challenge_id: challengeId, credential: serializePasskey(credential) }),
+          });
+          showAuthSettingsMessage(result.message);
+          await refreshAuthMethods();
+        } catch (error) {
+          showAuthSettingsMessage(error.message || 'Could not add a device passkey.', 'error');
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      document.getElementById('pin-setup-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const pin = document.getElementById('setup-pin').value;
+        if (pin !== document.getElementById('confirm-setup-pin').value) {
+          showAuthSettingsMessage('The PIN entries do not match.', 'error');
+          document.getElementById('confirm-setup-pin').focus();
+          return;
+        }
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        try {
+          const result = await apiRequest('/api/auth/pin', {
+            method: 'PUT',
+            body: JSON.stringify({
+              pin,
+              current_password: document.getElementById('pin-current-password').value,
+            }),
+          });
+          form.reset();
+          showAuthSettingsMessage(result.message);
+          await refreshAuthMethods();
+        } catch (error) {
+          showAuthSettingsMessage(error.message || 'Could not save the PIN.', 'error');
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
+
+      refreshAuthMethods();
       document.getElementById('logout-btn').addEventListener('click', logoutUser);
       document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
       bindSidebarNavigation();

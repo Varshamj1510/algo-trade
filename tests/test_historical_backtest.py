@@ -157,5 +157,5 @@ def test_candlestick_chart_api_returns_csv_candles_and_detected_patterns(tmp_pat
 
     assert response.status_code == 200
     data = response.get_json()['data']
-    assert data['provider'] == 'Bundled historical CSV (not live)'
+    assert data['provider'] == 'Bundled historical CSV'
     assert len(data['candles']) == 6

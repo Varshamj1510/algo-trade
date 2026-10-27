@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlgoTrade | Alerts</title>
+    <title>AlphaMind | Alerts</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   </head>
@@ -12,7 +12,7 @@
       <aside class="sidebar" id="sidebar">
         <div class="brand">
           <div class="brand-mark">AI</div>
-          <h1>AlgoTrade</h1>
+          <h1>AlphaMind</h1>
         </div>
         <ul class="sidebar-nav">
           <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
@@ -32,11 +32,10 @@
       <main class="main-panel">
         <header class="topbar">
           <div class="topbar-left">
-            <button class="icon-button mobile-menu" id="menu-toggle"><i class="fa fa-bars"></i></button>
+            <button class="icon-button mobile-menu" id="menu-toggle" aria-label="Toggle navigation"><i class="fa fa-bars"></i></button>
             <span class="page-title">Alerts</span>
           </div>
           <div class="topbar-right">
-            <button class="icon-button"><i class="fa-solid fa-bell"></i><span class="badge">3</span></button>
             <div class="user-chip">
               <div class="avatar" id="user-avatar">V</div>
               <div>
@@ -47,62 +46,556 @@
           </div>
         </header>
 
-        <div class="content-grid">
-          <section class="panel">
-            <div class="panel-header">
+        <div class="content-grid alerts-page">
+          <section class="panel alerts-intro">
+            <div>
+              <div class="panel-title">Price alerts</div>
+              <p class="market-data-status">Choose a stock and target. AlphaMind checks your condition against Kite Connect quotes and notifies you when it is met.</p>
+            </div>
+            <div id="alerts-status" class="alerts-status" role="status" aria-live="polite">Checking alert service…</div>
+          </section>
+
+          <section class="panel alerts-settings" aria-labelledby="notification-settings-title">
+            <div class="alerts-section-heading">
               <div>
-                <div class="panel-title">Demo Alert Center</div>
-                <p id="alerts-status" class="market-data-status">Loading alerts for this demo account...</p>
+                <h2 id="notification-settings-title">Notification settings</h2>
+                <p>Background browser notifications can appear while this page is closed, provided the alert worker is running.</p>
+              </div>
+              <label class="alerts-switch">
+                <input id="notifications-enabled" type="checkbox" aria-describedby="notification-permission-help" />
+                <span>Enable alerts</span>
+              </label>
+            </div>
+            <p id="notification-permission-help" class="alerts-help">When you enable alerts, your browser will ask permission and register this device for push notifications. The app checks current Kite Connect quotes in a separate background service, so your browser tab does not need to stay open.</p>
+            <div class="alerts-quiet-hours">
+              <label class="alerts-switch">
+                <input id="quiet-hours-enabled" type="checkbox" />
+                <span>Use quiet hours</span>
+              </label>
+              <label>From <input id="quiet-start" type="time" value="22:00" /></label>
+              <label>Until <input id="quiet-end" type="time" value="08:00" /></label>
+              <button id="save-alert-settings" class="secondary-btn" type="button">Save settings</button>
+            </div>
+            <p id="settings-status" class="alerts-help" role="status" aria-live="polite"></p>
+          </section>
+
+          <section class="panel alerts-create" aria-labelledby="create-price-alert-title">
+            <div class="alerts-section-heading">
+              <div>
+                <h2 id="create-price-alert-title">Create a price alert</h2>
+                <p>Set a one-time condition. It will not repeat until reset after the price moves back across your target.</p>
               </div>
             </div>
+            <form id="price-alert-form" class="price-alert-form">
+              <label>
+                Stock
+                <select id="alert-instrument" required>
+                  <option value="">Loading stocks…</option>
+                </select>
+              </label>
+              <label>
+                Target price
+                <input id="alert-target" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="e.g. 2500.00" required />
+              </label>
+              <label>
+                Notify me when price goes
+                <select id="alert-direction" required>
+                  <option value="above">Above target</option>
+                  <option value="below">Below target</option>
+                </select>
+              </label>
+              <button class="primary-btn" id="create-alert-button" type="submit">Add price alert</button>
+            </form>
+            <p class="alerts-help">Price alerts require an active Kite Connect session and a current quote.</p>
+            <p id="form-status" role="status" aria-live="polite"></p>
+          </section>
+
+          <section class="panel" aria-labelledby="saved-price-alerts-title">
+            <div class="alerts-section-heading">
+              <div>
+                <h2 id="saved-price-alerts-title">Your price alerts</h2>
+                <p id="price-alert-count">Loading…</p>
+              </div>
+              <button id="check-alerts-now" class="secondary-btn" type="button">Check prices</button>
+            </div>
+            <div id="price-alert-list" class="price-alert-list" aria-live="polite"></div>
+          </section>
+
+          <section class="panel legacy-alerts" aria-labelledby="other-alerts-title">
+            <div class="alerts-section-heading">
+              <div>
+                <h2 id="other-alerts-title">Other saved alerts</h2>
+                <p>Existing examples and non-price alerts</p>
+              </div>
+            </div>
+            <p class="alerts-help">These existing alerts are retained for your account, but are not evaluated or delivered as current-price notifications.</p>
             <div id="alerts-list"></div>
           </section>
         </div>
       </main>
     </div>
 
+    <dialog id="alert-feedback-dialog" class="alert-feedback-dialog" aria-labelledby="alert-feedback-title" aria-describedby="alert-feedback-message">
+      <div class="alert-feedback-content">
+        <div class="alert-feedback-icon" aria-hidden="true"><i class="fa-solid fa-circle-info"></i></div>
+        <h2 id="alert-feedback-title">Price alert</h2>
+        <p id="alert-feedback-message"></p>
+        <button id="alert-feedback-close" class="primary-btn" type="button">Got it</button>
+      </div>
+    </dialog>
+
     <script src="/js/api.js"></script>
     <script>
       const user = parseUser();
-      const alertsList = document.getElementById('alerts-list');
+      if (!requireAuth()) {
+        document.body.hidden = true;
+      }
       const alertsStatus = document.getElementById('alerts-status');
+      const settingsStatus = document.getElementById('settings-status');
+      const formStatus = document.getElementById('form-status');
+      const feedbackDialog = document.getElementById('alert-feedback-dialog');
+      const feedbackTitle = document.getElementById('alert-feedback-title');
+      const feedbackMessage = document.getElementById('alert-feedback-message');
+      const alertList = document.getElementById('price-alert-list');
+      const legacyList = document.getElementById('alerts-list');
+      const instrumentSelect = document.getElementById('alert-instrument');
+      const notificationToggle = document.getElementById('notifications-enabled');
+      const quietToggle = document.getElementById('quiet-hours-enabled');
+      let savedPriceAlerts = [];
+      let notificationSettings = {
+        enabled: false,
+        quiet_hours_enabled: false,
+        quiet_start: '22:00',
+        quiet_end: '08:00',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      };
+      let checkInProgress = false;
+      let latestQuotes = {};
+      let backgroundWorkerOnline = false;
+
       if (user) {
         document.getElementById('top-user-name').textContent = user.full_name || user.username;
         document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
       }
-      document.getElementById('logout-btn').addEventListener('click', logoutUser);
-      document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
-      bindSidebarNavigation();
 
       function escapeHtml(value) {
-        return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        })[char]);
+      }
+
+      function formatPrice(value) {
+        return new Intl.NumberFormat('en-IN', {
+          style: 'currency',
+          currency: 'INR',
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(Number(value));
+      }
+
+      function decodeVapidPublicKey(encodedKey) {
+        const padding = '='.repeat((4 - encodedKey.length % 4) % 4);
+        const base64 = (encodedKey + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = atob(base64);
+        return Uint8Array.from(raw, (character) => character.charCodeAt(0));
+      }
+
+      async function registerBrowserPush() {
+        if (!window.isSecureContext || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+          throw new Error('Background notifications need a secure site (HTTPS or localhost) and a browser that supports push.');
+        }
+        const keyResponse = await apiRequest('/api/alerts/push/public-key');
+        const registration = await navigator.serviceWorker.register('/service-worker.js');
+        await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: decodeVapidPublicKey(keyResponse.data.public_key),
+          });
+        }
+        await apiRequest('/api/alerts/push/subscribe', {
+          method: 'POST',
+          body: JSON.stringify(subscription.toJSON()),
+        });
+      }
+
+      function showAlertPopup(title, message) {
+        feedbackTitle.textContent = title;
+        feedbackMessage.textContent = message;
+        if (!feedbackDialog.open) feedbackDialog.showModal();
+      }
+
+      document.getElementById('alert-feedback-close').addEventListener('click', () => feedbackDialog.close());
+
+      function renderPriceAlerts() {
+        document.getElementById('price-alert-count').textContent =
+          `${savedPriceAlerts.length} saved price alert${savedPriceAlerts.length === 1 ? '' : 's'}`;
+        if (!savedPriceAlerts.length) {
+          alertList.innerHTML = '<div class="empty-state">No price alerts yet. Add one above to get started.</div>';
+          return;
+        }
+        alertList.innerHTML = savedPriceAlerts.map((alert) => {
+          const currentPrice = latestQuotes[`${alert.exchange}:${alert.symbol}`];
+          const stateLabel = alert.triggered
+            ? 'Triggered once'
+            : !alert.enabled
+              ? 'Paused'
+              : !notificationSettings.enabled
+                ? 'Notifications off'
+                : !('Notification' in window)
+                  ? 'Browser notifications unavailable'
+                  : Notification.permission !== 'granted'
+                    ? 'Browser permission required'
+                : currentPrice === undefined
+                    ? ''
+                  : 'Armed';
+          const stateClass = alert.triggered
+            ? 'triggered'
+            : !alert.enabled
+              || !notificationSettings.enabled
+              || !('Notification' in window)
+              || Notification.permission !== 'granted'
+              || currentPrice === undefined
+              ? 'paused'
+              : 'armed';
+          return `
+            <article class="price-alert-card" aria-labelledby="price-alert-title-${alert.id}">
+              <div class="price-alert-main">
+                <div class="price-alert-symbol">
+                  <strong id="price-alert-title-${alert.id}">${escapeHtml(alert.name)}</strong>
+                  <span>${escapeHtml(alert.exchange)}:${escapeHtml(alert.symbol)}</span>
+                </div>
+                <div class="price-alert-condition">
+                  <span>Notify when price is ${escapeHtml(alert.direction)}</span>
+                  <strong>${formatPrice(alert.target_price)}</strong>
+                  ${currentPrice !== undefined ? `<small>Current quote: ${formatPrice(currentPrice)}</small>` : ''}
+                </div>
+                ${stateLabel ? `<span class="price-alert-state ${stateClass}">${stateLabel}</span>` : ''}
+              </div>
+              ${alert.triggered ? `<p class="price-alert-triggered">Condition met at ${formatPrice(alert.triggered_price)} · ${new Date(alert.triggered_at).toLocaleString()}</p>` : ''}
+              <div class="price-alert-actions">
+                ${alert.triggered
+                  ? `<button class="secondary-btn" type="button" data-alert-reset="${alert.id}" aria-label="Reset ${escapeHtml(alert.name)} alert after its condition clears">Reset after price moves back</button>`
+                  : `<button class="secondary-btn" type="button" data-alert-toggle="${alert.id}" data-enabled="${alert.enabled}" aria-label="${alert.enabled ? 'Pause' : 'Resume'} ${escapeHtml(alert.name)} price alert">${alert.enabled ? 'Pause' : 'Resume'}</button>
+                     <button class="secondary-btn" type="button" data-alert-edit="${alert.id}" aria-label="Change target for ${escapeHtml(alert.name)}">Change target</button>`}
+                <button class="secondary-btn alert-delete-button" type="button" data-alert-delete="${alert.id}" aria-label="Delete ${escapeHtml(alert.name)} price alert">Delete</button>
+              </div>
+            </article>
+          `;
+        }).join('');
+      }
+
+      function renderLegacyAlerts(alerts) {
+        legacyList.innerHTML = alerts.length ? alerts.map((alert) => `
+          <article class="activity-item">
+            <div class="timeline-dot"></div>
+            <div>
+              <div><strong>${escapeHtml(alert.title)}</strong></div>
+              <div class="subtitle">${escapeHtml(alert.description || alert.type)} · ${escapeHtml(alert.status)}</div>
+            </div>
+          </article>
+        `).join('') : '<div class="empty-state">No other saved alerts.</div>';
+      }
+
+      function applySettings(settings) {
+        notificationSettings = { ...notificationSettings, ...settings };
+        notificationToggle.checked = notificationSettings.enabled;
+        quietToggle.checked = notificationSettings.quiet_hours_enabled;
+        document.getElementById('quiet-start').value = notificationSettings.quiet_start;
+        document.getElementById('quiet-end').value = notificationSettings.quiet_end;
+      }
+
+      async function loadInstruments() {
+        try {
+          const response = await apiRequest('/api/instruments/search');
+          const instruments = response.data || [];
+          instrumentSelect.innerHTML = '<option value="">Choose a stock</option>' + instruments.map((instrument) => {
+            const value = `${instrument.exchange}:${instrument.symbol}`;
+            const label = `${instrument.name} (${instrument.symbol} · ${instrument.exchange})`;
+            return `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`;
+          }).join('');
+        } catch (error) {
+          instrumentSelect.innerHTML = '<option value="">Stocks could not be loaded</option>';
+          formStatus.textContent = error.message || 'Could not load stocks.';
+        }
       }
 
       async function loadAlerts() {
         try {
           const response = await apiRequest('/api/alerts');
-          const alerts = response.data || [];
-          alertsStatus.textContent = `${alerts.length} saved alerts for this demo account. Price-trigger descriptions are examples and are not evaluated against live quotes.`;
-          alertsList.innerHTML = alerts.length ? alerts.map((alert) => `
-            <article class="activity-item">
-              <div class="timeline-dot"></div>
-              <div>
-                <div><strong>${escapeHtml(alert.title)}</strong></div>
-                <div class="subtitle">${escapeHtml(alert.description || alert.type)} · ${escapeHtml(alert.status)}</div>
-              </div>
-            </article>
-          `).join('') : '<div class="empty-state">No alerts are saved for this account.</div>';
+          savedPriceAlerts = response.price_alerts || [];
+          applySettings(response.settings || {});
+          backgroundWorkerOnline = Boolean(response.delivery?.background_worker_online);
+          renderLegacyAlerts(response.data || []);
+          latestQuotes = {};
+          renderPriceAlerts();
+          if (notificationSettings.enabled
+            && response.delivery?.push_configured
+            && 'Notification' in window
+            && Notification.permission === 'granted') {
+            try {
+              await registerBrowserPush();
+            } catch (error) {
+              settingsStatus.textContent = error.message || 'This browser could not be registered for background notifications.';
+            }
+          }
+          if (!savedPriceAlerts.length) {
+            alertsStatus.textContent = 'No price alerts saved. Add an alert to begin.';
+          } else if (!notificationSettings.enabled) {
+            alertsStatus.textContent = 'Alerts are off. Enable browser notifications above to monitor price conditions.';
+          } else if (!response.delivery?.push_configured) {
+            alertsStatus.textContent = 'Background push is not configured on the server. Add VAPID keys to enable alerts while this page is closed.';
+          } else if (!backgroundWorkerOnline) {
+            alertsStatus.textContent = 'The background alert worker is offline. Alerts will not be checked while this page is closed.';
+          } else {
+            alertsStatus.textContent = 'Background push is ready. Checking configured market quotes…';
+            await checkAlerts();
+          }
         } catch (error) {
-          if (error.message.includes('Authorization')) {
+          if (error.message.includes('Authorization') || error.message.includes('Token has expired')) {
             logoutUser();
             return;
           }
-          alertsStatus.textContent = error.message;
-          alertsList.innerHTML = '<div class="empty-state">Alerts could not be loaded.</div>';
+          alertsStatus.textContent = error.message || 'Alerts could not be loaded.';
+          alertList.innerHTML = '<div class="empty-state">Price alerts could not be loaded.</div>';
         }
       }
 
+      function isQuietNow() {
+        if (!notificationSettings.quiet_hours_enabled) return false;
+        const toMinutes = (time) => {
+          const [hours, minutes] = time.split(':').map(Number);
+          return hours * 60 + minutes;
+        };
+        const now = new Date();
+        const current = now.getHours() * 60 + now.getMinutes();
+        const start = toMinutes(notificationSettings.quiet_start);
+        const end = toMinutes(notificationSettings.quiet_end);
+        return start < end ? current >= start && current < end : current >= start || current < end;
+      }
+
+      async function deliverPendingNotifications(pending) {
+        if (!notificationSettings.enabled || !('Notification' in window) || Notification.permission !== 'granted' || isQuietNow()) return;
+        const delivered = [];
+        for (const alert of pending) {
+          try {
+            const notification = new Notification('AlphaMind price alert', {
+              body: alert.notification_text,
+              tag: `price-alert-${alert.id}`,
+            });
+            notification.onclick = () => {
+              window.focus();
+              notification.close();
+            };
+            delivered.push(alert.id);
+          } catch (error) {
+            settingsStatus.textContent = error.message || 'A browser notification could not be displayed.';
+          }
+        }
+        if (delivered.length) {
+          await apiRequest('/api/alerts/acknowledge', {
+            method: 'POST',
+            body: JSON.stringify({ alert_ids: delivered }),
+          });
+        }
+      }
+
+      async function checkAlerts() {
+        if (checkInProgress || !notificationSettings.enabled) return;
+        checkInProgress = true;
+        try {
+          const response = await apiRequest('/api/alerts/check', { method: 'POST', body: '{}' });
+          const result = response.data;
+          backgroundWorkerOnline = Boolean(result.background_worker_online);
+          latestQuotes = result.quotes || {};
+          renderPriceAlerts();
+          if (!result.monitoring) {
+            alertsStatus.textContent = 'Alerts are off.';
+          } else if (!result.push_configured || !backgroundWorkerOnline) {
+            alertsStatus.textContent = 'Background alerts require configured VAPID keys and an online worker. Keep this page open for temporary browser notifications.';
+          } else {
+            const quoteCount = Object.keys(result.quotes || {}).length;
+            const missingSymbols = savedPriceAlerts
+              .filter((alert) => alert.enabled && !alert.triggered
+                && result.quotes?.[`${alert.exchange}:${alert.symbol}`] === undefined)
+              .map((alert) => alert.symbol);
+            alertsStatus.textContent = missingSymbols.length
+              ? `Current quotes unavailable for: ${[...new Set(missingSymbols)].join(', ')}.`
+              : quoteCount
+                ? `Monitoring ${quoteCount} current quote${quoteCount === 1 ? '' : 's'} from Kite Connect.`
+                : 'No current quote is available for your saved alerts yet.';
+          }
+          if (!backgroundWorkerOnline) {
+            await deliverPendingNotifications(result.pending_notifications || []);
+          }
+        } catch (error) {
+          latestQuotes = {};
+          renderPriceAlerts();
+          alertsStatus.textContent = `Price alerts are saved but not being monitored: ${error.message || 'market quotes unavailable'}`;
+        } finally {
+          checkInProgress = false;
+        }
+      }
+
+      async function saveSettings(settings, successMessage) {
+        const response = await apiRequest('/api/alerts/settings', {
+          method: 'PUT',
+          body: JSON.stringify(settings),
+        });
+        applySettings(response.data);
+        settingsStatus.textContent = successMessage;
+        if (notificationSettings.enabled) await checkAlerts();
+      }
+
+      notificationToggle.addEventListener('change', async () => {
+        const enable = notificationToggle.checked;
+        if (enable) {
+          if (!('Notification' in window)) {
+            notificationToggle.checked = false;
+            settingsStatus.textContent = 'This browser does not support desktop notifications.';
+            return;
+          }
+          let permission = Notification.permission;
+          if (permission === 'default') {
+            try {
+              permission = await Notification.requestPermission();
+            } catch (error) {
+              notificationToggle.checked = false;
+              settingsStatus.textContent = error.message || 'Browser notification permission could not be requested.';
+              return;
+            }
+          }
+          if (permission !== 'granted') {
+            notificationToggle.checked = false;
+            settingsStatus.textContent = permission === 'denied'
+              ? 'Notifications are blocked in browser settings. Allow them for this site, then try again.'
+              : 'Browser notification permission was not granted; alerts remain off.';
+            return;
+          }
+          try {
+            await registerBrowserPush();
+          } catch (error) {
+            notificationToggle.checked = false;
+            settingsStatus.textContent = error.message || 'This browser could not be registered for background notifications.';
+            return;
+          }
+        }
+        notificationToggle.disabled = true;
+        try {
+          await saveSettings({
+            ...notificationSettings,
+            enabled: enable,
+            quiet_hours_enabled: quietToggle.checked,
+            quiet_start: document.getElementById('quiet-start').value,
+            quiet_end: document.getElementById('quiet-end').value,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+          }, enable ? 'Browser notifications are enabled.' : 'Price alert notifications are turned off.');
+          if (!enable) alertsStatus.textContent = 'Alerts are off. Saved conditions will not be checked.';
+        } catch (error) {
+          notificationToggle.checked = notificationSettings.enabled;
+          settingsStatus.textContent = error.message || 'Notification settings could not be saved.';
+        } finally {
+          notificationToggle.disabled = false;
+        }
+      });
+
+      document.getElementById('save-alert-settings').addEventListener('click', async () => {
+        const settings = {
+          ...notificationSettings,
+          enabled: notificationToggle.checked,
+          quiet_hours_enabled: quietToggle.checked,
+          quiet_start: document.getElementById('quiet-start').value,
+          quiet_end: document.getElementById('quiet-end').value,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        };
+        if (settings.quiet_hours_enabled && settings.quiet_start === settings.quiet_end) {
+          settingsStatus.textContent = 'Quiet-hours start and end times must be different.';
+          return;
+        }
+        try {
+          await saveSettings(settings, 'Notification settings saved.');
+        } catch (error) {
+          settingsStatus.textContent = error.message || 'Settings could not be saved.';
+        }
+      });
+
+      document.getElementById('price-alert-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const [exchange, symbol] = instrumentSelect.value.split(':');
+        if (!exchange || !symbol) {
+          showAlertPopup('Choose a stock', 'Select a stock before adding a price alert.');
+          instrumentSelect.focus();
+          return;
+        }
+        const button = document.getElementById('create-alert-button');
+        button.disabled = true;
+        formStatus.textContent = '';
+        try {
+          await apiRequest('/api/price-alerts', {
+            method: 'POST',
+            body: JSON.stringify({
+              symbol,
+              exchange,
+              target_price: document.getElementById('alert-target').value,
+              direction: document.getElementById('alert-direction').value,
+            }),
+          });
+          event.currentTarget.reset();
+          formStatus.textContent = 'Price condition saved. It will only trigger when a current Kite Connect quote meets the target.';
+          await loadAlerts();
+        } catch (error) {
+          showAlertPopup('Price alert not added', error.message || 'The price alert could not be saved.');
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      alertList.addEventListener('click', async (event) => {
+        const target = event.target.closest('button');
+        if (!target) return;
+        const id = Number(target.dataset.alertToggle || target.dataset.alertEdit || target.dataset.alertReset || target.dataset.alertDelete);
+        if (!Number.isInteger(id)) return;
+        target.disabled = true;
+        try {
+          if (target.dataset.alertDelete) {
+            await apiRequest(`/api/price-alerts/${id}`, { method: 'DELETE' });
+          } else if (target.dataset.alertToggle) {
+            await apiRequest(`/api/price-alerts/${id}`, {
+              method: 'PUT',
+              body: JSON.stringify({ enabled: target.dataset.enabled !== 'true' }),
+            });
+          } else if (target.dataset.alertEdit) {
+            const alert = savedPriceAlerts.find((item) => item.id === id);
+            const targetPrice = window.prompt(`New target price for ${alert.name}:`, alert.target_price);
+            if (targetPrice === null) return;
+            const direction = window.prompt('Notify when price goes "above" or "below" the target:', alert.direction);
+            if (direction === null) return;
+            await apiRequest(`/api/price-alerts/${id}`, {
+              method: 'PUT',
+              body: JSON.stringify({ target_price: targetPrice, direction: direction.trim().toLowerCase() }),
+            });
+          } else {
+            await apiRequest(`/api/price-alerts/${id}/reset`, { method: 'POST', body: '{}' });
+          }
+          await loadAlerts();
+        } catch (error) {
+          settingsStatus.textContent = error.message || 'The price alert could not be updated.';
+        } finally {
+          target.disabled = false;
+        }
+      });
+
+      document.getElementById('check-alerts-now').addEventListener('click', checkAlerts);
+      document.getElementById('logout-btn').addEventListener('click', logoutUser);
+      document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+      bindSidebarNavigation();
+      loadInstruments();
       loadAlerts();
+      window.setInterval(checkAlerts, 30000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) checkAlerts();
+      });
     </script>
   </body>
 </html>

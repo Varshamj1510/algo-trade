@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlgoTrade | Signals</title>
+    <title>AlphaMind | Signals</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   </head>
@@ -12,7 +12,7 @@
       <aside class="sidebar" id="sidebar">
         <div class="brand">
           <div class="brand-mark">AI</div>
-          <h1>AlgoTrade</h1>
+          <h1>AlphaMind</h1>
         </div>
         <ul class="sidebar-nav">
           <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
@@ -48,25 +48,31 @@
         </header>
 
         <div class="content-grid">
-          <section class="panel">
-            <div class="panel-title">Demo Trade Signals</div>
-            <p class="market-data-status">BUY is assigned for demo changes of +1% or more, SELL for -1% or less, and HOLD otherwise. Levels and confidence are illustrative calculations from the seeded dashboard values only; they are not live quotes or trading advice.</p>
+          <section class="panel signal-strategy-guide">
+            <div class="panel-title">How practice signals work</div>
+            <p class="signal-strategy-intro">The app checks each catalog stock’s daily price change. It does not use current quotes or technical indicators.</p>
+            <ul class="signal-rule-list">
+              <li><strong class="buy">BUY</strong><span>Daily change is +1% or more.</span></li>
+              <li><strong class="sell">SELL</strong><span>Daily change is −1% or less.</span></li>
+              <li><strong class="hold">HOLD</strong><span>Daily change is greater than −1% and less than +1%.</span></li>
+            </ul>
+            <p class="signal-strategy-note">BUY/SELL target and stop levels are set 2% from the price. Confidence is a heuristic score, not a probability.</p>
           </section>
 
           <section class="table-card">
             <div class="panel-header">
-              <div class="panel-title">Signals from Dashboard Demo Stocks</div>
+              <div class="panel-title">Signals from Market Instruments</div>
               <div class="segment-tabs">
                 <button class="active" data-filter="all">All</button>
                 <button data-filter="BUY">Buy</button>
                 <button data-filter="SELL">Sell</button>
               </div>
             </div>
-            <p class="market-data-status" id="signals-status">Loading dashboard demo signals...</p>
+            <p class="market-data-status" id="signals-status">Loading signals...</p>
             <div style="overflow-x:auto;">
               <table class="signal-table" id="signals-table">
                 <thead>
-                  <tr><th>Symbol</th><th>Signal</th><th>Strategy</th><th>Current Price</th><th>Target</th><th>Stoploss</th><th>Confidence</th><th>Timestamp</th></tr>
+                  <tr><th>Symbol</th><th>Signal</th><th>Strategy</th><th>Current Price</th><th>Target</th><th>Stoploss</th><th>Confidence</th></tr>
                 </thead>
                 <tbody></tbody>
               </table>
@@ -76,6 +82,7 @@
       </main>
     </div>
 
+    <script src="/js/stock-logo.js"></script>
     <script src="/js/api.js"></script>
     <script>
       const tbody = document.querySelector('#signals-table tbody');
@@ -221,18 +228,17 @@
       function renderTable(list) {
         tbody.innerHTML = list.map((signal) => `
           <tr>
-            <td>${escapeHtml(signal.symbol)}</td>
+            <td><span class="stock-name-with-logo">${stockLogoMarkup(signal.symbol)}${escapeHtml(signal.symbol)}</span></td>
             <td class="${getSignalClass(signal.signal)}">${escapeHtml(signal.signal)}</td>
             <td>${escapeHtml(signal.strategy)}</td>
             <td>${formatCurrency(signal.current_price)}</td>
             <td>${signal.target_price == null ? '--' : formatCurrency(signal.target_price)}</td>
             <td>${signal.stop_loss == null ? '--' : formatCurrency(signal.stop_loss)}</td>
             <td>${Number(signal.confidence)}%</td>
-            <td>${escapeHtml(signal.timestamp)}</td>
           </tr>
         `).join('');
         if (!list.length) {
-          tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No signals match this filter.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No signals match this filter.</td></tr>';
         }
       }
 
@@ -247,7 +253,7 @@
           const data = await apiRequest('/api/signals');
           savedDemoSignals = data.data || [];
           document.getElementById('signals-status').textContent =
-            `${savedDemoSignals.length} signals calculated from dashboard demo stock values · not live data.`;
+            `${savedDemoSignals.length} signals calculated from prices.`;
           const activeButton = document.querySelector('.segment-tabs .active');
           applyFilter(activeButton ? activeButton.dataset.filter : 'all');
         } catch (error) {

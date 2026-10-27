@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlphaMind | Sentiment Analysis</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  </head>
+  <body class="sentiment-page">
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand"><div class="brand-mark">AI</div><h1>AlphaMind</h1></div>
+        <ul class="sidebar-nav">
+          <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
+          <li class="nav-item" data-page="market"><i class="fa-solid fa-chart-column"></i> Market Data</li>
+          <li class="nav-item" data-page="paper-trading"><i class="fa-solid fa-shuffle"></i> Virtual Trading</li>
+          <li class="nav-item" data-page="signals"><i class="fa-solid fa-bolt"></i> Trade Signals</li>
+          <li class="nav-item active" data-page="sentiment"><i class="fa-solid fa-comments"></i> Sentiment Analysis</li>
+          <li class="nav-item" data-page="strategies"><i class="fa-solid fa-diagram-project"></i> Strategies</li>
+          <li class="nav-item" data-page="portfolio"><i class="fa-solid fa-wallet"></i> Portfolio</li>
+          <li class="nav-item" data-page="backtesting"><i class="fa-solid fa-flask-vial"></i> Backtesting</li>
+          <li class="nav-item" data-page="reports"><i class="fa-solid fa-file-lines"></i> Reports</li>
+          <li class="nav-item" data-page="watchlist"><i class="fa-solid fa-star"></i> Watchlist</li>
+          <li class="nav-item" data-page="alerts"><i class="fa-solid fa-bell"></i> Alerts</li>
+          <li class="nav-item" data-page="alpha-research"><i class="fa-solid fa-flask"></i> Alpha Research</li>
+          <li class="nav-item" data-page="profile"><i class="fa-solid fa-user"></i> Profile Settings</li>
+          <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</li>
+        </ul>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu" id="menu-toggle" type="button" aria-label="Toggle menu"><i class="fa fa-bars"></i></button>
+            <span class="page-title">Sentiment Analysis</span>
+          </div>
+          <div class="topbar-right">
+            <div class="user-chip">
+              <div class="avatar" id="user-avatar">V</div>
+              <div><div class="user-name" id="top-user-name">Investor</div><div class="user-plan">Text analysis</div></div>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-grid sentiment-content">
+          <section class="panel sentiment-intro">
+            <div class="sentiment-intro-icon"><i class="fa-solid fa-comments"></i></div>
+            <div>
+              <div class="panel-title">Understand the tone behind market text</div>
+              <p class="subtitle">Paste a headline, company update, or market note to see its wording classified as positive, neutral, or negative.</p>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Analyze text</div>
+                <p class="subtitle">Paste a financial headline or excerpt. Text is sent to Hugging Face, or Google Gemini if Hugging Face inference is unavailable.</p>
+              </div>
+              <span class="date-pill">AI · FINANCIAL MODEL</span>
+            </div>
+            <form id="sentiment-form" class="sentiment-form">
+              <label for="sentiment-text">Headline or article excerpt</label>
+              <textarea id="sentiment-text" rows="6" maxlength="5000" placeholder="Paste a market headline or a short excerpt here…" required></textarea>
+              <div class="sentiment-form-footer">
+                <span id="sentiment-count" class="market-data-status">0 / 5,000 characters</span>
+                <button class="primary-btn" type="submit"><i class="fa-solid fa-wand-magic-sparkles"></i> Analyze sentiment</button>
+              </div>
+              <div id="sentiment-status" class="market-data-status" role="status" aria-live="polite"></div>
+            </form>
+            <div class="sentiment-examples">
+              <div class="sentiment-examples-heading">
+                <strong>Try an example</strong>
+                <span>Choose one to fill the text box and run the analysis.</span>
+              </div>
+              <div class="sentiment-example-grid">
+                <button type="button" class="sentiment-example positive" data-example="The company reported strong revenue growth and a record profit, with an optimistic outlook.">
+                  <span class="sentiment-example-label">Positive</span>
+                  <span class="sentiment-example-text">“Strong revenue growth, record profit, and an optimistic outlook.”</span>
+                </button>
+                <button type="button" class="sentiment-example negative" data-example="The company missed earnings expectations and warned of falling demand and rising losses.">
+                  <span class="sentiment-example-label">Negative</span>
+                  <span class="sentiment-example-text">“Missed earnings expectations; warned of falling demand and rising losses.”</span>
+                </button>
+                <button type="button" class="sentiment-example neutral" data-example="The company announced its quarterly results and scheduled an investor meeting for Friday.">
+                  <span class="sentiment-example-label">Neutral</span>
+                  <span class="sentiment-example-text">“Quarterly results announced; an investor meeting is scheduled for Friday.”</span>
+                </button>
+                <button type="button" class="sentiment-example neutral" data-example="Strong growth, but debt and risk remain.">
+                  <span class="sentiment-example-label">Mixed wording</span>
+                  <span class="sentiment-example-text">“Strong growth, but debt and risk remain.”</span>
+                </button>
+                <button type="button" class="sentiment-example positive" data-example="The outlook is not weak, and profit improved.">
+                  <span class="sentiment-example-label">Negation</span>
+                  <span class="sentiment-example-text">“The outlook is not weak, and profit improved.”</span>
+                </button>
+                <button type="button" class="sentiment-example negative" data-example="The company reported a weak quarter, rising debt, and a downgrade.">
+                  <span class="sentiment-example-label">Risk terms</span>
+                  <span class="sentiment-example-text">“A weak quarter, rising debt, and a downgrade.”</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section id="sentiment-results" class="sentiment-results" aria-live="polite" hidden>
+            <article class="panel sentiment-score-card">
+              <div class="sentiment-result-label">AI sentiment</div>
+              <div id="sentiment-label" class="sentiment-label">—</div>
+              <div class="sentiment-meter" role="img" aria-label="Sentiment score from negative to positive">
+                <div class="sentiment-meter-track"><span id="sentiment-meter-marker"></span></div>
+                <div class="sentiment-meter-labels"><span>Negative</span><span>Neutral</span><span>Positive</span></div>
+              </div>
+              <div class="sentiment-score-line"><span>Model confidence</span><strong id="sentiment-score">—</strong></div>
+              <p class="sentiment-score-note">Model confidence is not a probability of a market move or a trading recommendation.</p>
+            </article>
+            <article class="panel sentiment-evidence">
+              <div class="panel-title">Model class scores</div>
+              <p id="sentiment-explanation" class="subtitle"></p>
+              <div class="sentiment-score-bars">
+                <div class="sentiment-score-bar-row"><span>Negative</span><div class="sentiment-score-bar-track"><span id="negative-score-bar"></span></div><strong id="negative-score-value">—</strong></div>
+                <div class="sentiment-score-bar-row"><span>Neutral</span><div class="sentiment-score-bar-track"><span id="neutral-score-bar"></span></div><strong id="neutral-score-value">—</strong></div>
+                <div class="sentiment-score-bar-row"><span>Positive</span><div class="sentiment-score-bar-track"><span id="positive-score-bar"></span></div><strong id="positive-score-value">—</strong></div>
+              </div>
+              <p id="sentiment-provider" class="sentiment-score-note">AI analysis uses Hugging Face with Google Gemini as a fallback.</p>
+            </article>
+          </section>
+
+          <p class="market-data-status sentiment-disclaimer">Text is sent to the configured AI provider (Hugging Face or Google Gemini). Avoid submitting private or sensitive information. Gemini scores are estimates, not calibrated probabilities. Sentiment may miss context or sarcasm; review the original text. This is not financial advice.</p>
+        </div>
+      </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+      const form = document.getElementById('sentiment-form');
+      const textInput = document.getElementById('sentiment-text');
+      const status = document.getElementById('sentiment-status');
+      const results = document.getElementById('sentiment-results');
+      const analyzeButton = form.querySelector('button[type="submit"]');
+
+      if (!requireAuth()) throw new Error('Not authenticated');
+      const user = parseUser();
+      if (user) {
+        document.getElementById('top-user-name').textContent = user.full_name || user.username;
+        document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
+      }
+
+      function renderAnalysis(data) {
+        const label = data.label;
+        const scores = data.scores;
+        const signedScore = scores.positive - scores.negative;
+        const labelNode = document.getElementById('sentiment-label');
+        labelNode.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+        labelNode.className = `sentiment-label ${label}`;
+        document.getElementById('sentiment-score').textContent = `${data.confidence.toFixed(1)}%`;
+        document.getElementById('sentiment-meter-marker').style.left = `${(signedScore + 100) / 2}%`;
+        document.getElementById('sentiment-explanation').textContent =
+          `The financial language model ranked ${label} highest for this text. Its three class scores are shown below.`;
+        document.getElementById('sentiment-provider').textContent =
+          `Analyzed by ${data.provider} · ${data.model}. Scores are estimates, not calibrated probabilities.`;
+        for (const sentiment of ['negative', 'neutral', 'positive']) {
+          document.getElementById(`${sentiment}-score-bar`).style.width = `${scores[sentiment]}%`;
+          document.getElementById(`${sentiment}-score-value`).textContent = `${scores[sentiment].toFixed(1)}%`;
+        }
+        results.hidden = false;
+        status.textContent = 'AI analysis complete. Review the model scores and the original text.';
+      }
+
+      textInput.addEventListener('input', () => {
+        document.getElementById('sentiment-count').textContent = `${textInput.value.length.toLocaleString()} / 5,000 characters`;
+      });
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const text = textInput.value.trim();
+        if (text.length < 10) {
+          status.textContent = 'Enter at least 10 characters to analyze.';
+          return;
+        }
+        analyzeButton.disabled = true;
+        document.querySelectorAll('[data-example]').forEach((button) => { button.disabled = true; });
+        results.hidden = true;
+        status.textContent = 'Sending text to the AI sentiment model…';
+        try {
+          const response = await apiRequest('/api/sentiment/analyze', {
+            method: 'POST',
+            body: JSON.stringify({ text }),
+          });
+          renderAnalysis(response.data);
+        } catch (error) {
+          status.textContent = error.message || 'AI sentiment analysis failed. Please try again.';
+        } finally {
+          analyzeButton.disabled = false;
+          document.querySelectorAll('[data-example]').forEach((button) => { button.disabled = false; });
+        }
+      });
+
+      document.querySelectorAll('[data-example]').forEach((button) => {
+        button.addEventListener('click', () => {
+          textInput.value = button.dataset.example;
+          textInput.dispatchEvent(new Event('input'));
+          form.requestSubmit();
+        });
+      });
+
+      document.getElementById('logout-btn').addEventListener('click', logoutUser);
+      document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+      bindSidebarNavigation();
+    </script>
+  </body>
+</html>

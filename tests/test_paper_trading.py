@@ -4,7 +4,7 @@ import pytest
 
 from backend.app import app
 from backend.routes import paper_trading_routes
-from backend.services.instrument_catalog import find_demo_instrument
+from backend.services.instrument_catalog import find_demo_instrument, find_paper_trading_instrument
 
 
 def demo_instrument(symbol, exchange):
@@ -87,6 +87,108 @@ def test_new_paper_account_starts_with_virtual_cash_and_no_positions():
     assert account['instruments']
 
 
+def test_adding_demo_money_only_increases_the_virtual_account_balance():
+    client, headers = authenticated_client()
+
+    response = client.post('/api/paper-trading/account/add-virtual-cash', headers=headers, json={
+        'amount': 5000,
+    })
+
+    assert response.status_code == 200
+    result = response.get_json()
+    assert result['account']['cash_balance'] == 1505000
+    assert result['account']['total_equity'] == 1505000
+    assert result['account']['trades'] == []
+    assert 'No payment was made' in result['message']
+
+
+def test_demo_money_can_fund_a_confirmed_virtual_buy():
+    client, headers = authenticated_client()
+    instrument = client.get('/api/paper-trading/account', headers=headers).get_json()['data']['instruments'][0]
+    top_up = client.post('/api/paper-trading/account/add-virtual-cash', headers=headers, json={
+        'amount': 5000,
+    })
+    assert top_up.status_code == 200
+
+    buy = client.post('/api/paper-trading/trades', headers=headers, json={
+        'symbol': instrument['symbol'],
+        'exchange': instrument['exchange'],
+        'side': 'BUY',
+        'quantity': 1,
+    })
+
+    assert buy.status_code == 201
+    result = buy.get_json()
+    price = find_paper_trading_instrument(instrument['symbol'], instrument['exchange'])['price']
+    assert result['account']['cash_balance'] == round(1505000 - price, 2)
+    assert result['account']['holdings'][0]['symbol'] == instrument['symbol']
+    assert result['account']['holdings'][0]['quantity'] == 1
+    assert result['account']['trades'][0]['side'] == 'BUY'
+
+
+@pytest.mark.parametrize('amount', [0, -1, 1.5, 1000001, True, 'invalid'])
+def test_adding_demo_money_rejects_invalid_amounts(amount):
+    client, headers = authenticated_client()
+
+    response = client.post('/api/paper-trading/account/add-virtual-cash', headers=headers, json={
+        'amount': amount,
+    })
+
+    assert response.status_code == 400
+    account = client.get('/api/paper-trading/account', headers=headers).get_json()['data']
+    assert account['cash_balance'] == 1500000
+
+
+def test_virtual_stock_list_uses_configured_csv_prices():
+    client, headers = authenticated_client()
+
+    response = client.get('/api/paper-trading/account', headers=headers)
+
+    assert response.status_code == 200
+    instruments = response.get_json()['data']['instruments']
+    assert len(instruments) == 10
+    assert {instrument['symbol'] for instrument in instruments} == {
+        'RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ICICIBANK',
+        'SBIN', 'ITC', 'LT', 'TATASTEEL', 'ADANIENT',
+    }
+    assert find_paper_trading_instrument('RELIANCE')['price'] == 2895.5
+
+
+def test_market_top_gainer_can_be_opened_and_traded_in_the_demo_account():
+    client, headers = authenticated_client()
+    overview = client.get('/api/market/overview', headers=headers)
+    assert overview.status_code == 200
+    gainers = overview.get_json()['data']['gainers']
+    assert gainers
+    gainer = gainers[0]
+    exchange = gainer.get('exchange', 'NSE')
+
+    details = client.get(
+        f"/api/instruments/{gainer['symbol']}?exchange={exchange}",
+        headers=headers,
+    )
+    quote = client.get(
+        f"/api/paper-trading/quote?symbol={gainer['symbol']}&exchange={exchange}",
+        headers=headers,
+    )
+    assert details.status_code == 200
+    assert quote.status_code == 200
+    assert quote.get_json()['data']['price'] == details.get_json()['data']['price']
+
+    buy = client.post('/api/paper-trading/trades', headers=headers, json={
+        'symbol': gainer['symbol'],
+        'exchange': exchange,
+        'side': 'BUY',
+        'quantity': 1,
+    })
+
+    assert buy.status_code == 201
+    account = buy.get_json()['account']
+    assert account['holdings'][0]['symbol'] == gainer['symbol']
+    assert account['holdings'][0]['quantity'] == 1
+    assert account['trades'][0]['side'] == 'BUY'
+
+
 def test_virtual_buy_sell_updates_cash_holdings_and_trade_history(quote_prices):
     client, headers = authenticated_client()
     account = client.get('/api/paper-trading/account', headers=headers).get_json()['data']
@@ -101,7 +203,7 @@ def test_virtual_buy_sell_updates_cash_holdings_and_trade_history(quote_prices):
 
     assert buy.status_code == 201
     buy_data = buy.get_json()
-    price = demo_instrument(instrument['symbol'], instrument['exchange'])['price']
+    price = find_paper_trading_instrument(instrument['symbol'], instrument['exchange'])['price']
     expected_value = price * 2
     assert buy_data['account']['cash_balance'] == round(1500000 - expected_value, 2)
     assert buy_data['account']['holdings'][0]['quantity'] == 2
@@ -154,12 +256,12 @@ def test_virtual_trade_rejects_fractional_quantity(quote_prices):
     assert response.status_code == 400
 
 
-def test_virtual_trade_uses_kite_quote_not_seeded_display_price(quote_prices):
+def test_virtual_trade_uses_seeded_price_not_external_quote(quote_prices):
     client, headers = authenticated_client()
     account = client.get('/api/paper-trading/account', headers=headers).get_json()['data']
     instrument = account['instruments'][0]
-    quote_price = demo_instrument(instrument['symbol'], instrument['exchange'])['price'] + 10
-    quote_prices[(instrument['exchange'], instrument['symbol'])] = quote_price
+    seeded_price = find_paper_trading_instrument(instrument['symbol'], instrument['exchange'])['price']
+    quote_prices[(instrument['exchange'], instrument['symbol'])] = seeded_price + 10
 
     quote = client.get(
         f"/api/paper-trading/quote?symbol={instrument['symbol']}&exchange={instrument['exchange']}",
@@ -173,21 +275,27 @@ def test_virtual_trade_uses_kite_quote_not_seeded_display_price(quote_prices):
     })
 
     assert quote.status_code == 200
-    assert quote.get_json()['data']['price'] == quote_price
+    assert quote.get_json()['data']['price'] == seeded_price
     assert trade.status_code == 201
-    assert trade.get_json()['data']['price'] == quote_price
-    assert trade.get_json()['account']['cash_balance'] == round(1500000 - quote_price, 2)
+    assert trade.get_json()['data']['price'] == seeded_price
+    assert trade.get_json()['account']['cash_balance'] == round(1500000 - seeded_price, 2)
 
 
-def test_virtual_trade_requires_kite_session_and_never_falls_back(monkeypatch):
+def test_virtual_equity_account_quote_and_trade_do_not_require_kite(monkeypatch):
     client, headers = authenticated_client()
-    account = client.get('/api/paper-trading/account', headers=headers).get_json()['data']
-    instrument = account['instruments'][0]
 
     def no_kite_session(_instruments):
         raise paper_trading_routes.KiteConfigurationError('Kite Connect has no active session.')
 
     monkeypatch.setattr(paper_trading_routes, 'get_live_quotes', no_kite_session)
+    account_response = client.get('/api/paper-trading/account', headers=headers)
+    assert account_response.status_code == 200
+    account = account_response.get_json()['data']
+    instrument = account['instruments'][0]
+    quote = client.get(
+        f"/api/paper-trading/quote?symbol={instrument['symbol']}&exchange={instrument['exchange']}",
+        headers=headers,
+    )
     response = client.post('/api/paper-trading/trades', headers=headers, json={
         'symbol': instrument['symbol'],
         'exchange': instrument['exchange'],
@@ -195,11 +303,62 @@ def test_virtual_trade_requires_kite_session_and_never_falls_back(monkeypatch):
         'quantity': 1,
     })
 
-    assert response.status_code == 503
-    assert 'no active session' in response.get_json()['message']
-    account_after = client.get('/api/paper-trading/account', headers=headers)
-    assert account_after.status_code == 200
-    assert account_after.get_json()['data']['trades'] == []
+    assert quote.status_code == 200
+    assert response.status_code == 201
+    assert response.get_json()['account']['trades']
+
+
+def test_daily_change_strategy_review_explains_conditions_without_ordering():
+    client, headers = authenticated_client()
+
+    strategies = client.get('/api/paper-trading/strategies', headers=headers)
+    assert strategies.status_code == 200
+    assert any(item['id'] == 'builtin:daily-change' for item in strategies.get_json()['data'])
+
+    response = client.post('/api/paper-trading/strategy-review', headers=headers, json={
+        'strategy_id': 'builtin:daily-change',
+        'symbol': 'RELIANCE',
+    })
+
+    assert response.status_code == 200
+    review = response.get_json()['data']
+    assert review['strategy_name'] == 'Daily Change'
+    assert review['buy_conditions'][0]['actual'] == 1.84
+    assert review['buy_conditions'][0]['matched'] is True
+    assert review['sell_conditions'][0]['matched'] is False
+    assert 'signal' not in review
+
+
+def test_saved_strategy_review_uses_historical_indicators_and_user_scope():
+    client, headers = authenticated_client()
+    created = client.post('/api/strategies', headers=headers, json={
+        'name': 'Virtual test rules',
+        'description': 'A test strategy for virtual trading.',
+        'buy_logic': 'AND',
+        'buy_conditions': [
+            {'indicator': 'price', 'operator': 'gt', 'value': 0},
+            {'indicator': 'rsi', 'operator': 'lte', 'value': 100},
+        ],
+        'sell_logic': 'AND',
+        'sell_conditions': [
+            {'indicator': 'price', 'operator': 'lt', 'value': 100000},
+        ],
+    })
+    assert created.status_code == 201
+    strategy_id = f"saved:{created.get_json()['data']['id']}"
+
+    response = client.post('/api/paper-trading/strategy-review', headers=headers, json={
+        'strategy_id': strategy_id,
+        'symbol': 'ADANIENT',
+    })
+
+    assert response.status_code == 200
+    review = response.get_json()['data']
+    assert review['buy_logic'] == 'AND'
+    assert len(review['buy_conditions']) == 2
+    assert review['buy_conditions'][0]['actual'] > 0
+    assert review['sell_conditions'][0]['matched'] is True
+    assert 'signal' not in review
 
 
 def test_nifty_future_virtual_trade_uses_lot_size_full_notional_and_kite_quote(nifty_future):
@@ -225,7 +384,7 @@ def test_nifty_future_virtual_trade_uses_lot_size_full_notional_and_kite_quote(n
     assert result['account']['holdings'][0]['instrument_type'] == 'FUT'
     assert result['account']['holdings'][0]['unrealized_pnl'] == 0
 
-    equity = demo_instrument('RELIANCE', 'NSE')
+    equity = find_paper_trading_instrument('RELIANCE', 'NSE')
     equity_buy = client.post('/api/paper-trading/trades', headers=headers, json={
         'symbol': equity['symbol'], 'exchange': 'NSE', 'side': 'BUY', 'quantity': 1,
     })

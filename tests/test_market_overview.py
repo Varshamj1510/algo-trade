@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import backend.app as app_module
 import backend.services.kite_market as kite_market
 from backend.app import app
@@ -14,7 +16,7 @@ def authenticated_client():
 def test_market_overview_endpoint_uses_seeded_dashboard_demo_data(monkeypatch):
     instruments = [{'symbol': 'ALPHA', 'name': 'Alpha', 'exchange': 'NSE'}]
     expected = {
-        'provider': 'Dashboard demo data · not live',
+        'provider': 'Illustrative market data',
         'gainers': [],
         'coverage': {'available_stocks': 1},
     }
@@ -40,13 +42,22 @@ def test_market_overview_includes_demo_indices_and_chart_candles():
     payload = response.get_json()['data']
 
     assert response.status_code == 200
-    assert payload['provider'] == 'Dashboard demo data · not live'
+    assert payload['provider'] == 'Illustrative market data'
     assert [index['name'] for index in payload['indices']] == [
         'NIFTY 50', 'SENSEX', 'BANK NIFTY',
     ]
     assert all(index['price'] > 0 for index in payload['indices'])
     assert all(len(index['candles']) == 24 for index in payload['indices'])
     assert payload['indices'][0]['candles'][-1]['close'] == payload['indices'][0]['price']
+    closes = [candle['close'] for candle in payload['indices'][0]['candles']]
+    assert len(set(closes)) > 2
+    assert len({closes[index] - closes[index - 1] for index in range(1, len(closes))}) > 1
+    assert payload['indices'][0]['candles'][0]['close'] == round(
+        payload['indices'][0]['price'] / (1 + payload['indices'][0]['change'] / 100), 2,
+    )
+    india_timezone = timezone(timedelta(hours=5, minutes=30))
+    market_today = datetime.now(india_timezone).date().isoformat()
+    assert all(candle['time'].startswith(market_today) for candle in payload['indices'][0]['candles'])
     assert payload['updated_at']
 
 
@@ -81,7 +92,7 @@ def test_market_list_uses_seeded_dashboard_demo_data_without_kite(monkeypatch):
     assert response.status_code == 200
     assert payload['data'][0]['price'] == 999
     assert payload['data'][0]['change'] == 99
-    assert payload['data'][0]['quote_source'] == 'Dashboard demo data (not live)'
+    assert payload['data'][0]['quote_source'] == 'Illustrative market data'
     assert payload['coverage'] == {
         'demo_instruments': 1, 'listed_instruments': 1, 'available_instruments': 1,
     }

@@ -541,7 +541,7 @@ def get_stock_details(instrument, timeframe='1D'):
     quote_key = _quote_key(*identity)
     metrics = _quote_metrics(_fetch_quotes([quote_key]).get(quote_key))
     if not metrics:
-        raise KiteAPIError(f'Kite returned no live quote for {identity[1]}.')
+        raise KiteAPIError(f'Kite returned no current quote for {identity[1]}.')
     candles = _fetch_candles(master_item['instrument_token'], timeframe)
     indicators, indicator_series = calculate_indicators(candles)
     closes = [candle['close'] for candle in candles]

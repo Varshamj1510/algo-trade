@@ -1,5 +1,8 @@
 import csv
+import hashlib
+import math
 import os
+import random
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -7,6 +10,7 @@ from backend.models import Stock
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
+PAPER_TRADING_INSTRUMENTS_PATH = BASE_DIR / 'backend' / 'data' / 'paper_trading_instruments.csv'
 
 
 def _number(value, default=0.0):
@@ -155,6 +159,39 @@ def find_demo_instrument(symbol, exchange=''):
                  and (not exchange or instrument['exchange'].upper() == exchange)), None)
 
 
+def get_paper_trading_instruments():
+    try:
+        with PAPER_TRADING_INSTRUMENTS_PATH.open('r', encoding='utf-8-sig', newline='') as source:
+            instruments = []
+            for row in csv.DictReader(source):
+                instrument = _csv_instrument(row)
+                if instrument is None:
+                    continue
+                if instrument['exchange'] != 'NSE' or instrument['instrument_type'] != 'EQUITY':
+                    continue
+                if not math.isfinite(instrument['price']) or instrument['price'] <= 0:
+                    raise ValueError(f"Invalid virtual price for {instrument['symbol']}.")
+                instruments.append(instrument)
+    except (OSError, csv.Error) as error:
+        raise ValueError(f'Could not load virtual trading instruments: {error}') from error
+
+    if not instruments:
+        raise ValueError('No virtual trading instruments are configured.')
+    return sorted(instruments, key=lambda instrument: instrument['symbol'])
+
+
+def find_paper_trading_instrument(symbol, exchange='NSE'):
+    symbol = symbol.strip().upper()
+    exchange = exchange.strip().upper()
+    return next(
+        (
+            instrument for instrument in get_paper_trading_instruments()
+            if instrument['symbol'] == symbol and instrument['exchange'] == exchange
+        ),
+        None,
+    )
+
+
 def get_demo_market_overview(instruments):
     stocks = []
     for instrument in instruments:
@@ -190,6 +227,10 @@ def get_demo_market_overview(instruments):
     sectors.sort(key=lambda sector: sector['change'], reverse=True)
 
     now = datetime.now(timezone.utc)
+    market_timezone = timezone(timedelta(hours=5, minutes=30))
+    market_now = now.astimezone(market_timezone)
+    session_start = market_now.replace(hour=9, minute=15, second=0, microsecond=0)
+    session_end = market_now.replace(hour=15, minute=30, second=0, microsecond=0)
     index_samples = (
         ('NIFTY 50', 24850.25, 0.64),
         ('SENSEX', 81235.40, 0.52),
@@ -200,14 +241,27 @@ def get_demo_market_overview(instruments):
         previous_close = round(price / (1 + change / 100), 2)
         absolute_change = round(price - previous_close, 2)
         candles = []
+        seed = int.from_bytes(
+            hashlib.sha256(f'{market_now.date()}:{name}'.encode('utf-8')).digest()[:8],
+            'big',
+        )
+        generator = random.Random(seed)
+        noise = [generator.uniform(-0.0008, 0.0008) for _ in range(24)]
         for step in range(24):
             progress = step / 23
-            close = round(previous_close + absolute_change * progress, 2)
+            session_wave = math.sin(progress * math.pi * 6) * 0.0015
+            daily_envelope = math.sin(progress * math.pi)
+            variation = (session_wave + noise[step]) * daily_envelope * price
+            close = round(previous_close + absolute_change * progress + variation, 2)
+            if step == 0:
+                close = previous_close
+            elif step == 23:
+                close = price
             candles.append({
-                'time': (now - timedelta(minutes=(23 - step) * 30)).isoformat(),
-                'open': close,
-                'high': round(close * 1.001, 2),
-                'low': round(close * 0.999, 2),
+                'time': (session_start + (session_end - session_start) * progress).isoformat(),
+                'open': candles[-1]['close'] if candles else close,
+                'high': round(max(candles[-1]['close'] if candles else close, close) * (1 + abs(noise[step]) / 2), 2),
+                'low': round(min(candles[-1]['close'] if candles else close, close) * (1 - abs(noise[step]) / 2), 2),
                 'close': close,
                 'volume': 100000 + step * 1250,
             })
@@ -220,7 +274,7 @@ def get_demo_market_overview(instruments):
         })
 
     return {
-        'provider': 'Dashboard demo data · not live',
+        'provider': 'Illustrative market data',
         'updated_at': now.isoformat(),
         'indices': indices,
         'gainers': gainers,

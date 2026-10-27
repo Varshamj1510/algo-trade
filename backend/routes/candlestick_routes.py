@@ -48,6 +48,6 @@ def chart_history():
             'timeframe': timeframe,
             'candles': candles,
             'patterns': detect_candlestick_patterns(candles),
-            'provider': 'Bundled historical CSV (not live)',
+            'provider': 'Bundled historical CSV',
         },
     })

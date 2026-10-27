@@ -29,3 +29,13 @@ def init_db(app):
                     connection.exec_driver_sql(
                         f'ALTER TABLE strategies ADD COLUMN {name} {definition}'
                     )
+        alert_settings_columns = {
+            column['name']
+            for column in inspect(db.engine).get_columns('alert_notification_settings')
+        }
+        if 'timezone' not in alert_settings_columns:
+            with db.engine.begin() as connection:
+                connection.exec_driver_sql(
+                    "ALTER TABLE alert_notification_settings ADD COLUMN timezone "
+                    "VARCHAR(64) NOT NULL DEFAULT 'UTC'"
+                )

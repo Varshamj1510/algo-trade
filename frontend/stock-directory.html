@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlphaMind | Stock Directory</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <style>
+      .directory-panel { padding: clamp(18px, 3vw, 32px); }
+      .directory-heading { text-align: center; margin: 4px 0 24px; }
+      .directory-heading h2 { margin: 0; font-size: clamp(1.35rem, 3vw, 2rem); }
+      .directory-heading p { color: var(--muted); font-size: .85rem; }
+      .directory-letters { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0 auto 24px; }
+      .directory-letters a { display: grid; min-width: 34px; min-height: 34px; place-items: center; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: .78rem; font-weight: 650; }
+      .directory-letters a:hover, .directory-letters a.active { border-color: var(--primary-2); background: rgba(14,165,233,.12); color: var(--text); }
+      .directory-count { margin: 0 0 16px; color: var(--muted); text-align: center; font-size: .82rem; }
+      .directory-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 14px; }
+      .directory-stock { min-width: 0; padding: 14px; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.02); text-overflow: ellipsis; white-space: nowrap; font-size: .82rem; transition: border-color .18s ease, background .18s ease; }
+      .directory-stock:hover { border-color: var(--primary-2); background: rgba(14,165,233,.08); }
+      .directory-status { min-height: 1.4em; margin: 14px 0; color: var(--muted); text-align: center; font-size: .8rem; }
+      .directory-pagination { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 20px; }
+      .directory-pagination button { min-width: 92px; }
+      .directory-pagination button:disabled { opacity: .45; cursor: not-allowed; }
+      @media (max-width: 1000px) { .directory-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+      @media (max-width: 680px) { .directory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .directory-stock { padding: 12px 10px; font-size: .75rem; } .directory-letters { gap: 5px; } .directory-letters a { min-width: 30px; min-height: 30px; } }
+      @media (max-width: 380px) { .directory-grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand"><div class="brand-mark">AI</div><h1>AlphaMind</h1></div>
+        <ul class="sidebar-nav">
+          <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
+          <li class="nav-item" data-page="market"><i class="fa-solid fa-chart-column"></i> Market Data</li>
+          <li class="nav-item" data-page="signals"><i class="fa-solid fa-bolt"></i> Trade Signals</li>
+          <li class="nav-item" data-page="strategies"><i class="fa-solid fa-diagram-project"></i> Strategies</li>
+          <li class="nav-item" data-page="portfolio"><i class="fa-solid fa-wallet"></i> Portfolio</li>
+          <li class="nav-item" data-page="backtesting"><i class="fa-solid fa-flask-vial"></i> Backtesting</li>
+          <li class="nav-item" data-page="reports"><i class="fa-solid fa-file-lines"></i> Reports</li>
+          <li class="nav-item" data-page="watchlist"><i class="fa-solid fa-star"></i> Watchlist</li>
+          <li class="nav-item" data-page="alerts"><i class="fa-solid fa-bell"></i> Alerts</li>
+          <li class="nav-item" data-page="profile"><i class="fa-solid fa-user"></i> Profile Settings</li>
+          <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</li>
+        </ul>
+      </aside>
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="topbar-left"><button class="icon-button mobile-menu" id="menu-toggle" aria-label="Toggle menu"><i class="fa fa-bars"></i></button><span class="page-title">Stock Directory</span></div>
+          <div class="topbar-right"><a class="secondary-btn" href="/dashboard">Back to dashboard</a><div class="user-chip"><div class="avatar" id="user-avatar">A</div><div><div class="user-name" id="top-user-name">Trader</div><div class="user-plan">Market directory</div></div></div></div>
+        </header>
+        <section class="panel directory-panel">
+          <div class="directory-heading"><h2 id="directory-title">Stocks starting with “A”</h2><p>Choose a letter to browse the available instruments.</p></div>
+          <nav id="directory-letters" class="directory-letters" aria-label="Browse stocks by first letter"></nav>
+          <p id="directory-count" class="directory-count" aria-live="polite">Loading instruments…</p>
+          <div id="directory-status" class="directory-status" role="status" aria-live="polite"></div>
+          <div id="directory-grid" class="directory-grid"></div>
+          <div class="directory-pagination">
+            <button type="button" class="secondary-btn" id="directory-previous">Previous</button>
+            <span id="directory-page-label" class="muted">Page 1</span>
+            <button type="button" class="secondary-btn" id="directory-next">Next</button>
+          </div>
+          <p class="market-data-status">Names and prices are from AlphaMind’s catalog. Select an instrument to open its market details.</p>
+        </section>
+      </main>
+    </div>
+    <script src="/js/api.js"></script>
+    <script>
+      const user = parseUser();
+      if (!requireAuth()) throw new Error('Not authenticated');
+      if (user) {
+        const name = user.full_name || user.username || 'Trader';
+        document.getElementById('top-user-name').textContent = name;
+        document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
+      }
+
+      const letters = document.getElementById('directory-letters');
+      const grid = document.getElementById('directory-grid');
+      const status = document.getElementById('directory-status');
+      const count = document.getElementById('directory-count');
+      const pageLabel = document.getElementById('directory-page-label');
+      const params = new URLSearchParams(window.location.search);
+      const requestedLetter = (params.get('letter') || 'A').trim().toUpperCase();
+      let selectedLetter = /^[A-Z]$/.test(requestedLetter) ? requestedLetter : 'A';
+      let currentPage = 1;
+      let totalPages = 1;
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        })[character]);
+      }
+
+      function renderLetters() {
+        letters.innerHTML = Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ', (letter) =>
+          `<a href="/stocks?letter=${letter}" class="${letter === selectedLetter ? 'active' : ''}" aria-label="Stocks starting with ${letter}" ${letter === selectedLetter ? 'aria-current="page"' : ''}>${letter}</a>`
+        ).join('');
+      }
+
+      async function loadStocks(page = 1) {
+        currentPage = page;
+        status.textContent = 'Loading instruments…';
+        grid.replaceChildren();
+        try {
+          const response = await apiRequest(`/api/instruments/initial/${encodeURIComponent(selectedLetter)}?page=${page}`);
+          const result = response.data;
+          totalPages = Math.max(1, Math.ceil(result.total / result.page_size));
+          count.textContent = `${Number(result.total).toLocaleString('en-IN')} stock${result.total === 1 ? '' : 's'} found`;
+          pageLabel.textContent = `Page ${currentPage} of ${totalPages}`;
+          document.getElementById('directory-title').textContent = `Stocks starting with '${selectedLetter}'`;
+          document.getElementById('directory-previous').disabled = currentPage <= 1;
+          document.getElementById('directory-next').disabled = currentPage >= totalPages;
+          grid.innerHTML = result.instruments.map((instrument) => `
+            <a class="directory-stock" href="/market?symbol=${encodeURIComponent(instrument.symbol)}&amp;exchange=${encodeURIComponent(instrument.exchange)}" title="${escapeHtml(instrument.name)}">${escapeHtml(instrument.name)}</a>
+          `).join('');
+          status.textContent = result.total ? '' : `No stocks are available for ${selectedLetter}.`;
+        } catch (error) {
+          count.textContent = 'Instrument list unavailable';
+          pageLabel.textContent = '';
+          status.textContent = error.message || 'Could not load the stock directory.';
+          status.classList.add('negative');
+        }
+      }
+
+      renderLetters();
+      document.getElementById('directory-previous').addEventListener('click', () => loadStocks(currentPage - 1));
+      document.getElementById('directory-next').addEventListener('click', () => loadStocks(currentPage + 1));
+      document.getElementById('logout-btn').addEventListener('click', logoutUser);
+      document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+      bindSidebarNavigation();
+      loadStocks();
+    </script>
+  </body>
+</html>

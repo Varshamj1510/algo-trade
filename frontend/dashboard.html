@@ -3,17 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlgoTrade | Dashboard</title>
+    <title>AlphaMind | Dashboard</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
-  <body>
+  <body class="dashboard-page">
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <div class="brand">
           <div class="brand-mark">AI</div>
-          <h1>AlgoTrade</h1>
+          <h1>AlphaMind</h1>
         </div>
 
         <ul class="sidebar-nav">
@@ -35,7 +35,6 @@
         <header class="topbar">
           <div class="topbar-left">
             <button class="icon-button mobile-menu" id="menu-toggle"><i class="fa fa-bars"></i></button>
-            <span class="page-title">Dashboard</span>
           </div>
           <div class="topbar-right">
             <button class="icon-button notification-button" id="notification-button" aria-label="Notifications">
@@ -53,65 +52,131 @@
           </div>
         </header>
 
-        <section class="dashboard-ticker panel" aria-label="Demo market indices">
-          <div class="dashboard-ticker-item" data-index="NIFTY 50"><span>NIFTY 50</span><strong>--</strong><small>Demo data</small></div>
-          <div class="dashboard-ticker-item" data-index="SENSEX"><span>SENSEX</span><strong>--</strong><small>Demo data</small></div>
-          <div class="dashboard-ticker-item" data-index="BANK NIFTY"><span>BANK NIFTY</span><strong>--</strong><small>Demo data</small></div>
-          <div class="dashboard-ticker-status" id="dashboard-market-status">Loading demo market data...</div>
+        <div class="hero-row dashboard-intro">
+          <div>
+            <h2 class="welcome">Welcome to <span>AlphaMind</span></h2>
+            <p class="dashboard-greeting">Your market workspace is ready. Explore today's signals and track your portfolio.</p>
+          </div>
+          <div class="date-pill" id="date-pill">--</div>
+        </div>
+
+        <section class="dashboard-ticker panel" aria-label="Market indices">
+          <div class="dashboard-ticker-item" data-index="NIFTY 50"><span>NIFTY 50</span><strong>--</strong><small></small></div>
+          <div class="dashboard-ticker-item" data-index="SENSEX"><span>SENSEX</span><strong>--</strong><small></small></div>
+          <div class="dashboard-ticker-item" data-index="BANK NIFTY"><span>BANK NIFTY</span><strong>--</strong><small></small></div>
+          <div class="dashboard-ticker-status">
+            <span id="dashboard-market-status" aria-live="polite">Loading market data...</span>
+          </div>
+        </section>
+
+        <section class="dashboard-stock panel" aria-labelledby="dashboard-stock-title">
+          <div class="dashboard-stock-main">
+            <div class="dashboard-stock-heading">
+              <div>
+                <label for="dashboard-stock-symbol">Stock</label>
+                <select id="dashboard-stock-symbol" aria-label="Choose a stock">
+                  <option value="">Loading stocks…</option>
+                </select>
+                <div class="dashboard-stock-exchange">NSE · Virtual trading</div>
+                <h2 id="dashboard-stock-title">--</h2>
+                <div class="dashboard-stock-quote">
+                  <strong id="dashboard-stock-price">--</strong>
+                  <span id="dashboard-stock-change">Historical price data</span>
+                </div>
+              </div>
+              <a class="secondary-btn" href="/candlestick-chart">Candlestick chart</a>
+            </div>
+            <div class="dashboard-stock-timeframes" aria-label="Historical chart range">
+              <button type="button" data-stock-timeframe="3M">3M</button>
+              <button type="button" data-stock-timeframe="6M">6M</button>
+              <button type="button" data-stock-timeframe="1Y" class="active">1Y</button>
+              <button type="button" data-stock-timeframe="5Y">5Y</button>
+            </div>
+            <div class="dashboard-stock-chart-wrap">
+              <canvas id="dashboard-stock-chart" aria-label="Historical stock price chart"></canvas>
+            </div>
+            <p id="dashboard-stock-chart-status" class="market-data-status" role="status" aria-live="polite">
+              Historical prices from bundled CSV files; not current market quotes.
+            </p>
+          </div>
+          <aside class="dashboard-order-ticket" aria-label="Virtual stock order">
+            <div class="dashboard-order-heading">
+              <strong id="dashboard-order-symbol">Virtual order</strong>
+              <span>NSE · Paper account</span>
+            </div>
+            <div class="dashboard-order-tabs" role="group" aria-label="Order side">
+              <button type="button" data-stock-side="BUY" class="buy active">BUY</button>
+              <button type="button" data-stock-side="SELL" class="sell">SELL</button>
+            </div>
+            <label for="dashboard-order-quantity">Quantity</label>
+            <input id="dashboard-order-quantity" type="number" min="1" step="1" value="1" inputmode="numeric" />
+            <div class="dashboard-order-estimate">
+              <span>Virtual price</span><strong id="dashboard-order-price">--</strong>
+            </div>
+            <div class="dashboard-order-estimate">
+              <span>Estimated value</span><strong id="dashboard-order-value">--</strong>
+            </div>
+            <div class="dashboard-order-cash">Available virtual cash <strong id="dashboard-order-cash">--</strong></div>
+            <button type="button" id="dashboard-order-submit" class="primary-btn dashboard-order-submit">Buy virtually</button>
+            <p id="dashboard-order-status" role="status" aria-live="polite">
+              Educational practice only · no broker order is sent.
+            </p>
+          </aside>
+        </section>
+
+        <section class="dashboard-ai-chat panel" aria-labelledby="dashboard-ai-title">
+          <div class="dashboard-ai-heading">
+            <div class="dashboard-ai-icon" aria-hidden="true">AI</div>
+            <div>
+              <h2 id="dashboard-ai-title">Ask AlphaMind AI</h2>
+              <p>Ask about investing concepts, indicators, risk management, or how to use this dashboard.</p>
+            </div>
+            <span class="dashboard-ai-badge"><i class="fa-solid fa-circle" aria-hidden="true"></i> Gemini AI</span>
+          </div>
+          <div id="dashboard-ai-messages" class="dashboard-ai-messages" role="log" aria-live="polite" aria-relevant="additions">
+            <article class="dashboard-ai-message assistant">
+              <div class="dashboard-ai-message-avatar" aria-hidden="true">AI</div>
+              <p>Hi! I can explain indicators, trading concepts, risk management, and AlphaMind features. I don’t provide current market quotes or access your account.</p>
+            </article>
+          </div>
+          <div class="dashboard-ai-prompts" aria-label="Suggested questions">
+            <button type="button" data-ai-prompt="Explain RSI in simple terms and what traders commonly use it for.">Explain RSI</button>
+            <button type="button" data-ai-prompt="How can I manage risk before placing a virtual trade?">Risk management</button>
+            <button type="button" data-ai-prompt="What is the difference between a market order and a limit order?">Trading basics</button>
+          </div>
+          <form id="dashboard-ai-form" class="dashboard-ai-form">
+            <label class="visually-hidden" for="dashboard-ai-input">Message AlphaMind AI</label>
+            <textarea id="dashboard-ai-input" rows="2" maxlength="2000" placeholder="Ask AlphaMind AI…" required></textarea>
+            <button type="submit" id="dashboard-ai-send" aria-label="Send message"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+          </form>
+          <div class="dashboard-ai-footer">
+            <span id="dashboard-ai-status" role="status" aria-live="polite">Replies use Google Gemini. Messages are not saved by AlphaMind.</span>
+            <span>Educational only · not financial advice</span>
+          </div>
         </section>
 
         <div class="terminal-layout">
-          <aside class="dashboard-watchlist panel" aria-labelledby="dashboard-watchlist-title">
-            <div class="dashboard-watchlist-heading">
-              <div>
-                <h2 id="dashboard-watchlist-title">Market watch</h2>
-                <span id="dashboard-watchlist-count">Your saved instruments</span>
-              </div>
-              <a href="/watchlist" aria-label="Open full watchlist"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
-            </div>
-            <form id="dashboard-watchlist-form" class="dashboard-watchlist-form">
-              <label class="visually-hidden" for="dashboard-watchlist-symbol">Add a stock symbol</label>
-              <input id="dashboard-watchlist-symbol" maxlength="30" placeholder="Add symbol, e.g. INFY" required />
-              <label class="visually-hidden" for="dashboard-watchlist-exchange">Exchange</label>
-              <select id="dashboard-watchlist-exchange" aria-label="Exchange">
-                <option value="NSE">NSE</option>
-                <option value="BSE">BSE</option>
-              </select>
-              <button type="submit" aria-label="Add to watchlist"><i class="fa-solid fa-plus"></i></button>
-            </form>
-            <div id="dashboard-watchlist-status" class="dashboard-watchlist-status" role="status"></div>
-            <div id="dashboard-watchlist-items" class="dashboard-watchlist-items">
-              <div class="empty-state">Loading your watchlist...</div>
-            </div>
-            <p class="dashboard-watchlist-note">Demo market data only. Prices and changes are seeded for local testing and order actions are not available here.</p>
-          </aside>
-
           <div class="content-grid dashboard-content">
-          <div class="hero-row">
-            <div>
-              <h2 class="welcome">Welcome back, <span id="welcome-name">Trader</span> 👋</h2>
-              <div class="subtitle">Demo market data and technical analysis are seeded locally for offline testing.</div>
-            </div>
-            <div class="date-pill" id="date-pill">--</div>
-          </div>
-
           <section class="panel ai-decision-panel">
             <div class="panel-header">
-              <div class="panel-title">Demo Technical Verdict</div>
+              <div class="panel-title">Technical Verdict</div>
               <span class="decision-pill hold" id="ai-signal-pill">--</span>
             </div>
             <div class="decision-content">
               <div class="decision-main">
                 <div class="decision-symbol" id="ai-symbol">No analysis yet</div>
-                <div class="decision-confidence" id="ai-confidence">Run a demo analysis below</div>
+                <div class="decision-confidence" id="ai-confidence">Run an analysis below</div>
               </div>
-              <p id="ai-reason">This sample signal uses seeded demo market data and a simple daily-change rule. It is not investment advice.</p>
+              <p id="ai-reason">Signals are not investment advice.</p>
             </div>
           </section>
 
-          <section class="panel">
+          <section class="panel analysis-panel">
             <div class="panel-header">
-              <div class="panel-title">Analyze Demo Instrument</div>
+              <div>
+                <div class="panel-title">Analyze Instrument</div>
+                <p class="analysis-panel-note">Quick analysis.</p>
+              </div>
             </div>
             <form id="signal-form" class="signal-generator-grid">
               <div class="form-group">
@@ -123,17 +188,16 @@
                 <select id="signal-exchange"><option value="NSE">NSE</option><option value="BSE">BSE</option></select>
               </div>
               <div class="form-group">
-                <label for="signal-timeframe">Demo rule</label>
+                <label for="signal-timeframe">Rule</label>
                 <select id="signal-timeframe"><option value="daily-change" selected>Daily price change</option></select>
               </div>
               <div class="signal-generator-actions">
-                <button type="submit" class="primary-btn" id="signal-submit">Analyze</button>
+                <button type="submit" class="primary-btn" id="signal-submit"><i class="fa-solid fa-magnifying-glass-chart" aria-hidden="true"></i> Analyze</button>
                 <span class="market-data-status" id="signal-status" role="status"></span>
               </div>
             </form>
           </section>
 
-          <p class="market-data-status">Portfolio summary, saved signals, and market chart data are demo-only local data for this project.</p>
           <div class="stats-grid" id="stats-grid"></div>
 
           <div class="two-col">
@@ -147,22 +211,21 @@
                 </div>
               </div>
               <div class="chart-wrap"><canvas id="marketChart"></canvas></div>
-              <div class="market-data-status" id="dashboard-chart-status">Seeded demo index candles · not live</div>
+              <div class="market-data-status" id="dashboard-chart-status">Market session · 9:15 AM–3:30 PM IST</div>
             </section>
 
             <section class="panel">
               <div class="panel-header">
-                <div class="panel-title">Demo Trade Signals</div>
+                <div class="panel-title">Trade Signals</div>
                 <button class="secondary-btn" onclick="window.location.href='/signals'">View All</button>
               </div>
-              <p class="market-data-status">Calculated from seeded dashboard stock values; not live data or trading advice.</p>
+              <p class="market-data-status">Price-based estimates; not trading advice.</p>
               <table class="signal-table">
                 <thead>
                   <tr>
                     <th>Symbol</th>
                     <th>Signal</th>
                     <th>Price</th>
-                    <th>Time</th>
                   </tr>
                 </thead>
                 <tbody id="signal-table-body"></tbody>
@@ -173,32 +236,32 @@
           <div class="metrics-grid">
             <section class="table-card">
               <div class="panel-header">
-                <div class="panel-title">Demo Portfolio Allocation</div>
+                <div class="panel-title">Portfolio Allocation</div>
               </div>
               <div class="chart-wrap" style="height: 220px;"><canvas id="allocationChart"></canvas></div>
             </section>
 
             <section class="table-card">
               <div class="panel-header">
-                <div class="panel-title">Demo Top Gainers</div>
+                <div class="panel-title">Top Gainers</div>
               </div>
               <table class="stock-table">
-                <tbody id="dashboard-gainers"><tr><td>Loading demo data...</td></tr></tbody>
+                <tbody id="dashboard-gainers"><tr><td>Loading market data...</td></tr></tbody>
               </table>
             </section>
 
             <section class="table-card">
               <div class="panel-header">
-                <div class="panel-title">Demo Top Losers</div>
+                <div class="panel-title">Top Losers</div>
               </div>
               <table class="stock-table">
-                <tbody id="dashboard-losers"><tr><td>Loading demo data...</td></tr></tbody>
+                <tbody id="dashboard-losers"><tr><td>Loading market data...</td></tr></tbody>
               </table>
             </section>
 
             <section class="table-card">
               <div class="panel-header">
-                <div class="panel-title">Demo Recent Activity</div>
+                <div class="panel-title">Recent Activity</div>
               </div>
               <div class="activity-item">
                 <div class="timeline-dot"></div>
@@ -223,15 +286,107 @@
               </div>
             </section>
           </div>
+          </div>
+
+          <aside class="dashboard-watchlist panel" aria-labelledby="dashboard-watchlist-title">
+            <div class="dashboard-watchlist-heading">
+              <div>
+                <h2 id="dashboard-watchlist-title">Market watch</h2>
+                <span id="dashboard-watchlist-count">Your saved instruments</span>
+              </div>
+              <a href="/watchlist" aria-label="Open full watchlist"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+            </div>
+            <form id="dashboard-watchlist-form" class="dashboard-watchlist-form">
+              <label class="visually-hidden" for="dashboard-watchlist-symbol">Add a stock symbol</label>
+              <input id="dashboard-watchlist-symbol" maxlength="30" placeholder="Add symbol, e.g. INFY" required />
+              <label class="visually-hidden" for="dashboard-watchlist-exchange">Exchange</label>
+              <select id="dashboard-watchlist-exchange" aria-label="Exchange">
+                <option value="NSE">NSE</option>
+                <option value="BSE">BSE</option>
+              </select>
+              <button type="submit" aria-label="Add to watchlist"><i class="fa-solid fa-plus" aria-hidden="true"></i><span>Add</span></button>
+            </form>
+            <div id="dashboard-watchlist-status" class="dashboard-watchlist-status" role="status"></div>
+            <div id="dashboard-watchlist-items" class="dashboard-watchlist-items">
+              <div class="empty-state">Loading your watchlist...</div>
+            </div>
+            <p class="dashboard-watchlist-note">Orders are unavailable here.</p>
+          </aside>
         </div>
-        </div>
+        <footer class="dashboard-site-footer">
+          <div class="dashboard-footer-main">
+            <section class="dashboard-footer-brand" aria-label="About AlphaMind">
+              <a class="dashboard-footer-wordmark" href="/dashboard"><span class="brand-mark">AI</span><strong>AlphaMind</strong></a>
+              <p>Learn the market. Explore the data. Practise with virtual trades.</p>
+              <span class="dashboard-footer-note">Educational use only · Not investment advice</span>
+            </section>
+            <nav class="dashboard-footer-column" aria-label="Explore AlphaMind">
+              <h2>EXPLORE</h2>
+              <a href="/dashboard">Dashboard</a>
+              <a href="/market">Market data</a>
+              <a href="/candlestick-chart">Charts</a>
+              <a href="/watchlist">Watchlist</a>
+              <a href="/portfolio">Portfolio</a>
+            </nav>
+            <nav class="dashboard-footer-column" aria-label="Trading tools">
+              <h2>TOOLS</h2>
+              <a href="/signals">Signals</a>
+              <a href="/strategies">Strategies</a>
+              <a href="/backtesting">Backtesting</a>
+              <a href="/paper-trading">Virtual trading</a>
+              <a href="/order-protection">Order protection</a>
+            </nav>
+            <nav class="dashboard-footer-column" aria-label="Learn and account">
+              <h2>LEARN &amp; ACCOUNT</h2>
+              <a href="/trading-academy">Trading academy</a>
+              <a href="/sentiment">Market sentiment</a>
+              <a href="/alpha-research">Alpha research</a>
+              <a href="/reports">Reports</a>
+              <a href="/profile">Profile settings</a>
+            </nav>
+          </div>
+
+          <div class="dashboard-footer-market">
+            <div class="dashboard-footer-market-tabs" aria-label="Market shortcuts">
+              <a href="/market">Market</a>
+              <a href="/market">Indices</a>
+              <a href="/paper-trading">Futures practice</a>
+              <a href="/signals">Most active &amp; signals</a>
+              <a href="/watchlist">Your watchlist</a>
+            </div>
+            <div class="dashboard-footer-market-grid">
+              <div><a href="/market">Market overview</a><a href="/market">Top gainers</a><a href="/market">Top losers</a></div>
+              <div><a href="/candlestick-chart">Historical charts</a><a href="/backtesting">Historical backtests</a><a href="/alpha-research">Alpha research</a></div>
+              <div><a href="/strategies">Strategy library</a><a href="/order-protection">Risk tools</a><a href="/trading-academy">Learning academy</a></div>
+              <div><a href="/sentiment">Sentiment analysis</a><a href="/alerts">Alerts</a><a href="/reports">Reports</a></div>
+            </div>
+            <div class="dashboard-footer-symbol-index" aria-label="Stock symbol index">
+              <strong>SYMBOL INDEX</strong>
+              <span aria-label="A through M"><a href="/stocks?letter=A">A</a>&nbsp; <a href="/stocks?letter=B">B</a>&nbsp; <a href="/stocks?letter=C">C</a>&nbsp; <a href="/stocks?letter=D">D</a>&nbsp; <a href="/stocks?letter=E">E</a>&nbsp; <a href="/stocks?letter=F">F</a>&nbsp; <a href="/stocks?letter=G">G</a>&nbsp; <a href="/stocks?letter=H">H</a>&nbsp; <a href="/stocks?letter=I">I</a>&nbsp; <a href="/stocks?letter=J">J</a>&nbsp; <a href="/stocks?letter=K">K</a>&nbsp; <a href="/stocks?letter=L">L</a>&nbsp; <a href="/stocks?letter=M">M</a></span>
+              <span aria-label="N through Z"><a href="/stocks?letter=N">N</a>&nbsp; <a href="/stocks?letter=O">O</a>&nbsp; <a href="/stocks?letter=P">P</a>&nbsp; <a href="/stocks?letter=Q">Q</a>&nbsp; <a href="/stocks?letter=R">R</a>&nbsp; <a href="/stocks?letter=S">S</a>&nbsp; <a href="/stocks?letter=T">T</a>&nbsp; <a href="/stocks?letter=U">U</a>&nbsp; <a href="/stocks?letter=V">V</a>&nbsp; <a href="/stocks?letter=W">W</a>&nbsp; <a href="/stocks?letter=X">X</a>&nbsp; <a href="/stocks?letter=Y">Y</a>&nbsp; <a href="/stocks?letter=Z">Z</a></span>
+              <a href="/market">Search instruments <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+            </div>
+          </div>
+
+          <div class="dashboard-footer-bottom">
+            <div class="dashboard-footer-links">
+              <strong>IMPORTANT</strong>
+              <span>NSE</span><span>BSE</span><span>Educational practice</span>
+              <a href="/profile">Account settings</a>
+              <a href="/order-protection">Risk information</a>
+              <a href="/trading-academy">Learning resources</a>
+            </div>
+            <p>Virtual orders do not reach a broker. AlphaMind does not provide investment advice.</p>
+            <span class="dashboard-footer-copyright">© 2026 AlphaMind · Built for market learning</span>
+          </div>
+        </footer>
       </main>
     </div>
 
+    <script src="/js/stock-logo.js"></script>
     <script src="/js/api.js"></script>
     <script>
       const topUserName = document.getElementById('top-user-name');
-      const welcomeName = document.getElementById('welcome-name');
       const userAvatar = document.getElementById('user-avatar');
       const statsGrid = document.getElementById('stats-grid');
       const signalTableBody = document.getElementById('signal-table-body');
@@ -245,18 +400,41 @@
       const aiReason = document.getElementById('ai-reason');
       const dashboardWatchlistItems = document.getElementById('dashboard-watchlist-items');
       const dashboardWatchlistStatus = document.getElementById('dashboard-watchlist-status');
+      const dashboardAiMessages = document.getElementById('dashboard-ai-messages');
+      const dashboardAiForm = document.getElementById('dashboard-ai-form');
+      const dashboardAiInput = document.getElementById('dashboard-ai-input');
+      const dashboardAiSend = document.getElementById('dashboard-ai-send');
+      const dashboardAiStatus = document.getElementById('dashboard-ai-status');
+      let dashboardAiHistory = [];
       let dashboardIndices = [];
+      let dashboardStockCandles = [];
+      let dashboardStockQuote = null;
+      let dashboardStockSide = 'BUY';
+      let dashboardStockTimeframe = '1Y';
+      let dashboardStockChartInstance = null;
+
+      function appendAssistantMessage(role, content, loading = false) {
+        const message = document.createElement('article');
+        message.className = `dashboard-ai-message ${role}${loading ? ' loading' : ''}`;
+
+        const avatar = document.createElement('div');
+        avatar.className = 'dashboard-ai-message-avatar';
+        avatar.setAttribute('aria-hidden', 'true');
+        avatar.textContent = role === 'assistant' ? 'AI' : 'You';
+        message.appendChild(avatar);
+
+        const text = document.createElement('p');
+        text.textContent = content;
+        message.appendChild(text);
+        dashboardAiMessages.appendChild(message);
+        dashboardAiMessages.scrollTop = dashboardAiMessages.scrollHeight;
+        return message;
+      }
 
       function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"']/g, (character) => ({
           '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
         })[character]);
-      }
-
-      function getDisplayUserName() {
-        const user = parseUser();
-        const value = user?.full_name || user?.username || 'Trader';
-        return String(value).split(' ')[0] || 'Trader';
       }
 
       function updateDate() {
@@ -266,11 +444,11 @@
 
       function renderStats(stats) {
         const cards = [
-          { label: 'Demo Portfolio Value', value: '₹' + Number(stats.total_portfolio_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), trend: 'Sample value', icon: 'fa-wallet' },
-          { label: 'Demo Today P&L', value: '₹' + Number(stats.today_pnl).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), trend: 'Sample value', icon: 'fa-chart-line' },
-          { label: 'Demo Total Profit', value: '₹' + Number(stats.total_profit).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), trend: 'Sample value', icon: 'fa-arrow-trend-up' },
-          { label: 'Demo Winning Trades', value: stats.winning_trades + '%', trend: 'Sample value', icon: 'fa-percent' },
-          { label: 'Saved Demo Signals', value: stats.active_signals, trend: 'Sample records', icon: 'fa-bolt' },
+          { label: 'Portfolio Value', value: '₹' + Number(stats.total_portfolio_value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), trend: 'Value', icon: 'fa-wallet' },
+          { label: 'Today P&L', value: '₹' + Number(stats.today_pnl).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), trend: 'Value', icon: 'fa-chart-line' },
+          { label: 'Total Profit', value: '₹' + Number(stats.total_profit).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), trend: 'Value', icon: 'fa-arrow-trend-up' },
+          { label: 'Winning Trades', value: stats.winning_trades + '%', trend: 'Value', icon: 'fa-percent' },
+          { label: 'Saved Signals', value: stats.active_signals, trend: 'Saved records', icon: 'fa-bolt' },
         ];
 
         statsGrid.innerHTML = cards.map((card) => `
@@ -299,8 +477,183 @@
           ? 'Heuristic rule score unavailable'
           : `Heuristic rule score: ${analysis.confidence}%`;
         aiReason.textContent = analysis
-          ? `${analysis.reason} · Seeded demo data, not live. Not investment advice.`
-          : 'Run a demo analysis below. No live market data is used.';
+          ? analysis.reason
+          : 'Run an analysis below.';
+      }
+
+      function updateDashboardOrderEstimate() {
+        const quantity = Number(document.getElementById('dashboard-order-quantity').value);
+        const price = Number(dashboardStockQuote);
+        const value = Number.isInteger(quantity) && quantity > 0 && Number.isFinite(price)
+          ? quantity * price
+          : null;
+        document.getElementById('dashboard-order-value').textContent = value === null
+          ? '--'
+          : formatCurrency(value);
+      }
+
+      function renderDashboardStockChart(candles) {
+        const canvas = document.getElementById('dashboard-stock-chart');
+        if (dashboardStockChartInstance) dashboardStockChartInstance.destroy();
+        dashboardStockChartInstance = new Chart(canvas, {
+          type: 'line',
+          data: {
+            labels: candles.map((candle) => String(candle.time).slice(0, 10)),
+            datasets: [{
+              label: 'Historical close',
+              data: candles.map((candle) => Number(candle.close)),
+              borderColor: '#ff684f',
+              backgroundColor: 'rgba(255,104,79,0.10)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.18,
+              pointRadius: candles.length > 100 ? 0 : 1.5,
+              pointHoverRadius: 4,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (context) => `Close: ${formatCurrency(context.parsed.y)}`,
+                },
+              },
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { color: '#8ea1be', maxTicksLimit: 7, maxRotation: 0 },
+              },
+              y: {
+                grid: { color: 'rgba(142,161,190,0.14)' },
+                ticks: {
+                  color: '#8ea1be',
+                  callback: (value) => formatCurrency(value, 0),
+                },
+              },
+            },
+          },
+        });
+      }
+
+      async function loadDashboardStock() {
+        const stockSelect = document.getElementById('dashboard-stock-symbol');
+        const chartStatus = document.getElementById('dashboard-stock-chart-status');
+        chartStatus.textContent = 'Loading virtual instruments…';
+        try {
+          const accountResponse = await apiRequest('/api/paper-trading/account');
+          const tradableSymbols = accountResponse.data?.instruments || [];
+
+          if (!tradableSymbols.length) {
+            stockSelect.innerHTML = '<option value="">No chartable virtual stocks available</option>';
+            chartStatus.textContent = 'No virtual stock instruments are currently available.';
+            document.getElementById('dashboard-order-status').textContent = 'No eligible virtual instrument is available.';
+            return;
+          }
+
+          stockSelect.innerHTML = tradableSymbols.map((item) =>
+            `<option value="${escapeHtml(item.symbol)}">${escapeHtml(item.symbol)} · ${escapeHtml(item.name)}</option>`
+          ).join('');
+          document.getElementById('dashboard-order-cash').textContent = formatCurrency(accountResponse.data.cash_balance);
+          await loadDashboardStockDetails();
+        } catch (error) {
+          stockSelect.innerHTML = '<option value="">Stocks unavailable</option>';
+          chartStatus.textContent = error.message || 'Could not load chart history and virtual instruments.';
+          document.getElementById('dashboard-order-status').textContent = error.message || 'The virtual order ticket is unavailable.';
+          document.getElementById('dashboard-order-status').className = 'error';
+        }
+      }
+
+      async function loadDashboardStockDetails() {
+        const symbol = document.getElementById('dashboard-stock-symbol').value;
+        if (!symbol) return;
+        const chartStatus = document.getElementById('dashboard-stock-chart-status');
+        chartStatus.textContent = `Loading ${symbol} historical prices…`;
+        document.getElementById('dashboard-stock-title').textContent = symbol;
+        document.getElementById('dashboard-order-symbol').textContent = `${symbol} · NSE`;
+        const params = new URLSearchParams({ symbol, timeframe: dashboardStockTimeframe });
+        const [historyResult, quoteResult] = await Promise.allSettled([
+          apiRequest(`/api/candlestick-chart?${params}`),
+          apiRequest(`/api/paper-trading/quote?${new URLSearchParams({ symbol, exchange: 'NSE' })}`),
+        ]);
+
+        if (quoteResult.status === 'fulfilled') {
+          dashboardStockQuote = Number(quoteResult.value.data.price);
+          document.getElementById('dashboard-order-price').textContent = formatCurrency(dashboardStockQuote);
+          document.getElementById('dashboard-stock-price').textContent = formatCurrency(dashboardStockQuote);
+        } else {
+          dashboardStockQuote = null;
+          document.getElementById('dashboard-order-price').textContent = '--';
+          document.getElementById('dashboard-stock-price').textContent = '--';
+        }
+
+        if (historyResult.status === 'fulfilled') {
+          const historyResponse = historyResult.value;
+          dashboardStockCandles = historyResponse.data.candles || [];
+          const last = dashboardStockCandles[dashboardStockCandles.length - 1];
+          const previous = dashboardStockCandles[dashboardStockCandles.length - 2];
+          const dayChange = last && previous
+            ? (Number(last.close) - Number(previous.close)) / Number(previous.close) * 100
+            : null;
+          const changeLabel = document.getElementById('dashboard-stock-change');
+          changeLabel.textContent = dayChange === null
+            ? 'Virtual quote · app-provided'
+            : `CSV daily move ${dayChange >= 0 ? '+' : ''}${dayChange.toFixed(2)}%`;
+          changeLabel.className = dayChange === null ? '' : dayChange >= 0 ? 'positive' : 'negative';
+          renderDashboardStockChart(dashboardStockCandles);
+          chartStatus.textContent = `${dashboardStockCandles.length} historical daily closes · ${last?.time || ''} · ${historyResponse.data.provider || 'Bundled CSV history'}`;
+        } else {
+          dashboardStockCandles = [];
+          if (dashboardStockChartInstance) {
+            dashboardStockChartInstance.destroy();
+            dashboardStockChartInstance = null;
+          }
+          const canvas = document.getElementById('dashboard-stock-chart');
+          canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+          chartStatus.textContent = `${symbol} has no bundled historical chart data.`;
+          const changeLabel = document.getElementById('dashboard-stock-change');
+          changeLabel.textContent = 'Historical chart unavailable';
+          changeLabel.className = '';
+        }
+        updateDashboardOrderEstimate();
+      }
+
+      async function submitDashboardVirtualOrder() {
+        const button = document.getElementById('dashboard-order-submit');
+        const status = document.getElementById('dashboard-order-status');
+        const quantity = Number(document.getElementById('dashboard-order-quantity').value);
+        const symbol = document.getElementById('dashboard-stock-symbol').value;
+        if (!symbol || !Number.isInteger(quantity) || quantity < 1) {
+          status.textContent = 'Select a stock and enter a whole-number quantity of at least 1.';
+          status.className = 'error';
+          return;
+        }
+        if (!Number.isFinite(dashboardStockQuote)) {
+          status.textContent = 'A virtual quote is unavailable for this stock, so no order was placed.';
+          status.className = 'error';
+          return;
+        }
+        button.disabled = true;
+        status.textContent = `Placing virtual ${dashboardStockSide.toLowerCase()}…`;
+        status.className = '';
+        try {
+          const response = await apiRequest('/api/paper-trading/trades', {
+            method: 'POST',
+            body: JSON.stringify({ symbol, exchange: 'NSE', side: dashboardStockSide, quantity }),
+          });
+          document.getElementById('dashboard-order-cash').textContent = formatCurrency(response.account.cash_balance);
+          status.textContent = `${response.message} ${quantity} × ${formatCurrency(response.data.price)}.`;
+          status.className = 'success';
+        } catch (error) {
+          status.textContent = error.message || 'Virtual trade could not be completed.';
+          status.className = 'error';
+        } finally {
+          button.disabled = false;
+        }
       }
 
       function getSignalClass(signal) {
@@ -313,10 +666,9 @@
       function renderSignals(signals) {
         signalTableBody.innerHTML = signals.slice(0, 5).map((signal) => `
           <tr>
-            <td>${signal.symbol}</td>
+            <td><span class="stock-name-with-logo">${stockLogoMarkup(signal.symbol)}${escapeHtml(signal.symbol)}</span></td>
             <td class="${getSignalClass(signal.signal)}">${signal.signal}</td>
             <td>₹${Number(signal.current_price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td>${signal.timestamp}</td>
           </tr>
         `).join('');
       }
@@ -328,7 +680,6 @@
           if (user) {
             const fullName = user.full_name || user.username || 'Trader';
             topUserName.textContent = fullName;
-            welcomeName.textContent = getDisplayUserName();
             userAvatar.textContent = (fullName || 'T').charAt(0).toUpperCase();
           }
           renderStats(response.stats || {});
@@ -354,8 +705,8 @@
             datasets: [{
               label: selectedName,
               data: candles.map((candle) => candle.close),
-              borderColor: '#087ef5',
-              backgroundColor: 'rgba(8,126,245,0.14)',
+              borderColor: getComputedStyle(document.body).getPropertyValue('--primary-2').trim(),
+              backgroundColor: getComputedStyle(document.body).getPropertyValue('--primary-1').trim(),
               fill: true,
               tension: 0.4,
               pointRadius: 0,
@@ -377,7 +728,7 @@
       function renderDashboardMovers(targetId, items, emptyMessage) {
         const target = document.getElementById(targetId);
         target.innerHTML = items?.length ? items.slice(0, 5).map((item) => `
-          <tr><td>${escapeHtml(item.symbol)}</td><td>₹${Number(item.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <tr><td><span class="stock-name-with-logo">${stockLogoMarkup(item.symbol, item.name)}${escapeHtml(item.symbol)}</span></td><td>₹${Number(item.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td class="${item.change >= 0 ? 'positive' : 'negative'}">${item.change >= 0 ? '+' : ''}${Number(item.change).toFixed(2)}%</td></tr>
         `).join('') : `<tr><td colspan="3">${escapeHtml(emptyMessage)}</td></tr>`;
       }
@@ -390,7 +741,7 @@
           const change = card.querySelector('small');
           if (!index || index.price == null) {
             value.textContent = '--';
-            change.textContent = 'Demo sample unavailable';
+            change.textContent = 'Unavailable';
             change.className = '';
             return;
           }
@@ -410,20 +761,20 @@
           dashboardIndices = overview.indices || [];
           renderDashboardTicker(dashboardIndices);
           renderMarketChart(dashboardIndices);
-          renderDashboardMovers('dashboard-gainers', overview.gainers, 'No demo gainers available.');
-          renderDashboardMovers('dashboard-losers', overview.losers, 'No demo losers available.');
+          renderDashboardMovers('dashboard-gainers', overview.gainers, 'No gainers available.');
+          renderDashboardMovers('dashboard-losers', overview.losers, 'No losers available.');
           const updatedAt = overview.updated_at ? new Date(overview.updated_at) : null;
           const updateLabel = updatedAt && !Number.isNaN(updatedAt.getTime())
             ? ` · updated ${updatedAt.toLocaleTimeString('en-IN')}`
             : '';
-          status.textContent = `${overview.provider || 'Dashboard demo data · not live'}${updateLabel}`;
+          status.textContent = `${overview.provider || 'Market prices'}${updateLabel}`;
         } catch (error) {
           dashboardIndices = [];
           renderDashboardTicker(dashboardIndices);
           renderMarketChart(dashboardIndices);
-          renderDashboardMovers('dashboard-gainers', [], 'Demo market data unavailable.');
-          renderDashboardMovers('dashboard-losers', [], 'Demo market data unavailable.');
-          status.textContent = error.message || 'Could not load dashboard demo data.';
+          renderDashboardMovers('dashboard-gainers', [], 'Market data unavailable.');
+          renderDashboardMovers('dashboard-losers', [], 'Market data unavailable.');
+          status.textContent = error.message || 'Could not load market data.';
         }
       }
 
@@ -436,7 +787,7 @@
           return `
             <article class="dashboard-watchlist-row">
               <div class="dashboard-watchlist-instrument">
-                <strong>${escapeHtml(item.symbol)}</strong>
+                <span class="stock-name-with-logo">${stockLogoMarkup(item.symbol, item.name)}<strong>${escapeHtml(item.symbol)}</strong></span>
                 <span>${escapeHtml(item.exchange)}</span>
                 <small>${escapeHtml(item.name || item.symbol)}</small>
               </div>
@@ -447,7 +798,7 @@
               <button class="dashboard-watchlist-remove" type="button" data-watchlist-remove="${escapeHtml(item.watchlist_id)}" aria-label="Remove ${escapeHtml(item.symbol)} from watchlist" title="Remove from watchlist"><i class="fa-solid fa-xmark"></i></button>
             </article>
           `;
-        }).join('') : '<div class="empty-state">No instruments saved yet. Add a symbol above.</div>';
+        }).join('') : '<div class="empty-state dashboard-watchlist-empty">No instruments saved yet.</div>';
       }
 
       async function loadDashboardWatchlist() {
@@ -455,7 +806,7 @@
           const response = await apiRequest('/api/watchlist');
           const items = response.data || [];
           renderDashboardWatchlist(items);
-          dashboardWatchlistStatus.textContent = 'Seeded demo prices · not live';
+          dashboardWatchlistStatus.textContent = 'Prices';
         } catch (error) {
           renderDashboardWatchlist([]);
           dashboardWatchlistStatus.textContent = error.message;
@@ -471,7 +822,12 @@
             labels: ['Stocks', 'Mutual Funds', 'Cash', 'Others'],
             datasets: [{
               data: [60, 20, 15, 5],
-              backgroundColor: ['#6d1cff', '#087ef5', '#20d79a', '#f7c948'],
+              backgroundColor: [
+                getComputedStyle(document.body).getPropertyValue('--primary-1').trim(),
+                getComputedStyle(document.body).getPropertyValue('--primary-2').trim(),
+                '#20d79a',
+                '#f7c948',
+              ],
               borderWidth: 0,
             }]
           },
@@ -484,12 +840,92 @@
         });
       }
 
+      document.getElementById('dashboard-stock-symbol').addEventListener('change', loadDashboardStockDetails);
+      document.querySelectorAll('[data-stock-timeframe]').forEach((button) => {
+        button.addEventListener('click', () => {
+          dashboardStockTimeframe = button.dataset.stockTimeframe;
+          document.querySelectorAll('[data-stock-timeframe]').forEach((item) => item.classList.toggle('active', item === button));
+          loadDashboardStockDetails();
+        });
+      });
+      document.querySelectorAll('[data-stock-side]').forEach((button) => {
+        button.addEventListener('click', () => {
+          dashboardStockSide = button.dataset.stockSide;
+          document.querySelectorAll('[data-stock-side]').forEach((item) => item.classList.toggle('active', item === button));
+          const submit = document.getElementById('dashboard-order-submit');
+          submit.textContent = dashboardStockSide === 'BUY' ? 'Buy virtually' : 'Sell virtually';
+          submit.classList.toggle('sell', dashboardStockSide === 'SELL');
+        });
+      });
+      document.getElementById('dashboard-order-quantity').addEventListener('input', updateDashboardOrderEstimate);
+      document.getElementById('dashboard-order-submit').addEventListener('click', submitDashboardVirtualOrder);
+
       bindSidebarNavigation();
+      window.addEventListener('alphamind-theme-change', () => {
+        renderMarketChart(dashboardIndices);
+        renderAllocationChart();
+      });
 
       document.querySelectorAll('.segment-tabs [data-market]').forEach((button) => button.addEventListener('click', () => {
         document.querySelectorAll('.segment-tabs [data-market]').forEach((item) => item.classList.toggle('active', item === button));
         renderMarketChart(dashboardIndices);
       }));
+
+      dashboardAiForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const content = dashboardAiInput.value.trim();
+        if (!content || dashboardAiSend.disabled) return;
+
+        let historyLength = dashboardAiHistory.reduce((total, message) => total + message.content.length, 0);
+        while (
+          dashboardAiHistory.length
+          && (dashboardAiHistory.length >= 12 || historyLength + content.length > 10000)
+        ) {
+          const oldestTurnLength = dashboardAiHistory[0].role === 'user'
+            && dashboardAiHistory[1]?.role === 'assistant' ? 2 : 1;
+          const removedMessages = dashboardAiHistory.splice(0, oldestTurnLength);
+          historyLength -= removedMessages.reduce((total, message) => total + message.content.length, 0);
+        }
+        if (dashboardAiHistory.length >= 12) {
+          dashboardAiHistory = dashboardAiHistory.slice(-10);
+        }
+        dashboardAiHistory.push({ role: 'user', content });
+        appendAssistantMessage('user', content);
+        dashboardAiInput.value = '';
+        dashboardAiSend.disabled = true;
+        dashboardAiInput.disabled = true;
+        document.querySelectorAll('[data-ai-prompt]').forEach((button) => { button.disabled = true; });
+        dashboardAiStatus.textContent = 'AlphaMind AI is thinking…';
+        const loadingMessage = appendAssistantMessage('assistant', 'Thinking…', true);
+
+        try {
+          const response = await apiRequest('/api/ai-assistant/chat', {
+            method: 'POST',
+            body: JSON.stringify({ messages: dashboardAiHistory }),
+          });
+          loadingMessage.remove();
+          dashboardAiHistory.push({ role: 'assistant', content: response.data.reply });
+          appendAssistantMessage('assistant', response.data.reply);
+          dashboardAiStatus.textContent = `Reply from ${response.data.provider} · messages are not saved by AlphaMind`;
+        } catch (error) {
+          loadingMessage.remove();
+          dashboardAiHistory.pop();
+          dashboardAiStatus.textContent = error.message || 'The AI assistant could not reply. Please try again.';
+        } finally {
+          dashboardAiSend.disabled = false;
+          dashboardAiInput.disabled = false;
+          document.querySelectorAll('[data-ai-prompt]').forEach((button) => { button.disabled = false; });
+          dashboardAiInput.focus();
+        }
+      });
+
+      document.querySelectorAll('[data-ai-prompt]').forEach((button) => {
+        button.addEventListener('click', () => {
+          if (dashboardAiSend.disabled) return;
+          dashboardAiInput.value = button.dataset.aiPrompt;
+          dashboardAiForm.requestSubmit();
+        });
+      });
 
       document.getElementById('dashboard-watchlist-form').addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -535,12 +971,12 @@
         const status = document.getElementById('signal-status');
         const symbol = document.getElementById('signal-symbol').value.trim().toUpperCase();
         submit.disabled = true;
-        status.textContent = 'Calculating demo signal...';
+        status.textContent = 'Calculating signal...';
         try {
           const response = await apiRequest('/api/signals');
           const signal = (response.data || []).find((item) => item.symbol === symbol);
           if (!signal) {
-            throw new Error(`No seeded demo signal is available for ${symbol}.`);
+            throw new Error(`No signal is available for ${symbol}.`);
           }
           renderDecision({
             instrument: { symbol: signal.symbol },
@@ -551,7 +987,7 @@
               reason: signal.reason,
             },
           });
-          status.textContent = 'Demo preview · seeded daily-change rule · not live';
+          status.textContent = 'Daily-change signal';
         } catch (error) {
           renderDecision(null);
           status.textContent = error.message;
@@ -568,6 +1004,7 @@
       updateDate(); setInterval(updateDate, 60000);
       loadDashboard();
       loadDashboardWatchlist();
+      loadDashboardStock();
       setInterval(loadDemoDashboardMarket, 30000);
       setInterval(loadDashboardWatchlist, 30000);
     </script>

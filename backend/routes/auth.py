@@ -1,8 +1,9 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token
+from werkzeug.security import generate_password_hash
 
 from backend.database import db
-from backend.models import User
+from backend.models import User, UserAuthPin
 
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -21,12 +22,31 @@ def register():
         return jsonify({'success': False, 'message': 'Enter a valid email.'}), 400
     if len(password) < 6:
         return jsonify({'success': False, 'message': 'Password must be at least 6 characters.'}), 400
-    if User.query.filter((User.email == email) | (User.username == username)).first():
-        return jsonify({'success': False, 'message': 'Email or username already exists.'}), 409
+    pin = data.get('pin')
+    if pin is not None and (
+        not isinstance(pin, str)
+        or len(pin) != 6
+        or not pin.isascii()
+        or not pin.isdigit()
+    ):
+        return jsonify({'success': False, 'message': 'PIN must contain exactly 6 digits.'}), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify({
+            'success': False,
+            'message': 'An account with this email already exists. Sign in instead.',
+        }), 409
+    if User.query.filter_by(username=username).first():
+        return jsonify({
+            'success': False,
+            'message': 'That username is already taken. Choose another.',
+        }), 409
 
     user = User(full_name=full_name, email=email, username=username, plan='Premium Plan')
     user.set_password(password)
     db.session.add(user)
+    db.session.flush()
+    if pin is not None:
+        db.session.add(UserAuthPin(user_id=user.id, pin_hash=generate_password_hash(pin)))
     db.session.commit()
 
     token = create_access_token(identity=str(user.id))

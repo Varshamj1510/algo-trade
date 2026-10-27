@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlphaMind | Trading Academy</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand"><div class="brand-mark">AI</div><h1>AlphaMind</h1></div>
+        <ul class="sidebar-nav">
+          <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
+          <li class="nav-item" data-page="market"><i class="fa-solid fa-chart-column"></i> Market Data</li>
+          <li class="nav-item" data-page="paper-trading"><i class="fa-solid fa-shuffle"></i> Virtual Trading</li>
+          <li class="nav-item" data-page="signals"><i class="fa-solid fa-bolt"></i> Trade Signals</li>
+          <li class="nav-item" data-page="strategies"><i class="fa-solid fa-diagram-project"></i> Strategies</li>
+          <li class="nav-item" data-page="portfolio"><i class="fa-solid fa-wallet"></i> Portfolio</li>
+          <li class="nav-item" data-page="backtesting"><i class="fa-solid fa-flask-vial"></i> Backtesting</li>
+          <li class="nav-item" data-page="reports"><i class="fa-solid fa-file-lines"></i> Reports</li>
+          <li class="nav-item" data-page="watchlist"><i class="fa-solid fa-star"></i> Watchlist</li>
+          <li class="nav-item" data-page="alerts"><i class="fa-solid fa-bell"></i> Alerts</li>
+          <li class="nav-item" data-page="profile"><i class="fa-solid fa-user"></i> Profile Settings</li>
+          <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</li>
+        </ul>
+      </aside>
+      <main class="main-panel academy-page">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu" id="menu-toggle" type="button" aria-label="Toggle menu"><i class="fa fa-bars"></i></button>
+            <span class="page-title">Trading Academy</span>
+          </div>
+          <div class="topbar-right">
+            <div class="user-chip"><div class="avatar" id="user-avatar">V</div><div><div class="user-name" id="top-user-name">Investor</div><div class="user-plan">Learn at your own pace</div></div></div>
+          </div>
+        </header>
+
+        <div class="content-grid">
+          <section class="academy-hero panel">
+            <div>
+              <span class="academy-eyebrow"><i class="fa-solid fa-graduation-cap"></i> LEARN · PRACTICE · GROW</span>
+              <h1>Learn trading, one lesson at a time.</h1>
+              <p>Explore YouTube lessons, understand the basics, then practice with AlphaMind's virtual trading tools. Educational content only, not financial advice.</p>
+              <a class="primary-btn academy-practice-link" href="/paper-trading"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open virtual trading</a>
+            </div>
+            <div class="academy-hero-art" aria-hidden="true"><i class="fa-solid fa-chart-simple"></i><span>LEARN BY DOING</span></div>
+          </section>
+
+          <section class="academy-membership panel" aria-labelledby="academy-membership-title" hidden>
+            <div class="academy-membership-copy">
+              <span class="academy-eyebrow"><i class="fa-solid fa-sparkles"></i> YOUR LEARNING PLAN</span>
+              <h2 id="academy-membership-title">Free lessons, with more to explore.</h2>
+              <p id="academy-plan-copy">Start learning for free. Try the extra Premium learning catalog for 30 days—no payment is collected.</p>
+            </div>
+            <div class="academy-plan-card">
+              <div><span class="academy-plan-name">PREMIUM</span><strong>₹199<span>/month</span></strong><small>Displayed plan price · payments not enabled</small></div>
+              <button class="primary-btn" id="academy-premium-button" type="button">Try Premium free for 30 days</button>
+              <span class="academy-access-status" id="academy-access-status" role="status" aria-live="polite">Checking your learning access…</span>
+            </div>
+          </section>
+
+          <section class="academy-catalog panel">
+            <div class="academy-section-heading">
+              <div><span class="academy-eyebrow">VIDEO LIBRARY</span><h2>Find your next lesson</h2><p>Search educational videos from YouTube. Videos are provided by their original creators.</p></div>
+              <div class="academy-tier-tabs" role="group" aria-label="Lesson access">
+                <button class="active" type="button" data-academy-tier="free" aria-pressed="true">Free</button>
+              </div>
+            </div>
+            <div class="academy-topics" aria-label="Popular lesson searches">
+              <button type="button" data-academy-query="stock market basics for beginners">Trading basics</button>
+              <button type="button" data-academy-query="candlestick chart patterns explained">Candlestick patterns</button>
+              <button type="button" data-academy-query="risk management position sizing trading">Risk management</button>
+              <button type="button" data-academy-query="technical analysis RSI MACD beginner">Technical indicators</button>
+            </div>
+            <form class="academy-search" id="academy-search-form">
+              <label class="visually-hidden" for="academy-search-input">Search trading lessons</label>
+              <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+              <input id="academy-search-input" type="search" maxlength="100" placeholder="Search trading lessons on YouTube" required />
+              <button class="primary-btn" id="academy-search-button" type="submit">Search lessons</button>
+            </form>
+            <p class="academy-search-status" id="academy-search-status" role="status" aria-live="polite">Choose a topic or search for a lesson to get started.</p>
+            <div class="academy-video-layout">
+              <div class="academy-video-grid" id="academy-video-grid"></div>
+              <section class="academy-player panel" id="academy-player" aria-label="Selected YouTube lesson" hidden>
+                <div class="academy-player-heading"><h3 id="academy-player-title">Select a lesson</h3><span id="academy-player-channel"></span></div>
+                <div class="academy-player-frame" id="academy-player-frame"></div>
+                <p class="academy-video-description" id="academy-player-description"></p>
+                <a class="secondary-btn academy-youtube-link" id="academy-youtube-link" href="#" target="_blank" rel="noopener noreferrer">Watch on YouTube <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+              </section>
+            </div>
+          </section>
+
+          <section class="academy-practice panel">
+            <div><span class="academy-eyebrow">PUT LEARNING INTO PRACTICE</span><h2>Practice without risking real money.</h2><p>Try a paper trade, review historical candles, or build a strategy with virtual funds. Trades here never reach a broker.</p></div>
+            <div class="academy-practice-actions">
+              <a class="secondary-btn" href="/market"><i class="fa-solid fa-chart-line"></i> Explore market</a>
+              <a class="secondary-btn" href="/candlestick-chart"><i class="fa-solid fa-chart-column"></i> Candlestick charts</a>
+              <a class="secondary-btn" href="/strategies"><i class="fa-solid fa-diagram-project"></i> Build a strategy</a>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="/js/api.js"></script>
+    <script>
+      const user = parseUser();
+      const sidebar = document.getElementById('sidebar');
+      const status = document.getElementById('academy-search-status');
+      let access = { tier: 'free', demo_unlock: false };
+      let selectedTier = 'free';
+      let searchSequence = 0;
+      if (!requireAuth()) throw new Error('Not authenticated');
+      if (user) {
+        document.getElementById('top-user-name').textContent = user.full_name || user.username;
+        document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        })[character]);
+      }
+
+      async function loadAccess() {
+        const button = document.getElementById('academy-premium-button');
+        const response = await apiRequest('/api/academy/access');
+        access = response.data;
+        if (access.tier === 'premium') {
+          button.textContent = 'Premium access active';
+          button.disabled = true;
+          document.getElementById('academy-membership-title').textContent = 'Your Premium access is active.';
+          document.getElementById('academy-plan-copy').textContent =
+            `Premium access${access.expires_at ? ` is available until ${new Date(access.expires_at).toLocaleDateString('en-IN')}` : ''}. No payment was made.`;
+          document.getElementById('academy-access-status').textContent = '30-day access · no payment collected';
+        } else {
+          button.textContent = 'Try Premium free for 30 days';
+          document.getElementById('academy-access-status').textContent = 'Free access active · no subscription required';
+        }
+        updateTierButtons();
+      }
+
+      function updateTierButtons() {
+        document.querySelectorAll('[data-academy-tier]').forEach((button) => {
+          const active = button.dataset.academyTier === selectedTier;
+          button.classList.toggle('active', active);
+          button.setAttribute('aria-pressed', String(active));
+          button.innerHTML = button.dataset.academyTier === 'premium'
+            ? `Premium <i class="fa-solid ${access.tier === 'premium' ? 'fa-crown' : 'fa-lock'}" aria-hidden="true"></i>`
+            : 'Free';
+        });
+      }
+
+      function renderVideos(videos) {
+        const grid = document.getElementById('academy-video-grid');
+        const player = document.getElementById('academy-player');
+        player.hidden = true;
+        if (!videos.length) {
+          grid.innerHTML = '<div class="academy-empty">No videos found for that search. Try another trading topic.</div>';
+          return;
+        }
+        grid.innerHTML = videos.map((video) => `
+          <button class="academy-video-card" type="button" data-video-id="${escapeHtml(video.video_id)}">
+            <span class="academy-video-thumb">
+              <img src="${escapeHtml(video.thumbnail)}" alt="" loading="lazy" />
+              <span class="academy-video-play"><i class="fa-solid fa-play" aria-hidden="true"></i></span>
+            </span>
+            <span class="academy-video-card-title">${escapeHtml(video.title)}</span>
+            <span class="academy-video-channel">${escapeHtml(video.channel)}</span>
+          </button>
+        `).join('');
+        grid.querySelectorAll('[data-video-id]').forEach((button, index) => {
+          button.addEventListener('click', () => playVideo(videos[index]));
+        });
+      }
+
+      function playVideo(video) {
+        const player = document.getElementById('academy-player');
+        document.getElementById('academy-player-title').textContent = video.title;
+        document.getElementById('academy-player-channel').textContent =
+          `${video.channel}${video.published_at ? ` · ${new Date(video.published_at).toLocaleDateString('en-IN')}` : ''}`;
+        document.getElementById('academy-player-description').textContent = video.description;
+        document.getElementById('academy-player-frame').innerHTML = `
+          <iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(video.video_id)}"
+            title="${escapeHtml(video.title)}" loading="lazy"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen></iframe>`;
+        document.getElementById('academy-youtube-link').href =
+          `https://www.youtube.com/watch?v=${encodeURIComponent(video.video_id)}`;
+        player.hidden = false;
+        player.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      async function searchLessons(query) {
+        const requestNumber = ++searchSequence;
+        const searchButton = document.getElementById('academy-search-button');
+        if (selectedTier === 'premium' && access.tier !== 'premium') {
+          status.textContent = 'Premium lessons are locked. Start 30-day Premium access to explore them—no payment is taken.'
+          return;
+        }
+        status.textContent = `Searching YouTube for ${selectedTier} trading lessons…`;
+        searchButton.disabled = true;
+        try {
+          const params = new URLSearchParams({ q: query, tier: selectedTier });
+          const response = await apiRequest(`/api/academy/youtube-search?${params}`);
+          if (requestNumber !== searchSequence) return;
+          renderVideos(response.data || []);
+          status.textContent = `${response.data.length} YouTube lesson${response.data.length === 1 ? '' : 's'} found. Choose a video to watch.`;
+        } catch (error) {
+          if (requestNumber !== searchSequence) return;
+          document.getElementById('academy-video-grid').replaceChildren();
+          status.textContent = error.message || 'Could not search YouTube lessons.';
+        } finally {
+          if (requestNumber === searchSequence) searchButton.disabled = false;
+        }
+      }
+
+      document.getElementById('academy-search-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        searchLessons(document.getElementById('academy-search-input').value.trim());
+      });
+      document.querySelectorAll('[data-academy-query]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const query = button.dataset.academyQuery;
+          document.getElementById('academy-search-input').value = query;
+          searchLessons(query);
+        });
+      });
+      document.querySelectorAll('[data-academy-tier]').forEach((button) => {
+        button.addEventListener('click', () => {
+          selectedTier = button.dataset.academyTier;
+          updateTierButtons();
+          document.getElementById('academy-video-grid').replaceChildren();
+          document.getElementById('academy-player').hidden = true;
+          status.textContent = selectedTier === 'premium' && access.tier !== 'premium'
+            ? 'Premium lessons are locked. Start 30-day Premium access—no payment is taken.'
+            : `Search for ${selectedTier} trading lessons on YouTube.`;
+        });
+      });
+      document.getElementById('academy-premium-button').addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        document.getElementById('academy-access-status').textContent = 'Activating Premium access…';
+        try {
+          const response = await apiRequest('/api/academy/premium-demo', {
+            method: 'POST',
+            body: JSON.stringify({}),
+          });
+          access = response.data;
+          await loadAccess();
+          document.getElementById('academy-access-status').textContent = response.message;
+          selectedTier = 'premium';
+          updateTierButtons();
+        } catch (error) {
+          document.getElementById('academy-access-status').textContent = error.message || 'Could not activate Premium access.';
+          button.disabled = false;
+        }
+      });
+      document.getElementById('logout-btn').addEventListener('click', logoutUser);
+      document.getElementById('menu-toggle').addEventListener('click', () => sidebar.classList.toggle('open'));
+      bindSidebarNavigation();
+      loadAccess().catch((error) => {
+        document.getElementById('academy-access-status').textContent = error.message || 'Could not load learning access.';
+        document.getElementById('academy-premium-button').disabled = true;
+      });
+    </script>
+  </body>
+</html>

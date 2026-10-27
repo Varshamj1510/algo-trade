@@ -32,3 +32,14 @@ def test_demo_trade_signals_are_derived_from_demo_price_changes():
     assert signals[1]['stop_loss'] == 204
     assert signals[2]['target_price'] is None
     assert all(signal['timestamp'] == 'Demo sample' for signal in signals)
+
+
+def test_demo_signal_thresholds_are_inclusive_at_one_percent():
+    signals = generate_demo_trade_signals([
+        {'symbol': 'BUY_EDGE', 'price': 100, 'change': 1},
+        {'symbol': 'SELL_EDGE', 'price': 100, 'change': -1},
+        {'symbol': 'HOLD_UPPER', 'price': 100, 'change': 0.99},
+        {'symbol': 'HOLD_LOWER', 'price': 100, 'change': -0.99},
+    ])
+
+    assert [signal['signal'] for signal in signals] == ['BUY', 'SELL', 'HOLD', 'HOLD']

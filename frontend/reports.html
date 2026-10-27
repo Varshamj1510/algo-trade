@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlgoTrade | Reports</title>
+    <title>AlphaMind | Reports</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   </head>
@@ -12,7 +12,7 @@
       <aside class="sidebar" id="sidebar">
         <div class="brand">
           <div class="brand-mark">AI</div>
-          <h1>AlgoTrade</h1>
+          <h1>AlphaMind</h1>
         </div>
         <ul class="sidebar-nav">
           <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
@@ -51,8 +51,8 @@
           <section class="panel">
             <div class="panel-header">
               <div>
-                <div class="panel-title">Demo Performance Reports</div>
-                <p id="reports-status" class="market-data-status">Loading seeded report examples...</p>
+                <div class="panel-title">Performance Reports</div>
+                <p id="reports-status" class="market-data-status">Loading reports...</p>
               </div>
               <button class="secondary-btn" id="export-reports" type="button">Export CSV</button>
             </div>
@@ -89,7 +89,7 @@
         try {
           const response = await apiRequest('/api/reports');
           reports = response.data || [];
-          reportsStatus.textContent = `${reports.length} seeded demo reports · performance values are sample data, not live trading results.`;
+          reportsStatus.textContent = `${reports.length} reports.`;
           reportsBody.innerHTML = reports.length ? reports.map((report) => `
             <tr>
               <td>${escapeHtml(report.name)}</td>
@@ -100,7 +100,7 @@
               <td>${Number(report.profit_factor).toFixed(2)}</td>
               <td>${escapeHtml(report.status)}</td>
             </tr>
-          `).join('') : '<tr><td colspan="7" class="empty-state">No demo reports are available.</td></tr>';
+          `).join('') : '<tr><td colspan="7" class="empty-state">No reports are available.</td></tr>';
         } catch (error) {
           if (error.message.includes('Authorization')) {
             logoutUser();
@@ -127,7 +127,7 @@
         const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'dashboard-demo-reports.csv';
+        link.download = 'dashboard-reports.csv';
         link.click();
         URL.revokeObjectURL(url);
       });

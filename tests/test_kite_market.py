@@ -211,7 +211,7 @@ def test_kite_connect_and_callback_validate_state(monkeypatch):
     )
     assert denied.status_code == 403
     assert b'Kite did not authorize this account' in denied.data
-    assert b'AlgoTrade cannot grant this permission' in denied.data
+    assert b'AlphaMind cannot grant this permission' in denied.data
 
     connect = client.get('/kite/connect')
     params = parse_qs(urlparse(connect.location).query)

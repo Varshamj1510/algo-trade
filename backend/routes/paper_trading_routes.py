@@ -5,14 +5,19 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from backend.database import db
-from backend.models import PaperAccount, PaperFutureTrade, PaperTrade
-from backend.services.instrument_catalog import get_demo_instruments
+from backend.models import PaperAccount, PaperFutureTrade, PaperTrade, StrategyModel
+from backend.services.instrument_catalog import (
+    find_demo_instrument,
+    find_paper_trading_instrument,
+    get_paper_trading_instruments,
+)
 from backend.services.kite_market import (
     KiteAPIError,
     KiteConfigurationError,
     get_nifty_futures,
     get_live_quotes,
 )
+from backend.services.paper_strategy import BUILT_IN_STRATEGIES, review_strategy
 
 
 bp = Blueprint('paper_trading', __name__, url_prefix='/api/paper-trading')
@@ -119,26 +124,27 @@ def _account_snapshot(user_id, market_quotes=None):
         key: position for key, position in future_positions.items()
         if position['lots'] > 0
     }
-    quote_keys = [
-        {'exchange': exchange, 'symbol': symbol}
-        for exchange, symbol in open_positions
-    ]
-    quote_keys.extend(
+    market_quotes = dict(market_quotes or {})
+    for exchange, symbol in open_positions:
+        instrument = find_paper_trading_instrument(symbol, exchange) or find_demo_instrument(symbol, exchange)
+        if instrument is None:
+            raise ValueError(f'No seeded virtual quote is available for {exchange}:{symbol}.')
+        market_quotes[(exchange, symbol)] = {'price': instrument['price']}
+
+    missing_future_quotes = [
         {'exchange': 'NFO', 'symbol': symbol}
         for symbol, _expiry in open_future_positions
-    )
-    if market_quotes is None and quote_keys:
-        market_quotes = get_live_quotes([
-            *quote_keys,
-        ])
-    market_quotes = market_quotes or {}
+        if _quote_price(market_quotes.get(('NFO', symbol))) is None
+    ]
+    if missing_future_quotes:
+        market_quotes.update(get_live_quotes(missing_future_quotes))
 
     holdings = []
     for key, position in sorted(open_positions.items()):
         quote = market_quotes.get(key)
         market_price = _quote_price(quote)
         if market_price is None:
-            raise KiteAPIError(f'Kite quote is unavailable for {key[0]}:{key[1]}; account values were not refreshed.')
+            raise ValueError(f'Virtual quote is unavailable for {key[0]}:{key[1]}.')
         market_value = market_price * position['quantity']
         invested = position['average_price'] * position['quantity']
         holdings.append({
@@ -193,7 +199,7 @@ def _account_snapshot(user_id, market_quotes=None):
                 'exchange': item['exchange'],
                 'name': item['name'],
             }
-            for item in get_demo_instruments()
+            for item in get_paper_trading_instruments()
         ],
     }
 
@@ -207,7 +213,38 @@ def get_paper_account():
         return jsonify({'success': False, 'message': str(error)}), 503
     except KiteAPIError as error:
         return jsonify({'success': False, 'message': str(error)}), 502
-    return jsonify({'success': True, 'data': snapshot, 'source': 'Kite quotes; virtual trades only'})
+    except ValueError as error:
+        return jsonify({'success': False, 'message': str(error)}), 422
+    return jsonify({'success': True, 'data': snapshot, 'source': 'Seeded prices; virtual trades only'})
+
+
+@bp.route('/account/add-virtual-cash', methods=['POST'])
+@jwt_required()
+def add_virtual_cash():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Request body must be a JSON object.'}), 400
+    try:
+        raw_amount = payload.get('amount')
+        if isinstance(raw_amount, bool):
+            raise ValueError
+        parsed_amount = float(raw_amount)
+    except (TypeError, ValueError, OverflowError):
+        return jsonify({'success': False, 'message': 'Enter a whole-rupee virtual amount.'}), 400
+    if not math.isfinite(parsed_amount) or not parsed_amount.is_integer() or not 1 <= parsed_amount <= 1000000:
+        return jsonify({
+            'success': False,
+            'message': 'Virtual top-ups must be a whole-rupee amount between ₹1 and ₹10,00,000.',
+        }), 400
+
+    account = _account_for_user(int(get_jwt_identity()))
+    account.cash_balance = round(account.cash_balance + parsed_amount, 2)
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'message': f'₹{parsed_amount:,.0f} practice funds added to your virtual account. No payment was made.',
+        'account': _account_snapshot(int(get_jwt_identity())),
+    })
 
 
 @bp.route('/quote', methods=['GET'])
@@ -226,6 +263,18 @@ def get_paper_quote():
             return jsonify({'success': False, 'message': str(error)}), 502
         if not valid_contract:
             return jsonify({'success': False, 'message': 'Choose an active NIFTY futures contract from the Kite list.'}), 404
+    else:
+        instrument = find_paper_trading_instrument(symbol, exchange) or find_demo_instrument(symbol, exchange)
+        if instrument is None:
+            return jsonify({
+                'success': False,
+                'message': f'No seeded virtual quote is available for {exchange}:{symbol}.',
+            }), 404
+        return jsonify({
+            'success': True,
+            'data': {'symbol': symbol, 'exchange': exchange, 'price': round(float(instrument['price']), 2)},
+            'source': 'Seeded virtual price',
+        })
     try:
         quotes = get_live_quotes([{'symbol': symbol, 'exchange': exchange}])
     except KiteConfigurationError as error:
@@ -259,6 +308,88 @@ def list_nifty_futures():
         'success': True,
         'data': contracts,
         'source': 'Kite Connect instrument master; NIFTY futures only',
+    })
+
+
+@bp.route('/strategies', methods=['GET'])
+@jwt_required()
+def list_paper_strategies():
+    user_id = int(get_jwt_identity())
+    saved = (
+        StrategyModel.query
+        .filter(StrategyModel.user_id == user_id)
+        .filter(StrategyModel.buy_conditions.isnot(None))
+        .filter(StrategyModel.sell_conditions.isnot(None))
+        .order_by(StrategyModel.name.asc())
+        .all()
+    )
+    strategies = [
+        {**strategy.to_dict(), 'id': f"saved:{strategy.id}", 'is_custom': True}
+        for strategy in saved
+    ]
+    return jsonify({
+        'success': True,
+        'data': [
+            *[
+                {
+                    **strategy,
+                    'is_custom': False,
+                    'buy_conditions': [],
+                    'sell_conditions': [],
+                }
+                for strategy in BUILT_IN_STRATEGIES
+            ],
+            *strategies,
+        ],
+    })
+
+
+@bp.route('/strategy-review', methods=['POST'])
+@jwt_required()
+def paper_strategy_review():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Request body must be a JSON object.'}), 400
+    symbol = payload.get('symbol')
+    strategy_id = payload.get('strategy_id')
+    if not isinstance(symbol, str) or not symbol.strip() or len(symbol.strip()) > 30:
+        return jsonify({'success': False, 'message': 'Choose a valid NSE instrument.'}), 400
+    symbol = symbol.strip().upper()
+    if find_paper_trading_instrument(symbol, 'NSE') is None:
+        return jsonify({'success': False, 'message': 'Choose an available NSE instrument.'}), 404
+    if not isinstance(strategy_id, str) or not strategy_id:
+        return jsonify({'success': False, 'message': 'Choose a strategy to review.'}), 400
+
+    is_builtin = strategy_id.startswith('builtin:')
+    if is_builtin:
+        strategy = next((item for item in BUILT_IN_STRATEGIES if item['id'] == strategy_id), None)
+        if strategy is None:
+            return jsonify({'success': False, 'message': 'The selected strategy is unavailable.'}), 404
+    elif strategy_id.startswith('saved:'):
+        try:
+            saved_id = int(strategy_id.removeprefix('saved:'))
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Choose a valid saved strategy.'}), 400
+        strategy = StrategyModel.query.filter_by(
+            id=saved_id,
+            user_id=int(get_jwt_identity()),
+        ).first()
+        if strategy is None or not strategy.buy_conditions or not strategy.sell_conditions:
+            return jsonify({'success': False, 'message': 'Saved strategy was not found or has incomplete rules.'}), 404
+        strategy = strategy.to_dict()
+    else:
+        return jsonify({'success': False, 'message': 'Choose a valid strategy.'}), 400
+
+    try:
+        result = review_strategy(symbol, strategy, is_builtin)
+    except LookupError as error:
+        return jsonify({'success': False, 'message': str(error)}), 404
+    except (OSError, ValueError) as error:
+        return jsonify({'success': False, 'message': str(error)}), 422
+    return jsonify({
+        'success': True,
+        'data': result,
+        'source': 'Bundled historical candles for strategy review; seeded prices for virtual orders',
     })
 
 
@@ -417,52 +548,21 @@ def create_paper_trade():
     side = side.strip().upper()
     symbol = symbol.strip().upper()
     exchange = exchange.strip().upper()
+    instrument = find_paper_trading_instrument(symbol, exchange) or find_demo_instrument(symbol, exchange)
+    if instrument is None:
+        return jsonify({
+            'success': False,
+            'message': f'No seeded virtual quote is available for {exchange}:{symbol}.',
+        }), 404
     user_id = int(get_jwt_identity())
     account = _account_for_user(user_id)
     existing_trades = PaperTrade.query.filter_by(user_id=user_id).order_by(
         PaperTrade.created_at.asc(), PaperTrade.id.asc(),
     ).all()
-    positions, _ = _positions_and_pnl(existing_trades)
-    quote_keys = {
-        key for key, position in positions.items()
-        if position['quantity'] > 0
-    }
-    existing_future_trades = PaperFutureTrade.query.filter_by(user_id=user_id).order_by(
-        PaperFutureTrade.created_at.asc(), PaperFutureTrade.id.asc(),
-    ).all()
-    future_positions, _ = _future_positions_and_pnl(existing_future_trades)
-    quote_keys.update(
-        ('NFO', future_symbol)
-        for (future_symbol, _expiry), future_position in future_positions.items()
-        if future_position['lots'] > 0
-    )
-    quote_keys.add((exchange, symbol))
-    try:
-        quotes = get_live_quotes([
-            {'symbol': quote_symbol, 'exchange': quote_exchange}
-            for quote_exchange, quote_symbol in sorted(quote_keys)
-        ])
-    except KiteConfigurationError as error:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(error)}), 503
-    except KiteAPIError as error:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(error)}), 502
-
-    price = _quote_price(quotes.get((exchange, symbol)))
+    price = _quote_price({'price': instrument['price']})
     if price is None:
         db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': f'No Kite market quote is available for {exchange}:{symbol}.',
-        }), 404
-    for quote_exchange, quote_symbol in quote_keys:
-        if _quote_price(quotes.get((quote_exchange, quote_symbol))) is None:
-            db.session.rollback()
-            return jsonify({
-                'success': False,
-                'message': f'Kite quote is unavailable for {quote_exchange}:{quote_symbol}; no virtual trade was placed.',
-            }), 502
+        return jsonify({'success': False, 'message': 'The seeded virtual price is invalid; no trade was placed.'}), 422
 
     trade_value = round(price * quantity, 2)
 
@@ -497,10 +597,10 @@ def create_paper_trade():
     )
     db.session.add(trade)
     db.session.commit()
-    snapshot = _account_snapshot(user_id, market_quotes=quotes)
+    snapshot = _account_snapshot(user_id)
     return jsonify({
         'success': True,
-        'message': f'Virtual {side.lower()} filled at the Kite quote. No broker order was sent.',
+        'message': f'Virtual {side.lower()} filled at the seeded price. No broker order was sent.',
         'data': trade.to_dict(),
         'account': snapshot,
     }), 201

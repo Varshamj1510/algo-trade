@@ -41,13 +41,41 @@ def test_instrument_search_details_and_watchlist_use_demo_values(monkeypatch, tm
     detail = client.get('/api/instruments/RELIANCE?exchange=NSE', headers=headers)
     assert detail.status_code == 200
     assert detail.get_json()['data']['price'] == 2856.40
-    assert detail.get_json()['data']['quote_source'] == 'Dashboard demo data (not live)'
+    assert detail.get_json()['data']['quote_source'] == 'Illustrative market data'
 
     listed = client.get('/api/watchlist', headers=headers)
     assert listed.status_code == 200
     reliance = next(item for item in listed.get_json()['data'] if item['symbol'] == 'RELIANCE')
     assert reliance['price'] == 2856.40
-    assert reliance['quote_source'] == 'Dashboard demo data (not live)'
+    assert reliance['quote_source'] == 'Illustrative market data'
 
     rejected = client.post('/api/watchlist', json={'symbol': 'QTEST', 'exchange': 'NSE'}, headers=headers)
     assert rejected.status_code == 404
+
+
+def test_stock_directory_lists_instruments_by_initial_with_pagination(monkeypatch):
+    instruments = [
+        {'symbol': 'ALPHA', 'name': 'Alpha Holdings', 'exchange': 'NSE'},
+        {'symbol': 'BETA', 'name': 'Beta Industries', 'exchange': 'NSE'},
+        {'symbol': 'ATOM', 'name': 'Atom Systems', 'exchange': 'NSE'},
+    ]
+    monkeypatch.setattr(app_module, 'get_demo_instruments', lambda: instruments)
+    client, headers = authenticated_client()
+
+    first_page = client.get('/api/instruments/initial/a?page=1', headers=headers)
+    assert first_page.status_code == 200
+    result = first_page.get_json()['data']
+    assert result['letter'] == 'A'
+    assert result['total'] == 2
+    assert [item['symbol'] for item in result['instruments']] == ['ALPHA', 'ATOM']
+
+    invalid_initial = client.get('/api/instruments/initial/1', headers=headers)
+    assert invalid_initial.status_code == 400
+    invalid_page = client.get('/api/instruments/initial/A?page=0', headers=headers)
+    assert invalid_page.status_code == 400
+
+
+def test_stock_directory_page_is_available():
+    response = app.test_client().get('/stocks?letter=A')
+    assert response.status_code == 200
+    assert b'Stocks starting with' in response.data

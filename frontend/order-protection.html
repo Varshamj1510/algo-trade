@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlgoTrade | Order Protection</title>
+    <title>AlphaMind | Order Protection</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   </head>
@@ -12,7 +12,7 @@
       <aside class="sidebar" id="sidebar">
         <div class="brand">
           <div class="brand-mark">AI</div>
-          <h1>AlgoTrade</h1>
+          <h1>AlphaMind</h1>
         </div>
         <ul class="sidebar-nav">
           <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
@@ -24,7 +24,7 @@
           <li class="nav-item" data-page="reports"><i class="fa-solid fa-file-lines"></i> Reports</li>
           <li class="nav-item" data-page="watchlist"><i class="fa-solid fa-star"></i> Watchlist</li>
           <li class="nav-item" data-page="alerts"><i class="fa-solid fa-bell"></i> Alerts</li>
-          <li class="nav-item active"><i class="fa-solid fa-shield-halved"></i> Order Protection</li>
+          <li class="nav-item active" data-page="order-protection"><i class="fa-solid fa-shield-halved"></i> Order Protection</li>
           <li class="nav-item" data-page="profile"><i class="fa-solid fa-user"></i> Profile Settings</li>
           <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</li>
         </ul>
@@ -61,9 +61,9 @@
               </div>
               <form id="protection-form" class="protection-form">
                 <div class="form-group">
-                  <label for="demo-stock">Dashboard demo stock</label>
-                  <select id="demo-stock"><option value="">Loading demo stocks...</option></select>
-                  <small id="demo-stock-status" class="muted">Sample prices only; not live quotes.</small>
+                  <label for="demo-stock">Stock</label>
+                  <select id="demo-stock"><option value="">Loading instruments...</option></select>
+                  <small id="demo-stock-status" class="muted">Select an instrument to calculate levels.</small>
                 </div>
                 <div class="form-group">
                   <label for="protection-side">Position direction</label>
@@ -194,22 +194,22 @@
             demoStockSelect.append(option);
           });
           if (!demoStocks.length) {
-            demoStockSelect.innerHTML = '<option value="">No dashboard demo stocks available</option>';
-            document.getElementById('demo-stock-status').textContent = 'Could not find seeded demo stock values.';
+            demoStockSelect.innerHTML = '<option value="">No instruments available</option>';
+            document.getElementById('demo-stock-status').textContent = 'Could not find stock prices.';
             return;
           }
           const selected = demoStocks[0];
           document.getElementById('entry-price').value = Number(selected.price).toFixed(2);
           updateSuggestedLevels();
           document.getElementById('demo-stock-status').textContent =
-            `Demo quote: ${selected.symbol} at ${formatCurrency(selected.price)} · illustrative stop/target defaults; edit before calculating.`;
+            `Reference price: ${selected.symbol} at ${formatCurrency(selected.price)} · edit the suggested levels before calculating.`;
         } catch (error) {
           if (error.message.includes('Authorization')) {
             logoutUser();
             return;
           }
-          document.getElementById('demo-stock-status').textContent = error.message || 'Demo stock values could not be loaded.';
-          demoStockSelect.innerHTML = '<option value="">Demo stocks unavailable</option>';
+          document.getElementById('demo-stock-status').textContent = error.message || 'Stock values could not be loaded.';
+          demoStockSelect.innerHTML = '<option value="">Instruments unavailable</option>';
         }
       }
 
@@ -219,7 +219,7 @@
         document.getElementById('entry-price').value = Number(stock.price).toFixed(2);
         updateSuggestedLevels();
         document.getElementById('demo-stock-status').textContent =
-          `Demo quote: ${stock.symbol} at ${formatCurrency(stock.price)} · illustrative stop/target defaults; edit before calculating.`;
+          `Reference price: ${stock.symbol} at ${formatCurrency(stock.price)} · edit the suggested levels before calculating.`;
       });
       document.getElementById('protection-side').addEventListener('change', updateSuggestedLevels);
       loadDemoStocks();

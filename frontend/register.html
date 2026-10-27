@@ -3,86 +3,137 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlgoTrade | Register</title>
+    <meta name="theme-color" content="#08131b" />
+    <title>AlphaMind | Create account</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   </head>
-  <body>
-    <div class="auth-page">
-      <div class="auth-shell">
-        <div class="auth-visual">
-          <div class="brand">
-            <div class="brand-mark">AI</div>
-            <div>
-              <h1>AlgoTrade</h1>
+  <body class="auth-page auth-login auth-register">
+    <main class="auth-login-shell">
+      <header class="auth-topbar">
+        <div class="auth-brand" aria-label="AlphaMind">
+          <span class="auth-brand-mark"><i class="fa-solid fa-chart-line" aria-hidden="true"></i></span>
+          <span><strong>AlphaMind</strong><small>RESEARCH • EXECUTION • CLARITY</small></span>
+        </div>
+        <a class="auth-home-link" href="/login"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Sign in</a>
+      </header>
+
+      <section class="auth-login-content">
+        <div class="auth-story">
+          <p class="auth-eyebrow"><span></span> A thoughtful place to begin</p>
+          <h1>Build your edge<br />with <em>intention.</em></h1>
+          <p class="auth-story-copy">Bring your market research, strategies, and portfolio into a workspace designed to help you think clearly.</p>
+
+          <div class="auth-photo-card">
+            <img
+              class="auth-workspace-photo"
+              src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&amp;fit=crop&amp;w=1200&amp;q=85"
+              alt="A softly lit workspace with a laptop displaying a data dashboard"
+              fetchpriority="high"
+            />
+            <div class="auth-photo-shade">
+              <span class="auth-photo-tag"><i></i> WORKSPACE PREVIEW</span>
+              <div class="auth-preview-card">
+                <div class="auth-preview-heading">
+                  <span>Portfolio overview</span>
+                  <span class="auth-preview-indicator"><i></i> PREVIEW</span>
+                </div>
+                <div class="auth-preview-copy">Your market, thoughtfully in view.</div>
+                <svg class="auth-preview-chart" viewBox="0 0 380 76" role="img" aria-label="Decorative portfolio trend line">
+                  <path class="auth-preview-grid" d="M0 18 H380 M0 48 H380" />
+                  <path class="auth-preview-line" d="M2 62 C28 58 32 42 59 49 S94 64 117 42 152 47 175 31 209 43 231 25 265 39 288 20 321 28 342 12 365 19 378 7" />
+                </svg>
+                <div class="auth-preview-labels"><span>Research</span><span>Strategy</span><span>Portfolio</span></div>
+              </div>
             </div>
           </div>
-          <div style="padding: 40px 10px 20px;">
-            <p style="color: var(--muted); letter-spacing: .2em; text-transform: uppercase; font-size: 11px;">Create account</p>
-            <h2 style="font-size: 2.8rem; margin: 12px 0;">Build smarter<br />trading systems.</h2>
-            <p style="color: var(--muted); max-width: 380px; line-height: 1.7;">Join the platform for AI trading insights, portfolio monitoring, and strategy execution.</p>
-          </div>
+          <p class="auth-note"><i class="fa-solid fa-lock" aria-hidden="true"></i> Your account details stay private and secure.</p>
         </div>
 
-        <div class="auth-card">
-          <h2 class="auth-title">Create New Account</h2>
-          <p class="auth-subtitle">Fill in the details to get started</p>
+        <section class="auth-login-card auth-register-card" aria-labelledby="register-title">
+          <div class="auth-card-kicker">GET STARTED</div>
+          <h2 id="register-title">Create your account<span>.</span></h2>
+          <p class="auth-card-copy">A few details, then your workspace is ready.</p>
 
-          <div id="register-alert"></div>
+          <div id="register-alert" aria-live="polite"></div>
 
           <form id="register-form">
             <div class="form-group">
-              <label for="full-name">Full Name</label>
-              <input id="full-name" name="full_name" type="text" placeholder="Full Name" required />
+              <label for="full-name">Full name</label>
+              <input id="full-name" name="full_name" type="text" autocomplete="name" maxlength="120" placeholder="Your full name" required />
             </div>
 
             <div class="form-group">
-              <label for="register-email">Email</label>
-              <input id="register-email" name="email" type="email" placeholder="Email" required />
+              <label for="register-email">Email address</label>
+              <input id="register-email" name="email" type="email" autocomplete="email" maxlength="120" placeholder="you@example.com" required />
             </div>
 
             <div class="form-group">
               <label for="username">Username</label>
-              <input id="username" name="username" type="text" placeholder="Username" required />
+              <input id="username" name="username" type="text" autocomplete="username" maxlength="80" placeholder="Choose a username" required />
             </div>
 
             <div class="form-group">
-              <label for="register-password">Password</label>
+              <label for="register-password">Password <span class="auth-field-hint">6 characters minimum</span></label>
               <div class="input-row">
-                <input id="register-password" name="password" type="password" placeholder="Password" required />
-                <button type="button" class="toggle-password" data-target="register-password"><i class="fa fa-eye"></i></button>
+                <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="6" placeholder="Create a password" required />
+                <button type="button" class="toggle-password" data-target="register-password" aria-label="Show password"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
               </div>
             </div>
 
             <div class="form-group">
-              <label for="confirm-password">Confirm Password</label>
+              <label for="confirm-password">Confirm password</label>
               <div class="input-row">
-                <input id="confirm-password" name="confirm_password" type="password" placeholder="Confirm Password" required />
-                <button type="button" class="toggle-password" data-target="confirm-password"><i class="fa fa-eye"></i></button>
+                <input id="confirm-password" name="confirm_password" type="password" autocomplete="new-password" minlength="6" placeholder="Enter your password again" required />
+                <button type="button" class="toggle-password" data-target="confirm-password" aria-label="Show password"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
               </div>
             </div>
 
-            <label class="checkbox-row"><input type="checkbox" required /> I agree to the Terms & Conditions</label>
-
-            <div class="form-group" style="margin-top: 18px;">
-              <button type="submit" class="primary-btn">REGISTER</button>
+            <div class="form-group">
+              <label for="register-pin">6-digit Alpha PIN</label>
+              <input id="register-pin" name="pin" type="password" inputmode="numeric" autocomplete="new-password" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="Create a 6-digit PIN" required />
             </div>
+
+            <div class="form-group">
+              <label for="confirm-register-pin">Confirm Alpha PIN</label>
+              <input id="confirm-register-pin" name="confirm_pin" type="password" inputmode="numeric" autocomplete="new-password" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="Enter the PIN again" required />
+            </div>
+
+            <label class="auth-terms">
+              <input id="terms-agreement" type="checkbox" required />
+              <span>I agree to the Terms &amp; Conditions.</span>
+            </label>
+
+            <button type="submit" class="auth-submit">Create account <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
           </form>
 
-          <div class="auth-footer">
-            Already have an account? <button type="button" class="link-btn" onclick="window.location.href='/login'">Login</button>
-          </div>
-        </div>
-      </div>
-    </div>
+          <div class="auth-divider"><span>ALREADY A MEMBER?</span></div>
+          <a class="auth-create-link" href="/login">Sign in to your account <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+        </section>
+      </section>
+
+      <footer class="auth-bottom">
+        <span>AlphaMind <i>—</i> Make space for better decisions.</span>
+        <span>Markets involve risk. Trade thoughtfully.</span>
+      </footer>
+    </main>
 
     <script src="/js/api.js"></script>
     <script>
       const alertBox = document.getElementById('register-alert');
       const form = document.getElementById('register-form');
 
-      function showAlert(message, type = 'error') {
-        alertBox.innerHTML = `<div class="alert ${type}">${message}</div>`;
+      function showAlert(message, type = 'error', link) {
+        const alert = document.createElement('div');
+        alert.className = `alert ${type}`;
+        alert.append(document.createTextNode(message));
+        if (link) {
+          const anchor = document.createElement('a');
+          anchor.href = link.href;
+          anchor.textContent = link.label;
+          alert.append(' ', anchor);
+        }
+        alertBox.replaceChildren(alert);
       }
 
       document.querySelectorAll('.toggle-password').forEach((button) => {
@@ -91,7 +142,8 @@
           const icon = button.querySelector('i');
           const show = input.type === 'password';
           input.type = show ? 'text' : 'password';
-          icon.className = show ? 'fa fa-eye-slash' : 'fa fa-eye';
+          icon.className = show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+          button.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
         });
       });
 
@@ -106,16 +158,29 @@
 
         if (payload.password !== document.getElementById('confirm-password').value) {
           showAlert('Passwords do not match.', 'error');
+          document.getElementById('confirm-password').focus();
+          return;
+        }
+
+        payload.pin = document.getElementById('register-pin').value;
+        if (payload.pin !== document.getElementById('confirm-register-pin').value) {
+          showAlert('Alpha PIN entries do not match.', 'error');
+          document.getElementById('confirm-register-pin').focus();
           return;
         }
 
         try {
-          const data = await apiRequest('/api/auth/register', { method: 'POST', body: JSON.stringify(payload) });
-          localStorage.setItem('algotrade_token', data.token);
-          localStorage.setItem('algotrade_user', JSON.stringify(data.user));
-          redirectTo('/dashboard');
+          await apiRequest('/api/auth/register', { method: 'POST', body: JSON.stringify(payload) });
+          window.location.assign('/login?registered=1');
         } catch (error) {
-          showAlert(error.message, 'error');
+          if (/email or username already exists|account with this email already exists/i.test(error.message)) {
+            showAlert('This email or username already has an account. Sign in instead.', 'error', {
+              href: '/login',
+              label: 'Sign in',
+            });
+          } else {
+            showAlert(error.message, 'error');
+          }
         }
       });
     </script>

@@ -194,7 +194,7 @@ function App() {
           <section className="mini-panel login-panel">
             <div className="brand-block">
               <div className="brand-mark">AI</div>
-              <h2>AlgoTrade</h2>
+              <h2>AlphaMind</h2>
               <p>Smart Trades. Better Tomorrow.</p>
             </div>
 
@@ -215,7 +215,7 @@ function App() {
           <section className="mini-panel register-panel">
             <div className="brand-block small">
               <div className="brand-mark">AI</div>
-              <h2>AlgoTrade</h2>
+              <h2>AlphaMind</h2>
               <p>Smart Trades. Better Tomorrow.</p>
             </div>
 
@@ -417,7 +417,7 @@ function App() {
         <div className="auth-side">
           <div className="brand-block auth-brand">
             <div className="brand-mark">AI</div>
-            <h2>AlgoTrade</h2>
+            <h2>AlphaMind</h2>
             <p>Smart Trades. Better Tomorrow.</p>
           </div>
         </div>

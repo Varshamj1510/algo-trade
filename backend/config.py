@@ -36,6 +36,20 @@ jwt_secret_key = os.getenv('JWT_SECRET_KEY')
 if os.getenv('RENDER_EXTERNAL_URL') and (not secret_key or not jwt_secret_key):
     raise RuntimeError('Set SECRET_KEY and JWT_SECRET_KEY in the Render service environment.')
 
+mail_port = int(os.getenv('MAIL_PORT') or os.getenv('SMTP_PORT') or '587')
+mail_use_ssl_value = os.getenv('MAIL_USE_SSL') or os.getenv('SMTP_USE_SSL')
+mail_use_ssl = (
+    mail_use_ssl_value.lower() in {'1', 'true', 'yes'}
+    if mail_use_ssl_value
+    else mail_port == 465
+)
+mail_use_tls_value = os.getenv('MAIL_USE_TLS') or os.getenv('SMTP_USE_TLS')
+mail_use_tls = (
+    mail_use_tls_value.lower() in {'1', 'true', 'yes'}
+    if mail_use_tls_value
+    else not mail_use_ssl
+)
+
 
 class Config:
     SECRET_KEY = secret_key or 'dev-secret-key-change-me'
@@ -43,3 +57,24 @@ class Config:
     SQLALCHEMY_DATABASE_URI = database_uri
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     CORS_HEADERS = 'Content-Type'
+    MAIL_SERVER = os.getenv('MAIL_SERVER') or os.getenv('SMTP_HOST')
+    MAIL_PORT = mail_port
+    MAIL_USE_TLS = mail_use_tls
+    MAIL_USE_SSL = mail_use_ssl
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME') or os.getenv('SMTP_USER')
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD') or os.getenv('SMTP_PASS')
+    MAIL_DEFAULT_SENDER = (
+        os.getenv('MAIL_DEFAULT_SENDER')
+        or os.getenv('SMTP_FROM')
+        or MAIL_USERNAME
+    )
+    WEBAUTHN_RP_ID = os.getenv('WEBAUTHN_RP_ID') or os.getenv('RP_ID', 'localhost')
+    WEBAUTHN_RP_NAME = os.getenv('WEBAUTHN_RP_NAME') or os.getenv('RP_NAME', 'AlphaMind')
+    WEBAUTHN_ORIGIN = (
+        os.getenv('WEBAUTHN_ORIGIN')
+        or os.getenv('APP_ORIGIN')
+        or f"http://localhost:{os.getenv('PORT', '5000')}"
+    )
+    VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', '').strip()
+    VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', '').strip()
+    VAPID_SUBJECT = os.getenv('VAPID_SUBJECT', 'mailto:admin@alphamind.local').strip()

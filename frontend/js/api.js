@@ -53,53 +53,51 @@ function parseUser() {
 }
 
 function bindSidebarNavigation() {
+  const savedTheme = localStorage.getItem('alphamind_theme');
+  const useLightTheme = savedTheme !== 'dark';
+  document.body.classList.toggle('theme-light', useLightTheme);
+
+  const topbarRight = document.querySelector('.topbar-right');
+  if (topbarRight && !topbarRight.querySelector('.theme-toggle')) {
+    const themeButton = document.createElement('button');
+    themeButton.type = 'button';
+    themeButton.className = 'secondary-btn theme-toggle';
+    themeButton.setAttribute('aria-pressed', String(useLightTheme));
+    themeButton.addEventListener('click', () => {
+      const enableLightTheme = !document.body.classList.contains('theme-light');
+      document.body.classList.toggle('theme-light', enableLightTheme);
+      localStorage.setItem('alphamind_theme', enableLightTheme ? 'light' : 'dark');
+      themeButton.setAttribute('aria-pressed', String(enableLightTheme));
+      themeButton.innerHTML = `<i class="fa-solid ${enableLightTheme ? 'fa-moon' : 'fa-sun'}" aria-hidden="true"></i> ${enableLightTheme ? 'Dark mode' : 'Light mode'}`;
+      window.dispatchEvent(new Event('alphamind-theme-change'));
+    });
+    themeButton.innerHTML = `<i class="fa-solid ${useLightTheme ? 'fa-moon' : 'fa-sun'}" aria-hidden="true"></i> ${useLightTheme ? 'Dark mode' : 'Light mode'}`;
+    topbarRight.prepend(themeButton);
+  }
+
   const sidebarNav = document.querySelector('.sidebar-nav');
-  if (sidebarNav && !sidebarNav.querySelector('[data-page="paper-trading"]')) {
-    const item = document.createElement('li');
-    item.className = 'nav-item';
-    if (window.location.pathname === '/paper-trading') {
-      item.classList.add('active');
-    }
-    item.dataset.page = 'paper-trading';
-    item.innerHTML = '<i class="fa-solid fa-shuffle"></i> Virtual Trading';
+  if (sidebarNav) {
+    const extraPages = [
+      ['paper-trading', '<i class="fa-solid fa-shuffle"></i> Virtual Trading'],
+      ['trading-academy', '<i class="fa-solid fa-graduation-cap"></i> Trading Academy'],
+      ['sentiment', '<i class="fa-solid fa-comments"></i> Sentiment Analysis'],
+      ['alpha-research', '<i class="fa-solid fa-flask"></i> Alpha Research'],
+      ['order-protection', '<i class="fa-solid fa-shield-halved"></i> Order Protection'],
+      ['candlestick-chart', '<i class="fa-solid fa-chart-simple"></i> Candlesticks'],
+    ];
     const profileItem = sidebarNav.querySelector('[data-page="profile"]');
-    sidebarNav.insertBefore(item, profileItem || null);
-  }
 
-  if (sidebarNav && !sidebarNav.querySelector('[data-page="alpha-research"]')) {
-    const item = document.createElement('li');
-    item.className = 'nav-item';
-    if (window.location.pathname === '/alpha-research') {
-      item.classList.add('active');
-    }
-    item.dataset.page = 'alpha-research';
-    item.innerHTML = '<i class="fa-solid fa-flask"></i> Alpha Research';
-    const profileItem = sidebarNav.querySelector('[data-page="profile"]');
-    sidebarNav.insertBefore(item, profileItem || null);
-  }
-
-  if (sidebarNav && !sidebarNav.querySelector('[data-page="order-protection"]')) {
-    const item = document.createElement('li');
-    item.className = 'nav-item';
-    if (window.location.pathname === '/order-protection') {
-      item.classList.add('active');
-    }
-    item.dataset.page = 'order-protection';
-    item.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Order Protection';
-    const profileItem = sidebarNav.querySelector('[data-page="profile"]');
-    sidebarNav.insertBefore(item, profileItem || null);
-  }
-
-  if (sidebarNav && !sidebarNav.querySelector('[data-page="candlestick-chart"]')) {
-    const item = document.createElement('li');
-    item.className = 'nav-item';
-    if (window.location.pathname === '/candlestick-chart') {
-      item.classList.add('active');
-    }
-    item.dataset.page = 'candlestick-chart';
-    item.innerHTML = '<i class="fa-solid fa-chart-simple"></i> Candlesticks';
-    const profileItem = sidebarNav.querySelector('[data-page="profile"]');
-    sidebarNav.insertBefore(item, profileItem || null);
+    extraPages.forEach(([page, label]) => {
+      let item = sidebarNav.querySelector(`[data-page="${page}"]`);
+      if (!item) {
+        item = document.createElement('li');
+        item.className = 'nav-item';
+        item.dataset.page = page;
+        item.innerHTML = label;
+      }
+      item.classList.toggle('active', window.location.pathname === `/${page}`);
+      if (profileItem) sidebarNav.insertBefore(item, profileItem);
+    });
   }
 
   document.querySelectorAll('.nav-item[data-page]').forEach((item) => {
@@ -107,7 +105,7 @@ function bindSidebarNavigation() {
     item.onclick = () => {
       const page = item.dataset.page;
       if (page) {
-        window.location.href = `/${page}`;
+        window.location.assign(`/${page}`);
       }
     };
   });

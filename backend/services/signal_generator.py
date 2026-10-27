@@ -25,7 +25,7 @@ def generate_demo_trade_signals(instruments):
         signals.append({
             'symbol': instrument['symbol'],
             'signal': signal,
-            'strategy': 'Demo daily-change rule',
+            'strategy': 'Daily change',
             'current_price': round(price, 2),
             'target_price': target_price,
             'stop_loss': stop_loss,

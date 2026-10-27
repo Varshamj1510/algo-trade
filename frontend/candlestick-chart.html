@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlgoTrade | CSV Candlestick Chart</title>
+    <title>AlphaMind | CSV Candlestick Chart</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     <style>
@@ -11,6 +11,20 @@
       .candle-controls label { display: grid; gap: 6px; color: var(--muted); font-size: .82rem; }
       .candle-controls select { min-width: 150px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-strong); color: var(--text); }
       .candle-chart-wrap { width: 100%; min-height: 330px; overflow-x: auto; }
+      .chart-order-ticket { margin-top: 18px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; max-width: 420px; }
+      .chart-order-ticket h3 { margin: 0 0 4px; }
+      .chart-order-ticket p { margin: 4px 0 12px; }
+      .chart-order-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .chart-order-controls label { display: grid; gap: 6px; color: var(--muted); font-size: .82rem; }
+      .chart-order-controls select, .chart-order-controls input { min-width: 0; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-strong); color: var(--text); }
+      .chart-order-actions { display: flex; gap: 8px; margin-top: 12px; }
+      .chart-order-actions button { flex: 1; }
+      .chart-buy-btn { background: #0aa879; }
+      .chart-sell-btn { background: #ed5968; }
+      .chart-zoom-controls { display: flex; gap: 6px; margin: 10px 0; }
+      .chart-zoom-controls button { padding: 6px 12px; border: 1px solid var(--border); border-radius: 18px; background: var(--panel-strong); color: var(--text); cursor: pointer; }
+      .chart-zoom-controls button.active { border-color: #0aa879; }
+      @media (max-width: 720px) { .chart-order-ticket { max-width: none; } }
       .candle-chart { display: block; width: 100%; min-width: 680px; height: 430px; }
       .candle-grid-line { stroke: rgba(142,161,190,.17); stroke-width: 1; }
       .candle-axis-label { fill: var(--muted); font-size: 12px; }
@@ -31,7 +45,7 @@
   <body>
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
-        <div class="brand"><div class="brand-mark">AI</div><h1>AlgoTrade</h1></div>
+        <div class="brand"><div class="brand-mark">AI</div><h1>AlphaMind</h1></div>
         <ul class="sidebar-nav">
           <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
           <li class="nav-item" data-page="market"><i class="fa-solid fa-chart-column"></i> Market Data</li>
@@ -54,7 +68,7 @@
             <span class="page-title">CSV Candlestick Chart</span>
           </div>
           <div class="topbar-right">
-            <div class="user-chip"><div class="avatar" id="user-avatar">V</div><div><div class="user-name" id="top-user-name">Investor</div><div class="user-plan">Historical demo data</div></div></div>
+            <div class="user-chip"><div class="avatar" id="user-avatar">V</div><div><div class="user-name" id="top-user-name">Investor</div><div class="user-plan">Historical data</div></div></div>
           </div>
         </header>
         <div class="content-grid">
@@ -62,7 +76,7 @@
             <div class="panel-header">
               <div>
                 <div class="panel-title">Historical OHLC candlesticks</div>
-                <p class="subtitle">Daily candles loaded from the bundled CSV. Pattern tags are calculated from these candles; data is not live.</p>
+                <p class="subtitle">Daily candles loaded from the bundled CSV. Pattern tags are calculated from historical values.</p>
               </div>
               <form id="chart-controls" class="candle-controls">
                 <label>CSV symbol<select id="chart-symbol" required></select></label>
@@ -77,6 +91,19 @@
               <span><i class="candle-swatch" style="background:#f7c948"></i> Detected pattern</span>
             </div>
             <div id="candle-chart-wrap" class="candle-chart-wrap" role="img" aria-label="Historical daily candlestick chart"></div>
+            <div class="chart-zoom-controls" aria-label="Candles shown">
+              <button type="button" data-visible-candles="20">20</button><button type="button" data-visible-candles="50">50</button><button type="button" data-visible-candles="100" class="active">100</button><span class="muted">candles</span>
+            </div>
+            <section class="chart-order-ticket" aria-label="Virtual trade ticket">
+              <h3 id="ticket-symbol">Virtual order</h3>
+              <p class="subtitle">Educational only · no broker order is sent.</p>
+              <div class="chart-order-controls">
+                <label>Quantity<input id="chart-order-quantity" type="number" min="1" step="1" value="1" /></label>
+                <label>Virtual price<input id="chart-order-price" type="text" readonly value="Select a stock" /></label>
+              </div>
+              <div class="chart-order-actions"><button type="button" id="chart-buy" class="primary-btn chart-buy-btn">Buy</button><button type="button" id="chart-sell" class="primary-btn chart-sell-btn">Sell</button></div>
+              <p id="chart-order-status" class="market-data-status" role="status" aria-live="polite">Trades use the app’s virtual account.</p>
+            </section>
           </section>
           <section class="panel">
             <div class="panel-header">
@@ -95,6 +122,8 @@
       const status = document.getElementById('chart-status');
       const chartWrap = document.getElementById('candle-chart-wrap');
       const patternList = document.getElementById('pattern-list');
+      let visibleCandleCount = 100;
+      const orderStatus = document.getElementById('chart-order-status');
       const user = parseUser();
       if (!requireAuth()) throw new Error('Not authenticated');
       if (user) {
@@ -118,7 +147,7 @@
           chartWrap.textContent = 'No candles were returned for this symbol and period.';
           return;
         }
-        const visible = candles.slice(-100);
+        const visible = candles.slice(-visibleCandleCount);
         const startIndex = candles.length - visible.length;
         const width = 1000;
         const height = 430;
@@ -189,6 +218,43 @@
         `).join('') : '<p class="muted">No supported patterns detected in this period.</p>';
       }
 
+      async function placeChartTrade(side) {
+        const symbol = symbolSelect.value;
+        const quantity = Number(document.getElementById('chart-order-quantity').value);
+        if (!symbol || !Number.isInteger(quantity) || quantity < 1) {
+          orderStatus.textContent = 'Choose a stock and enter a whole-number quantity of at least 1.';
+          return;
+        }
+        const buttons = ['chart-buy', 'chart-sell'].map((id) => document.getElementById(id));
+        buttons.forEach((button) => { button.disabled = true; });
+        orderStatus.textContent = `Placing virtual ${side.toLowerCase()}…`;
+        try {
+          const response = await apiRequest('/api/paper-trading/trades', {
+            method: 'POST',
+            body: JSON.stringify({ symbol, exchange: 'NSE', side, quantity }),
+          });
+          orderStatus.textContent = `${response.message} Fill: ${money(response.data.price)} × ${quantity}.`;
+        } catch (error) {
+          orderStatus.textContent = error.message || 'Virtual order could not be completed.';
+          if (/authorization|token has expired/i.test(error.message || '')) logoutUser();
+        } finally {
+          buttons.forEach((button) => { button.disabled = false; });
+        }
+      }
+
+      async function loadChartQuote() {
+        const symbol = symbolSelect.value;
+        document.getElementById('ticket-symbol').textContent = `${symbol} · NSE`;
+        document.getElementById('chart-order-price').value = 'Loading…';
+        try {
+          const params = new URLSearchParams({ symbol, exchange: 'NSE' });
+          const response = await apiRequest(`/api/paper-trading/quote?${params}`);
+          document.getElementById('chart-order-price').value = money(response.data.price);
+        } catch (error) {
+          document.getElementById('chart-order-price').value = 'Unavailable';
+        }
+      }
+
       async function loadChart() {
         const symbol = symbolSelect.value;
         if (!symbol) return;
@@ -221,12 +287,23 @@
             status.textContent = 'No supported symbols are available in the bundled CSV.';
             return;
           }
+          await loadChartQuote();
           await loadChart();
         } catch (error) {
           status.textContent = error.message || 'Could not load symbols from the bundled CSV.';
         }
       }
 
+      symbolSelect.addEventListener('change', () => { loadChartQuote(); loadChart(); });
+      document.getElementById('chart-buy').addEventListener('click', () => placeChartTrade('BUY'));
+      document.getElementById('chart-sell').addEventListener('click', () => placeChartTrade('SELL'));
+      document.querySelectorAll('[data-visible-candles]').forEach((button) => {
+        button.addEventListener('click', () => {
+          visibleCandleCount = Number(button.dataset.visibleCandles);
+          document.querySelectorAll('[data-visible-candles]').forEach((item) => item.classList.toggle('active', item === button));
+          loadChart();
+        });
+      });
       document.getElementById('chart-controls').addEventListener('submit', (event) => {
         event.preventDefault();
         loadChart();

@@ -1,20 +1,69 @@
+import base64
+import base64
+import binascii
+import json
 import math
+import re
 import secrets
-from datetime import datetime
+import smtplib
+from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 from pathlib import Path
+from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import Flask, jsonify, redirect, request, send_file, session
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
+from werkzeug.security import check_password_hash, generate_password_hash
+from webauthn import (
+    base64url_to_bytes,
+    generate_authentication_options,
+    generate_registration_options,
+    options_to_json,
+    verify_authentication_response,
+    verify_registration_response,
+)
+from webauthn.helpers.exceptions import WebAuthnException
+from webauthn.helpers.structs import (
+    AuthenticatorAttachment,
+    AuthenticatorSelectionCriteria,
+    AuthenticatorTransport,
+    PublicKeyCredentialDescriptor,
+    ResidentKeyRequirement,
+    UserVerificationRequirement,
+)
 
 from backend.config import Config
 from backend.database import db, init_db
-from backend.models import Alert, BacktestResult, Holding, Order, Report, Signal, Stock, Transaction, User, WatchlistItem
+from backend.models import (
+    Alert,
+    AlertPushSubscription,
+    AlertNotificationSettings,
+    AlertWorkerHeartbeat,
+    BacktestResult,
+    EmailLoginCode,
+    Holding,
+    Order,
+    PasskeyCredential,
+    PriceAlert,
+    Report,
+    Signal,
+    Stock,
+    Transaction,
+    User,
+    UserAuthPin,
+    WatchlistItem,
+    WebAuthnChallenge,
+)
 from backend.routes.protection_routes import bp as protection_bp
 from backend.routes.strategy_routes import bp as strategy_bp
 from backend.routes.alpha_research_routes import bp as alpha_research_bp
 from backend.routes.paper_trading_routes import bp as paper_trading_bp
 from backend.routes.candlestick_routes import bp as candlestick_chart_bp
+from backend.routes.sentiment_routes import bp as sentiment_bp
+from backend.routes.assistant_routes import bp as assistant_bp
+from backend.routes.academy_routes import bp as academy_bp
 from backend.seed import seed_demo_data
 from backend.services.instrument_catalog import (
     find_demo_instrument,
@@ -51,6 +100,9 @@ app.register_blueprint(strategy_bp)
 app.register_blueprint(alpha_research_bp)
 app.register_blueprint(paper_trading_bp)
 app.register_blueprint(candlestick_chart_bp)
+app.register_blueprint(sentiment_bp)
+app.register_blueprint(assistant_bp)
+app.register_blueprint(academy_bp)
 init_db(app)
 
 with app.app_context():
@@ -59,7 +111,7 @@ with app.app_context():
 
 @app.route('/')
 def index():
-    return redirect('/login')
+    return redirect('/register')
 
 
 @app.route('/login')
@@ -82,9 +134,19 @@ def market_page():
     return send_file(str(BASE_DIR / 'frontend' / 'market.html'))
 
 
+@app.route('/stocks')
+def stock_directory_page():
+    return send_file(str(BASE_DIR / 'frontend' / 'stock-directory.html'))
+
+
 @app.route('/signals')
 def signals_page():
     return send_file(str(BASE_DIR / 'frontend' / 'signals.html'))
+
+
+@app.route('/sentiment')
+def sentiment_page():
+    return send_file(str(BASE_DIR / 'frontend' / 'sentiment.html'))
 
 
 @app.route('/strategies')
@@ -95,6 +157,11 @@ def strategies_page():
 @app.route('/alpha-research')
 def alpha_research_page():
     return send_file(str(BASE_DIR / 'frontend' / 'alpha-research.html'))
+
+
+@app.route('/trading-academy')
+def trading_academy_page():
+    return send_file(str(BASE_DIR / 'frontend' / 'trading-academy.html'))
 
 
 @app.route('/candlestick-chart')
@@ -149,6 +216,7 @@ def register_user():
     email = (data.get('email') or '').strip().lower()
     username = (data.get('username') or '').strip()
     password = data.get('password') or ''
+    pin = data.get('pin')
 
     if not full_name or not email or not username or not password:
         return jsonify({"success": False, "message": "All fields are required."}), 400
@@ -156,12 +224,30 @@ def register_user():
         return jsonify({"success": False, "message": "Enter a valid email."}), 400
     if len(password) < 6:
         return jsonify({"success": False, "message": "Password must be at least 6 characters."}), 400
-    if User.query.filter((User.email == email) | (User.username == username)).first():
-        return jsonify({"success": False, "message": "Email or username already exists."}), 409
+    if pin is not None and (
+        not isinstance(pin, str)
+        or len(pin) != 6
+        or not pin.isascii()
+        or not pin.isdigit()
+    ):
+        return jsonify({"success": False, "message": "PIN must contain exactly 6 digits."}), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify({
+            "success": False,
+            "message": "An account with this email already exists. Sign in instead.",
+        }), 409
+    if User.query.filter_by(username=username).first():
+        return jsonify({
+            "success": False,
+            "message": "That username is already taken. Choose another.",
+        }), 409
 
     user = User(full_name=full_name, email=email, username=username, plan='Premium Plan')
     user.set_password(password)
     db.session.add(user)
+    db.session.flush()
+    if pin is not None:
+        db.session.add(UserAuthPin(user_id=user.id, pin_hash=generate_password_hash(pin)))
     db.session.commit()
 
     token = create_access_token(identity=str(user.id))
@@ -188,6 +274,439 @@ def login_user():
 
     token = create_access_token(identity=str(user.id))
     return jsonify({"success": True, "token": token, "user": user.to_public_dict()})
+
+
+@app.route('/api/auth/request-otp', methods=['POST'])
+def request_login_otp():
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+    if not email or '@' not in email:
+        return jsonify({'success': False, 'message': 'Enter a valid email address.'}), 400
+
+    mail_settings = (
+        app.config.get('MAIL_SERVER'),
+        app.config.get('MAIL_PORT'),
+        app.config.get('MAIL_DEFAULT_SENDER'),
+    )
+    if not all(mail_settings):
+        return jsonify({
+            'success': False,
+            'message': 'Email sign-in is not configured. Set the SMTP values in the server environment.',
+        }), 503
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({
+            'success': True,
+            'message': 'If an account exists for that email, a sign-in code will arrive shortly.',
+        })
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    login_code = EmailLoginCode.query.filter_by(email=email).first()
+    if login_code and login_code.created_at > now - timedelta(seconds=60):
+        return jsonify({
+            'success': True,
+            'message': 'If an account exists for that email, a code was recently sent. Wait 60 seconds before requesting another.',
+        })
+
+    code = f'{secrets.randbelow(1_000_000):06d}'
+    if login_code:
+        db.session.delete(login_code)
+        db.session.flush()
+    login_code = EmailLoginCode(
+        email=email,
+        code_hash=generate_password_hash(code),
+        created_at=now,
+        expires_at=now + timedelta(minutes=10),
+        attempts=0,
+    )
+    db.session.add(login_code)
+
+    message = EmailMessage()
+    message['Subject'] = 'Your AlphaMind sign-in code'
+    message['From'] = app.config['MAIL_DEFAULT_SENDER']
+    message['To'] = email
+    message.set_content(
+        f'Your AlphaMind sign-in code is {code}. It expires in 10 minutes. '
+        'If you did not request this code, you can ignore this email.'
+    )
+
+    try:
+        smtp_factory = (
+            smtplib.SMTP_SSL if app.config.get('MAIL_USE_SSL') else smtplib.SMTP
+        )
+        with smtp_factory(
+            app.config['MAIL_SERVER'],
+            app.config['MAIL_PORT'],
+            timeout=10,
+        ) as smtp:
+            if app.config['MAIL_USE_TLS'] and not app.config.get('MAIL_USE_SSL'):
+                smtp.starttls()
+            username = app.config.get('MAIL_USERNAME')
+            password = app.config.get('MAIL_PASSWORD')
+            if username and password:
+                smtp.login(username, password)
+            smtp.send_message(message)
+        db.session.commit()
+    except (OSError, smtplib.SMTPException):
+        db.session.rollback()
+        app.logger.exception('Unable to send an email sign-in code')
+        return jsonify({
+            'success': False,
+            'message': 'The sign-in email could not be sent. Check the SMTP settings and try again.',
+        }), 502
+
+    return jsonify({
+        'success': True,
+        'message': 'If an account exists for that email, a sign-in code will arrive shortly.',
+    })
+
+
+@app.route('/api/auth/verify-otp', methods=['POST'])
+def verify_login_otp():
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+    code = (data.get('code') or '').strip()
+    if not email or '@' not in email or len(code) != 6 or not code.isdigit():
+        return jsonify({'success': False, 'message': 'Enter a valid email and 6-digit code.'}), 400
+
+    login_code = EmailLoginCode.query.filter_by(email=email).first()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if not login_code or login_code.expires_at <= now:
+        if login_code:
+            db.session.delete(login_code)
+            db.session.commit()
+        return jsonify({'success': False, 'message': 'That code is invalid or expired. Request a new code.'}), 401
+    if login_code.attempts >= 5:
+        return jsonify({'success': False, 'message': 'Too many attempts. Request a new sign-in code.'}), 429
+
+    login_code.attempts += 1
+    if not check_password_hash(login_code.code_hash, code):
+        db.session.commit()
+        return jsonify({'success': False, 'message': 'That code is invalid or expired. Request a new code.'}), 401
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        db.session.delete(login_code)
+        db.session.commit()
+        return jsonify({'success': False, 'message': 'That code is invalid or expired. Request a new code.'}), 401
+
+    db.session.delete(login_code)
+    db.session.commit()
+    token = create_access_token(identity=str(user.id))
+    return jsonify({'success': True, 'token': token, 'user': user.to_public_dict()})
+
+
+def _utc_now():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _base64url_encode(value):
+    return base64.urlsafe_b64encode(value).rstrip(b'=').decode('ascii')
+
+
+def _create_auth_challenge(user, ceremony, challenge):
+    now = _utc_now()
+    WebAuthnChallenge.query.filter(
+        WebAuthnChallenge.expires_at <= now
+    ).delete()
+    challenge_id = secrets.token_urlsafe(32)
+    db.session.add(WebAuthnChallenge(
+        id=challenge_id,
+        challenge=_base64url_encode(challenge),
+        ceremony=ceremony,
+        user_id=user.id,
+        expires_at=now + timedelta(minutes=5),
+    ))
+    db.session.commit()
+    return challenge_id
+
+
+def _take_auth_challenge(challenge_id, ceremony, user_id):
+    if not isinstance(challenge_id, str) or not challenge_id:
+        return None
+    challenge = WebAuthnChallenge.query.filter_by(
+        id=challenge_id,
+        ceremony=ceremony,
+        user_id=user_id,
+    ).first()
+    if not challenge:
+        return None
+    db.session.delete(challenge)
+    db.session.commit()
+    if challenge.expires_at <= _utc_now():
+        return None
+    try:
+        return base64url_to_bytes(challenge.challenge)
+    except (ValueError, WebAuthnException):
+        return None
+
+
+def _auth_success(user):
+    return jsonify({
+        'success': True,
+        'token': create_access_token(identity=str(user.id)),
+        'user': user.to_public_dict(),
+    })
+
+
+def _expected_webauthn_origin():
+    if (
+        app.config['WEBAUTHN_RP_ID'] == 'localhost'
+        and urlsplit(request.host_url).hostname == 'localhost'
+    ):
+        return request.host_url.rstrip('/')
+    return app.config['WEBAUTHN_ORIGIN']
+
+
+@app.route('/api/auth/pin/login', methods=['POST'])
+def login_with_pin():
+    data = request.get_json(silent=True) or {}
+    raw_email = data.get('email')
+    pin = data.get('pin')
+    if not isinstance(raw_email, str) or not isinstance(pin, str):
+        return jsonify({'success': False, 'message': 'Enter your email and 6-digit PIN.'}), 400
+    email = raw_email.strip().lower()
+    pin = pin.strip()
+    if not email or '@' not in email or len(pin) != 6 or not pin.isascii() or not pin.isdigit():
+        return jsonify({'success': False, 'message': 'Enter your email and 6-digit PIN.'}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'success': False, 'message': 'Email or PIN is incorrect.'}), 401
+
+    auth_pin = UserAuthPin.query.filter_by(user_id=user.id).first()
+    if not auth_pin:
+        return jsonify({
+            'success': False,
+            'message': 'This account does not have a PIN yet. Sign in with your password to set one up.',
+        }), 400
+
+    now = _utc_now()
+    if auth_pin.locked_until and auth_pin.locked_until > now:
+        return jsonify({
+            'success': False,
+            'message': 'PIN sign-in is temporarily locked. Try again in 15 minutes or use another sign-in method.',
+        }), 429
+    if auth_pin.locked_until:
+        auth_pin.locked_until = None
+        auth_pin.failed_attempts = 0
+
+    if not check_password_hash(auth_pin.pin_hash, pin):
+        auth_pin.failed_attempts += 1
+        if auth_pin.failed_attempts >= 5:
+            auth_pin.locked_until = now + timedelta(minutes=15)
+            db.session.commit()
+            return jsonify({
+                'success': False,
+                'message': 'Too many incorrect PIN attempts. Try again in 15 minutes or use another sign-in method.',
+            }), 429
+        db.session.commit()
+        return jsonify({'success': False, 'message': 'Email or PIN is incorrect.'}), 401
+
+    auth_pin.failed_attempts = 0
+    auth_pin.locked_until = None
+    db.session.commit()
+    return _auth_success(user)
+
+
+@app.route('/api/auth/pin', methods=['PUT'])
+@jwt_required()
+def set_login_pin():
+    user = db.get_or_404(User, int(get_jwt_identity()))
+    data = request.get_json(silent=True) or {}
+    current_password = data.get('current_password')
+    pin_value = data.get('pin')
+    pin = pin_value.strip() if isinstance(pin_value, str) else ''
+    if not isinstance(current_password, str) or not user.check_password(current_password):
+        return jsonify({'success': False, 'message': 'Current password is incorrect.'}), 400
+    if len(pin) != 6 or not pin.isascii() or not pin.isdigit():
+        return jsonify({'success': False, 'message': 'PIN must contain exactly 6 digits.'}), 400
+
+    auth_pin = UserAuthPin.query.filter_by(user_id=user.id).first()
+    if auth_pin:
+        auth_pin.pin_hash = generate_password_hash(pin)
+        auth_pin.failed_attempts = 0
+        auth_pin.locked_until = None
+    else:
+        db.session.add(UserAuthPin(user_id=user.id, pin_hash=generate_password_hash(pin)))
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Your sign-in PIN is set.'})
+
+
+@app.route('/api/auth/methods', methods=['GET'])
+@jwt_required()
+def get_auth_methods():
+    user_id = int(get_jwt_identity())
+    return jsonify({
+        'success': True,
+        'pin_enabled': UserAuthPin.query.filter_by(user_id=user_id).first() is not None,
+        'passkey_count': PasskeyCredential.query.filter_by(user_id=user_id).count(),
+    })
+
+
+@app.route('/api/auth/passkey/login/options', methods=['POST'])
+def passkey_login_options():
+    data = request.get_json(silent=True) or {}
+    email_value = data.get('email')
+    email = email_value.strip().lower() if isinstance(email_value, str) else ''
+    if not email or '@' not in email:
+        return jsonify({'success': False, 'message': 'Enter your account email first.'}), 400
+    user = User.query.filter_by(email=email).first()
+    credentials = (
+        PasskeyCredential.query.filter_by(user_id=user.id).all()
+        if user else []
+    )
+    if not credentials:
+        return jsonify({
+            'success': False,
+            'message': 'No passkey is registered for that account. Use another sign-in method or set one up in Profile Settings.',
+        }), 400
+
+    options = generate_authentication_options(
+        rp_id=app.config['WEBAUTHN_RP_ID'],
+        allow_credentials=[
+            PublicKeyCredentialDescriptor(
+                id=base64url_to_bytes(credential.credential_id),
+                transports=[
+                    AuthenticatorTransport(transport)
+                    for transport in json.loads(credential.transports)
+                ],
+            )
+            for credential in credentials
+        ],
+        user_verification=UserVerificationRequirement.REQUIRED,
+    )
+    challenge_id = _create_auth_challenge(user, 'authentication', options.challenge)
+    return jsonify({
+        'success': True,
+        'challenge_id': challenge_id,
+        'public_key': json.loads(options_to_json(options)),
+    })
+
+
+@app.route('/api/auth/passkey/login/verify', methods=['POST'])
+def passkey_login_verify():
+    data = request.get_json(silent=True) or {}
+    challenge_id = data.get('challenge_id')
+    credential_data = data.get('credential')
+    challenge_row = WebAuthnChallenge.query.filter_by(
+        id=challenge_id,
+        ceremony='authentication',
+    ).first() if isinstance(challenge_id, str) else None
+    challenge = _take_auth_challenge(
+        challenge_id,
+        'authentication',
+        challenge_row.user_id if challenge_row else -1,
+    )
+    if not challenge or not isinstance(credential_data, dict):
+        return jsonify({'success': False, 'message': 'Passkey sign-in expired. Please try again.'}), 401
+
+    credential_id = credential_data.get('id')
+    if not isinstance(credential_id, str):
+        return jsonify({'success': False, 'message': 'Passkey could not be verified.'}), 401
+    passkey = PasskeyCredential.query.filter_by(credential_id=credential_id).first()
+    if not passkey or passkey.user_id != challenge_row.user_id:
+        return jsonify({'success': False, 'message': 'Passkey could not be verified.'}), 401
+
+    try:
+        verification = verify_authentication_response(
+            credential=credential_data,
+            expected_challenge=challenge,
+            expected_rp_id=app.config['WEBAUTHN_RP_ID'],
+            expected_origin=_expected_webauthn_origin(),
+            credential_public_key=base64url_to_bytes(passkey.public_key),
+            credential_current_sign_count=passkey.sign_count,
+            require_user_verification=True,
+        )
+    except (WebAuthnException, ValueError, KeyError, TypeError):
+        return jsonify({'success': False, 'message': 'Passkey could not be verified. Please try again.'}), 401
+
+    passkey.sign_count = verification.new_sign_count
+    db.session.commit()
+    user = db.get_or_404(User, passkey.user_id)
+    return _auth_success(user)
+
+
+@app.route('/api/auth/passkey/register/options', methods=['POST'])
+@jwt_required()
+def passkey_registration_options():
+    user = db.get_or_404(User, int(get_jwt_identity()))
+    existing = PasskeyCredential.query.filter_by(user_id=user.id).all()
+    options = generate_registration_options(
+        rp_id=app.config['WEBAUTHN_RP_ID'],
+        rp_name=app.config['WEBAUTHN_RP_NAME'],
+        user_id=str(user.id).encode('utf-8'),
+        user_name=user.email,
+        user_display_name=user.full_name,
+        authenticator_selection=AuthenticatorSelectionCriteria(
+            authenticator_attachment=AuthenticatorAttachment.PLATFORM,
+            resident_key=ResidentKeyRequirement.REQUIRED,
+            user_verification=UserVerificationRequirement.REQUIRED,
+        ),
+        exclude_credentials=[
+            PublicKeyCredentialDescriptor(
+                id=base64url_to_bytes(credential.credential_id),
+                transports=[
+                    AuthenticatorTransport(transport)
+                    for transport in json.loads(credential.transports)
+                ],
+            )
+            for credential in existing
+        ],
+    )
+    challenge_id = _create_auth_challenge(user, 'registration', options.challenge)
+    return jsonify({
+        'success': True,
+        'challenge_id': challenge_id,
+        'public_key': json.loads(options_to_json(options)),
+    })
+
+
+@app.route('/api/auth/passkey/register/verify', methods=['POST'])
+@jwt_required()
+def passkey_registration_verify():
+    user = db.get_or_404(User, int(get_jwt_identity()))
+    data = request.get_json(silent=True) or {}
+    challenge = _take_auth_challenge(data.get('challenge_id'), 'registration', user.id)
+    credential_data = data.get('credential')
+    if not challenge or not isinstance(credential_data, dict):
+        return jsonify({'success': False, 'message': 'Passkey setup expired. Please try again.'}), 400
+
+    try:
+        verification = verify_registration_response(
+            credential=credential_data,
+            expected_challenge=challenge,
+            expected_rp_id=app.config['WEBAUTHN_RP_ID'],
+            expected_origin=_expected_webauthn_origin(),
+            require_user_verification=True,
+        )
+    except (WebAuthnException, ValueError, KeyError, TypeError):
+        return jsonify({'success': False, 'message': 'The device passkey could not be verified.'}), 400
+
+    credential_id = _base64url_encode(verification.credential_id)
+    if PasskeyCredential.query.filter_by(credential_id=credential_id).first():
+        return jsonify({'success': False, 'message': 'This passkey is already registered.'}), 409
+    response_data = credential_data.get('response', {})
+    if not isinstance(response_data, dict):
+        response_data = {}
+    transports = response_data.get('transports', [])
+    if not isinstance(transports, list):
+        transports = []
+    allowed_transports = {transport.value for transport in AuthenticatorTransport}
+    safe_transports = [
+        transport for transport in transports
+        if isinstance(transport, str) and transport in allowed_transports
+    ]
+    db.session.add(PasskeyCredential(
+        user_id=user.id,
+        credential_id=credential_id,
+        public_key=_base64url_encode(verification.credential_public_key),
+        sign_count=verification.sign_count,
+        transports=json.dumps(safe_transports),
+    ))
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Device passkey added to your account.'})
 
 
 @app.route('/api/auth/me', methods=['GET'])
@@ -249,7 +768,7 @@ def market():
     instruments = available_instruments[:200]
     data = [{
         **instrument,
-        'quote_source': 'Dashboard demo data (not live)',
+        'quote_source': 'Illustrative market data',
     } for instrument in instruments]
     return jsonify({
         'success': True,
@@ -305,7 +824,7 @@ def kite_callback():
             'Kite did not authorize this account for the configured Kite Connect app. '
             'If Kite reports that the user is not enabled for the app, the app owner must '
             'enable this Zerodha account in the Kite Connect developer console, or Kite '
-            'Connect support must resolve the app access. AlgoTrade cannot grant this '
+            'Connect support must resolve the app access. AlphaMind cannot grant this '
             'permission. After access is enabled, start the connection again from Market Data.',
             403,
         )
@@ -335,6 +854,42 @@ def search_instruments():
     return jsonify({"success": True, "data": instruments})
 
 
+@app.route('/api/instruments/initial/<letter>', methods=['GET'])
+@jwt_required()
+def instruments_by_initial(letter):
+    initial = letter.strip().upper()
+    if len(initial) != 1 or not initial.isalpha() or not initial.isascii():
+        return jsonify({'success': False, 'message': 'Choose a single letter from A to Z.'}), 400
+    try:
+        page = int(request.args.get('page', '1'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Page must be a positive whole number.'}), 400
+    if page < 1:
+        return jsonify({'success': False, 'message': 'Page must be a positive whole number.'}), 400
+
+    matches = [
+        instrument for instrument in get_demo_instruments()
+        if str(instrument.get('name', '')).strip().upper().startswith(initial)
+    ]
+    matches.sort(key=lambda instrument: (
+        str(instrument.get('name', '')).casefold(),
+        str(instrument.get('symbol', '')).casefold(),
+    ))
+    page_size = 100
+    page = min(page, max(1, (len(matches) + page_size - 1) // page_size))
+    start = (page - 1) * page_size
+    return jsonify({
+        'success': True,
+        'data': {
+            'letter': initial,
+            'page': page,
+            'page_size': page_size,
+            'total': len(matches),
+            'instruments': matches[start:start + page_size],
+        },
+    })
+
+
 @app.route('/api/instruments/<symbol>', methods=['GET'])
 @jwt_required()
 def instrument_detail(symbol):
@@ -343,7 +898,7 @@ def instrument_detail(symbol):
         return jsonify({"success": False, "message": "Instrument not found"}), 404
     return jsonify({'success': True, 'data': {
         **instrument,
-        'quote_source': 'Dashboard demo data (not live)',
+        'quote_source': 'Illustrative market data',
     }})
 
 
@@ -530,7 +1085,7 @@ def get_watchlist():
         data.append({
             **instrument,
             'watchlist_id': item.symbol,
-            'quote_source': 'Dashboard demo data (not live)',
+            'quote_source': 'Illustrative market data',
         })
     return jsonify({"success": True, "data": data})
 
@@ -681,8 +1236,75 @@ def cancel_order(order_id):
 @app.route('/api/alerts', methods=['GET'])
 @jwt_required()
 def get_alerts():
-    alerts = Alert.query.filter_by(user_id=int(get_jwt_identity())).all()
-    return jsonify({"success": True, "data": [a.to_dict() for a in alerts]})
+    user_id = int(get_jwt_identity())
+    alerts = Alert.query.filter_by(user_id=user_id).order_by(Alert.created_at.desc()).all()
+    price_alerts = PriceAlert.query.filter_by(user_id=user_id).order_by(PriceAlert.created_at.desc()).all()
+    settings = AlertNotificationSettings.query.filter_by(user_id=user_id).first()
+    return jsonify({
+        "success": True,
+        "data": [alert.to_dict() for alert in alerts],
+        "price_alerts": [alert.to_dict() for alert in price_alerts],
+        "settings": settings.to_dict() if settings else {
+            'enabled': False,
+            'quiet_hours_enabled': False,
+            'quiet_start': '22:00',
+            'quiet_end': '08:00',
+            'timezone': 'UTC',
+        },
+        "delivery": {
+            'method': 'browser_notification',
+            'requires_alerts_page_open': False,
+            'push_configured': bool(app.config['VAPID_PUBLIC_KEY'] and app.config['VAPID_PRIVATE_KEY']),
+            'background_worker_online': _price_alert_worker_online(),
+            'market_data': 'Kite Connect quotes only',
+        },
+    })
+
+
+def _price_alert_worker_online():
+    heartbeat = AlertWorkerHeartbeat.query.filter_by(name='price-alerts').first()
+    if not heartbeat or not heartbeat.last_seen_at:
+        return False
+    age_seconds = (
+        datetime.now(timezone.utc).replace(tzinfo=None) - heartbeat.last_seen_at
+    ).total_seconds()
+    return 0 <= age_seconds < 90
+
+
+def _is_supported_push_endpoint(endpoint):
+    try:
+        parsed_endpoint = urlsplit(endpoint)
+        port = parsed_endpoint.port
+    except ValueError:
+        return False
+    if (
+        parsed_endpoint.scheme != 'https'
+        or not parsed_endpoint.hostname
+        or parsed_endpoint.username is not None
+        or parsed_endpoint.password is not None
+        or port not in (None, 443)
+    ):
+        return False
+    host = parsed_endpoint.hostname.lower().rstrip('.')
+    return host in {
+        'fcm.googleapis.com',
+        'updates.push.services.mozilla.com',
+        'push.services.mozilla.com',
+        'web.push.apple.com',
+    } or host.endswith('.notify.windows.com')
+
+
+def _decode_push_key(value):
+    if not isinstance(value, str) or not re.fullmatch(r'[A-Za-z0-9_-]+', value):
+        return None
+    try:
+        return base64.b64decode(
+            value + ('=' * (-len(value) % 4)),
+            altchars=b'-_',
+            validate=True,
+        )
+    except (binascii.Error, ValueError):
+        return None
 
 
 @app.route('/api/alerts', methods=['POST'])
@@ -699,6 +1321,377 @@ def create_alert():
     db.session.add(alert)
     db.session.commit()
     return jsonify({"success": True, "data": alert.to_dict()}), 201
+
+
+@app.route('/api/price-alerts', methods=['POST'])
+@jwt_required()
+def create_price_alert():
+    data = request.get_json(silent=True) or {}
+    symbol = data.get('symbol')
+    exchange = data.get('exchange', 'NSE')
+    direction = data.get('direction')
+    target_value = data.get('target_price')
+    if not all(isinstance(value, str) for value in (symbol, exchange, direction)):
+        return jsonify({'success': False, 'message': 'Choose a stock, direction, and target price.'}), 400
+    symbol = symbol.strip().upper()
+    exchange = exchange.strip().upper()
+    direction = direction.strip().lower()
+    try:
+        target_price = float(target_value)
+    except (TypeError, ValueError):
+        target_price = 0
+    if not math.isfinite(target_price) or target_price <= 0:
+        return jsonify({'success': False, 'message': 'Enter a target price greater than zero.'}), 400
+    if direction not in {'above', 'below'}:
+        return jsonify({'success': False, 'message': 'Choose whether to alert above or below the target.'}), 400
+    instrument = find_demo_instrument(symbol, exchange)
+    if not instrument:
+        return jsonify({'success': False, 'message': 'That stock is not available in the instrument list.'}), 404
+
+    user_id = int(get_jwt_identity())
+    existing = PriceAlert.query.filter_by(
+        user_id=user_id,
+        symbol=symbol,
+        exchange=exchange,
+        direction=direction,
+        target_price=target_price,
+    ).first()
+    if existing:
+        return jsonify({
+            'success': False,
+            'message': 'An alert for this stock and price condition already exists. Edit or reset the saved alert instead.',
+        }), 409
+
+    alert = PriceAlert(
+        user_id=user_id,
+        symbol=symbol,
+        exchange=exchange,
+        name=instrument['name'],
+        target_price=target_price,
+        direction=direction,
+    )
+    db.session.add(alert)
+    db.session.commit()
+    return jsonify({'success': True, 'data': alert.to_dict()}), 201
+
+
+@app.route('/api/price-alerts/<int:alert_id>', methods=['PUT'])
+@jwt_required()
+def update_price_alert(alert_id):
+    user_id = int(get_jwt_identity())
+    alert = PriceAlert.query.filter_by(id=alert_id, user_id=user_id).first()
+    if not alert:
+        return jsonify({'success': False, 'message': 'Price alert not found.'}), 404
+    data = request.get_json(silent=True) or {}
+    changed_condition = False
+    if 'target_price' in data:
+        try:
+            target_price = float(data['target_price'])
+        except (TypeError, ValueError):
+            target_price = 0
+        if not math.isfinite(target_price) or target_price <= 0:
+            return jsonify({'success': False, 'message': 'Enter a target price greater than zero.'}), 400
+        changed_condition = changed_condition or target_price != alert.target_price
+        alert.target_price = target_price
+    if 'direction' in data:
+        direction = data['direction']
+        if direction not in {'above', 'below'}:
+            return jsonify({'success': False, 'message': 'Choose whether to alert above or below the target.'}), 400
+        changed_condition = changed_condition or direction != alert.direction
+        alert.direction = direction
+    if 'enabled' in data:
+        if not isinstance(data['enabled'], bool):
+            return jsonify({'success': False, 'message': 'Alert enabled must be true or false.'}), 400
+        alert.enabled = data['enabled']
+    if changed_condition:
+        duplicate = PriceAlert.query.filter(
+            PriceAlert.user_id == user_id,
+            PriceAlert.symbol == alert.symbol,
+            PriceAlert.exchange == alert.exchange,
+            PriceAlert.direction == alert.direction,
+            PriceAlert.target_price == alert.target_price,
+            PriceAlert.id != alert.id,
+        ).first()
+        if duplicate:
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'message': 'An alert for this stock and price condition already exists. Edit or reset the saved alert instead.',
+            }), 409
+        alert.triggered_at = None
+        alert.triggered_price = None
+        alert.notification_delivered_at = None
+        alert.enabled = True
+    db.session.commit()
+    return jsonify({'success': True, 'data': alert.to_dict()})
+
+
+@app.route('/api/price-alerts/<int:alert_id>', methods=['DELETE'])
+@jwt_required()
+def delete_price_alert(alert_id):
+    alert = PriceAlert.query.filter_by(
+        id=alert_id,
+        user_id=int(get_jwt_identity()),
+    ).first()
+    if not alert:
+        return jsonify({'success': False, 'message': 'Price alert not found.'}), 404
+    db.session.delete(alert)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Price alert deleted.'})
+
+
+@app.route('/api/price-alerts/<int:alert_id>/reset', methods=['POST'])
+@jwt_required()
+def reset_price_alert(alert_id):
+    alert = PriceAlert.query.filter_by(
+        id=alert_id,
+        user_id=int(get_jwt_identity()),
+    ).first()
+    if not alert:
+        return jsonify({'success': False, 'message': 'Price alert not found.'}), 404
+    if not alert.triggered_at:
+        return jsonify({'success': False, 'message': 'This alert has not triggered.'}), 400
+    try:
+        quotes = get_live_quotes([{'symbol': alert.symbol, 'exchange': alert.exchange}])
+    except (KiteConfigurationError, KiteAPIError) as error:
+        return jsonify({'success': False, 'message': str(error)}), 503
+    quote = quotes.get((alert.exchange, alert.symbol))
+    try:
+        price = float(quote.get('price')) if quote else 0
+    except (TypeError, ValueError):
+        price = 0
+    if not math.isfinite(price) or price <= 0:
+        return jsonify({'success': False, 'message': 'A current quote is not available; the alert cannot be reset yet.'}), 503
+    condition_met = price >= alert.target_price if alert.direction == 'above' else price <= alert.target_price
+    if condition_met:
+        return jsonify({
+            'success': False,
+            'message': 'The current price still meets this alert condition. Reset it after the price moves back across the target.',
+        }), 409
+    alert.triggered_at = None
+    alert.triggered_price = None
+    alert.notification_delivered_at = None
+    alert.enabled = True
+    db.session.commit()
+    return jsonify({'success': True, 'data': alert.to_dict()})
+
+
+@app.route('/api/alerts/settings', methods=['GET'])
+@jwt_required()
+def get_alert_settings():
+    settings = AlertNotificationSettings.query.filter_by(
+        user_id=int(get_jwt_identity()),
+    ).first()
+    return jsonify({'success': True, 'data': settings.to_dict() if settings else {
+        'enabled': False,
+        'quiet_hours_enabled': False,
+        'quiet_start': '22:00',
+        'quiet_end': '08:00',
+        'timezone': 'UTC',
+    }})
+
+
+@app.route('/api/alerts/settings', methods=['PUT'])
+@jwt_required()
+def update_alert_settings():
+    data = request.get_json(silent=True) or {}
+    enabled = data.get('enabled', False)
+    quiet_hours_enabled = data.get('quiet_hours_enabled', False)
+    quiet_start = data.get('quiet_start', '22:00')
+    quiet_end = data.get('quiet_end', '08:00')
+    timezone_name = data.get('timezone', 'UTC')
+    if not isinstance(enabled, bool) or not isinstance(quiet_hours_enabled, bool):
+        return jsonify({'success': False, 'message': 'Notification settings must be enabled or disabled.'}), 400
+    time_pattern = re.compile(r'^(?:[01]\d|2[0-3]):[0-5]\d$')
+    if not isinstance(quiet_start, str) or not time_pattern.fullmatch(quiet_start):
+        return jsonify({'success': False, 'message': 'Enter a valid quiet-hours start time.'}), 400
+    if not isinstance(quiet_end, str) or not time_pattern.fullmatch(quiet_end):
+        return jsonify({'success': False, 'message': 'Enter a valid quiet-hours end time.'}), 400
+    if quiet_hours_enabled and quiet_start == quiet_end:
+        return jsonify({'success': False, 'message': 'Quiet-hours start and end times must be different.'}), 400
+    if not isinstance(timezone_name, str) or not timezone_name or len(timezone_name) > 64:
+        return jsonify({'success': False, 'message': 'Choose a valid timezone for quiet hours.'}), 400
+    try:
+        ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        return jsonify({'success': False, 'message': 'Choose a valid timezone for quiet hours.'}), 400
+    user_id = int(get_jwt_identity())
+    settings = AlertNotificationSettings.query.filter_by(user_id=user_id).first()
+    if not settings:
+        settings = AlertNotificationSettings(user_id=user_id)
+        db.session.add(settings)
+    settings.enabled = enabled
+    settings.quiet_hours_enabled = quiet_hours_enabled
+    settings.quiet_start = quiet_start
+    settings.quiet_end = quiet_end
+    settings.timezone = timezone_name
+    db.session.commit()
+    return jsonify({'success': True, 'data': settings.to_dict()})
+
+
+@app.route('/api/alerts/push/public-key', methods=['GET'])
+@jwt_required()
+def get_alert_push_public_key():
+    public_key = app.config['VAPID_PUBLIC_KEY']
+    if not public_key:
+        return jsonify({
+            'success': False,
+            'message': 'Background browser notifications are not configured on this server.',
+        }), 503
+    return jsonify({'success': True, 'data': {'public_key': public_key}})
+
+
+@app.route('/api/alerts/push/subscribe', methods=['POST'])
+@jwt_required()
+def subscribe_alert_push():
+    data = request.get_json(silent=True) or {}
+    endpoint = data.get('endpoint')
+    keys = data.get('keys')
+    if not isinstance(endpoint, str) or not endpoint or len(endpoint) > 1024:
+        return jsonify({'success': False, 'message': 'A valid browser push endpoint is required.'}), 400
+    if not _is_supported_push_endpoint(endpoint):
+        return jsonify({'success': False, 'message': 'The browser push service endpoint is not supported.'}), 400
+    if not isinstance(keys, dict):
+        return jsonify({'success': False, 'message': 'Browser push encryption keys are required.'}), 400
+    p256dh = keys.get('p256dh')
+    auth_key = keys.get('auth')
+    decoded_p256dh = _decode_push_key(p256dh)
+    decoded_auth_key = _decode_push_key(auth_key)
+    if (
+        decoded_p256dh is None or len(decoded_p256dh) != 65 or decoded_p256dh[0] != 4
+        or decoded_auth_key is None or len(decoded_auth_key) != 16
+    ):
+        return jsonify({'success': False, 'message': 'Browser push encryption keys are invalid.'}), 400
+    user_id = int(get_jwt_identity())
+    subscription = AlertPushSubscription.query.filter_by(
+        user_id=user_id,
+        endpoint=endpoint,
+    ).first()
+    if subscription is None:
+        subscription = AlertPushSubscription(user_id=user_id, endpoint=endpoint)
+        db.session.add(subscription)
+    subscription.p256dh = p256dh
+    subscription.auth = auth_key
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'This browser is ready for background price alerts.'})
+
+
+@app.route('/api/alerts/push/subscribe', methods=['DELETE'])
+@jwt_required()
+def unsubscribe_alert_push():
+    data = request.get_json(silent=True) or {}
+    endpoint = data.get('endpoint')
+    if not isinstance(endpoint, str) or not endpoint:
+        return jsonify({'success': False, 'message': 'The browser push endpoint is required.'}), 400
+    subscription = AlertPushSubscription.query.filter_by(
+        user_id=int(get_jwt_identity()),
+        endpoint=endpoint,
+    ).first()
+    if subscription:
+        db.session.delete(subscription)
+        db.session.commit()
+    return jsonify({'success': True, 'message': 'Browser push subscription removed.'})
+
+
+@app.route('/api/alerts/check', methods=['POST'])
+@jwt_required()
+def check_price_alerts():
+    user_id = int(get_jwt_identity())
+    settings = AlertNotificationSettings.query.filter_by(user_id=user_id).first()
+    enabled = bool(settings and settings.enabled)
+    alerts = PriceAlert.query.filter_by(user_id=user_id, enabled=True).all()
+    if not enabled:
+        return jsonify({
+            'success': True,
+            'data': {
+                'monitoring': False,
+                'quote_source': None,
+                'quotes': {},
+                'pending_notifications': [],
+                'push_configured': bool(app.config['VAPID_PUBLIC_KEY'] and app.config['VAPID_PRIVATE_KEY']),
+                'background_worker_online': _price_alert_worker_online(),
+            },
+        })
+    if not alerts:
+        return jsonify({
+            'success': True,
+            'data': {
+                'monitoring': True,
+                'quote_source': 'Kite Connect quotes',
+                'quotes': {},
+                'pending_notifications': [],
+                'push_configured': bool(app.config['VAPID_PUBLIC_KEY'] and app.config['VAPID_PRIVATE_KEY']),
+                'background_worker_online': _price_alert_worker_online(),
+            },
+        })
+    instruments = [{'symbol': alert.symbol, 'exchange': alert.exchange} for alert in alerts]
+    try:
+        quotes = get_live_quotes(instruments)
+    except (KiteConfigurationError, KiteAPIError) as error:
+        return jsonify({'success': False, 'message': str(error), 'market_data_available': False}), 503
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    current_prices = {}
+    for alert in alerts:
+        quote = quotes.get((alert.exchange, alert.symbol))
+        try:
+            price = float(quote.get('price')) if quote else 0
+        except (TypeError, ValueError):
+            price = 0
+        if not math.isfinite(price) or price <= 0:
+            continue
+        current_prices[f'{alert.exchange}:{alert.symbol}'] = price
+        condition_met = price >= alert.target_price if alert.direction == 'above' else price <= alert.target_price
+        if condition_met and alert.triggered_at is None:
+            alert.triggered_at = now
+            alert.triggered_price = price
+    db.session.commit()
+
+    pending = PriceAlert.query.filter(
+        PriceAlert.user_id == user_id,
+        PriceAlert.enabled.is_(True),
+        PriceAlert.triggered_at.isnot(None),
+        PriceAlert.notification_delivered_at.is_(None),
+    ).all()
+    return jsonify({
+        'success': True,
+        'data': {
+            'monitoring': True,
+            'quote_source': 'Kite Connect quotes',
+            'quotes': current_prices,
+            'push_configured': bool(app.config['VAPID_PUBLIC_KEY'] and app.config['VAPID_PRIVATE_KEY']),
+            'background_worker_online': _price_alert_worker_online(),
+            'pending_notifications': [{
+                **alert.to_dict(),
+                'notification_text': (
+                    f"{alert.name} ({alert.symbol}) reached ₹{alert.triggered_price:,.2f}; "
+                    f"your {alert.direction} ₹{alert.target_price:,.2f} price alert was met."
+                ),
+            } for alert in pending],
+        },
+    })
+
+
+@app.route('/api/alerts/acknowledge', methods=['POST'])
+@jwt_required()
+def acknowledge_price_alert_notifications():
+    data = request.get_json(silent=True) or {}
+    alert_ids = data.get('alert_ids')
+    if not isinstance(alert_ids, list) or any(
+        not isinstance(alert_id, int) or isinstance(alert_id, bool) for alert_id in alert_ids
+    ):
+        return jsonify({'success': False, 'message': 'Alert IDs must be a list of whole numbers.'}), 400
+    alerts = PriceAlert.query.filter(
+        PriceAlert.user_id == int(get_jwt_identity()),
+        PriceAlert.id.in_(alert_ids),
+        PriceAlert.triggered_at.isnot(None),
+        PriceAlert.notification_delivered_at.is_(None),
+    ).all()
+    delivered_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    for alert in alerts:
+        alert.notification_delivered_at = delivered_at
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'acknowledged': len(alerts)}})
 
 
 @app.route('/api/profile', methods=['GET'])

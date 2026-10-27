@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlgoTrade | Strategies</title>
+    <title>AlphaMind | Strategies</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   </head>
-  <body>
+  <body class="strategies-page">
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <div class="brand">
           <div class="brand-mark">AI</div>
-          <h1>AlgoTrade</h1>
+          <h1>AlphaMind</h1>
         </div>
         <ul class="sidebar-nav">
           <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
@@ -53,10 +53,17 @@
               <div class="panel-title">Strategy Library</div>
               <button class="secondary-btn" id="new-strategy-button" type="button">+ New Strategy</button>
             </div>
-            <p id="strategy-status" class="market-data-status">Loading demo strategy templates...</p>
-            <div class="search-box" style="margin-bottom: 18px;">
+            <p id="strategy-status" class="market-data-status">Loading strategy templates...</p>
+            <div class="strategy-library-controls">
+              <div class="strategy-filter-tabs" role="group" aria-label="Filter strategy library">
+                <button type="button" class="active" data-strategy-filter="all" aria-pressed="true">All</button>
+                <button type="button" data-strategy-filter="templates" aria-pressed="false">Templates</button>
+                <button type="button" data-strategy-filter="custom" aria-pressed="false">My strategies</button>
+              </div>
+              <label class="search-box strategy-search-box">
               <i class="fa-solid fa-magnifying-glass"></i>
-              <input id="strategy-search" type="text" placeholder="Search strategies or rule descriptions" />
+              <input id="strategy-search" type="search" placeholder="Search strategies or rule descriptions" aria-label="Search strategy library" />
+              </label>
             </div>
             <div class="strategy-grid" id="strategy-grid"></div>
           </section>
@@ -112,7 +119,7 @@
               <div class="strategy-preview-panel">
                 <div class="panel-title">Rule preview</div>
                 <div id="strategy-rule-preview" class="strategy-rule-preview"></div>
-                <p class="subtitle">Set indicator snapshot values yourself. This preview is not live market data or a historical indicator chart.</p>
+                <p class="subtitle">Set indicator snapshot values yourself. This preview does not use current quotes or historical indicator charts.</p>
                 <div id="strategy-snapshot-fields" class="strategy-snapshot-fields"></div>
                 <button type="button" class="secondary-btn" id="preview-strategy-button">Preview signal</button>
                 <div id="strategy-signal-preview" class="strategy-signal-preview" role="status" aria-live="polite" hidden></div>
@@ -142,37 +149,50 @@
       const strategyCatalog = [
         {
           name: 'Moving Average / EMA',
-          description: 'Short-term EMA crossing above long-term EMA indicates a bullish trend change and stronger momentum.',
-          logic: 'BUY when the faster EMA moves above the slower EMA. SELL when the faster EMA falls below. HOLD when the trend is flat or noisy.'
+          description: 'Compare a fast EMA with a slower SMA to review their current trend relationship.',
+          logic: 'BUY when EMA is above SMA. SELL when EMA is below SMA. This compares a snapshot; it does not detect a crossover over time.',
+          buy_conditions: [{ indicator: 'ema', operator: 'gt', compare_to: 'sma' }],
+          sell_conditions: [{ indicator: 'ema', operator: 'lt', compare_to: 'sma' }],
         },
         {
           name: 'MACD',
-          description: 'MACD line crossing above the signal line shows rising momentum and a possible continuation of the uptrend.',
-          logic: 'BUY when MACD crosses above the signal line. SELL when MACD crosses below. HOLD when both lines are close and trend strength is weak.'
+          description: 'Use the MACD zero line as a simple positive-versus-negative momentum filter.',
+          logic: 'BUY when MACD is above zero. SELL when MACD is below zero. This is a snapshot rule, not a signal-line crossover.',
+          buy_conditions: [{ indicator: 'macd', operator: 'gt', value: 0 }],
+          sell_conditions: [{ indicator: 'macd', operator: 'lt', value: 0 }],
         },
         {
-          name: 'RSI',
-          description: 'RSI measures momentum strength and identifies oversold or overbought zones for reversal trades.',
-          logic: 'BUY below 30, SELL above 70, HOLD between 40 and 60 to avoid false breakouts.'
+          name: 'RSI Reversal Zones',
+          description: 'Use conventional RSI oversold and overbought levels to review possible reversal conditions.',
+          logic: 'BUY when RSI is below 30. SELL when RSI is above 70. These thresholds can behave differently in strong trends.',
+          buy_conditions: [{ indicator: 'rsi', operator: 'lt', value: 30 }],
+          sell_conditions: [{ indicator: 'rsi', operator: 'gt', value: 70 }],
         },
         {
           name: 'VWAP',
-          description: 'Price trading above VWAP often means institutional buying pressure and a healthy trend environment.',
-          logic: 'BUY when price remains above VWAP and volume supports the move. SELL when price closes below VWAP.'
+          description: 'Compare the current price snapshot with its VWAP snapshot for a simple intraday bias.',
+          logic: 'BUY when price is above VWAP. SELL when price is below VWAP. This snapshot does not confirm a sustained move.',
+          buy_conditions: [{ indicator: 'price', operator: 'gt', compare_to: 'vwap' }],
+          sell_conditions: [{ indicator: 'price', operator: 'lt', compare_to: 'vwap' }],
         },
         {
           name: 'Bollinger Bands',
-          description: 'Bands widen or contract with volatility, helping identify breakout or reversal opportunities near the extreme bands.',
-          logic: 'BUY near the lower band during strength, SELL near the upper band during exhaustion, HOLD in the middle range.'
+          description: 'Compare price with the outer Bollinger bands to inspect possible mean-reversion conditions.',
+          logic: 'BUY when price is below the lower band. SELL when price is above the upper band. A band touch alone is not a reversal confirmation.',
+          buy_conditions: [{ indicator: 'price', operator: 'lt', compare_to: 'bollinger_lower' }],
+          sell_conditions: [{ indicator: 'price', operator: 'gt', compare_to: 'bollinger_upper' }],
         },
         {
-          name: 'ATR',
-          description: 'ATR reflects volatility; it helps size risk and decide whether a move is likely to continue or fade.',
-          logic: 'High ATR supports trend continuation; low ATR suggests sideways or weak movement, resulting in HOLD or tight risk management.'
+          name: 'Price vs Moving Average',
+          description: 'Compare a price snapshot with a moving-average snapshot to inspect simple trend direction.',
+          logic: 'BUY when price is above the moving average. SELL when price is below it. This snapshot does not detect a historical cross.',
+          buy_conditions: [{ indicator: 'price', operator: 'gt', compare_to: 'moving_average' }],
+          sell_conditions: [{ indicator: 'price', operator: 'lt', compare_to: 'moving_average' }],
         }
       ];
 
       let currentStrategyCards = [];
+      let activeStrategyFilter = 'all';
 
       function getSignalClass(signal) {
         const level = String(signal || '').toUpperCase();
@@ -191,34 +211,37 @@
         const grid = document.getElementById('strategy-grid');
         const query = document.getElementById('strategy-search').value.trim().toLowerCase();
         const filtered = cards.filter((strategy) => {
+          if (activeStrategyFilter === 'templates' && strategy.isCustom) return false;
+          if (activeStrategyFilter === 'custom' && !strategy.isCustom) return false;
           const haystack = `${strategy.name} ${strategy.description} ${strategy.logic || ''}`.toLowerCase();
           return haystack.includes(query);
         });
 
         if (!filtered.length) {
-          grid.innerHTML = '<div class="empty-state">No strategy match for your search.</div>';
+          grid.innerHTML = activeStrategyFilter === 'custom' && !cards.some((strategy) => strategy.isCustom)
+            ? '<div class="empty-state">No saved strategies yet. Choose a template or create a strategy to get started.</div>'
+            : '<div class="empty-state">No strategy match for your search. Try another search or filter.</div>';
           return;
         }
 
         grid.innerHTML = filtered.map((strategy) => `
-          <article class="strategy-card">
+          <article class="strategy-card ${strategy.isCustom ? 'custom' : 'template'}">
             <div class="strategy-head">
               <div>
                 <div class="strategy-name">${escapeHtml(strategy.name)}</div>
-                <div class="strategy-subtitle">${strategy.isCustom ? 'Saved custom rules' : 'Demo template · not a live signal'}</div>
+                <div class="strategy-subtitle">${strategy.isCustom ? 'Saved custom rules' : 'Example template · not a current signal'}</div>
               </div>
-              <span class="decision-pill ${getSignalClass(strategy.isCustom ? 'CUSTOM' : 'TEMPLATE')}">${strategy.isCustom ? 'CUSTOM' : 'TEMPLATE'}</span>
+              <span class="decision-pill ${getSignalClass(strategy.isCustom ? 'CUSTOM' : 'TEMPLATE')}">${strategy.isCustom ? 'SAVED' : 'TEMPLATE'}</span>
             </div>
             <div class="strategy-score">${strategy.isCustom
-              ? 'Custom rules · no historical performance'
-              : strategy.score == null
-                ? 'Demo template · not backtested'
-                : `${escapeHtml(strategy.score)}% seeded example win rate · ${escapeHtml(strategy.totalTrades || 0)} example trades`}</div>
+              ? 'Saved rules · no backtest attached'
+              : 'Starting rules · customize before using'}</div>
             <p>${escapeHtml(strategy.description)}</p>
             <div class="strategy-logic">
               <strong>${strategy.isCustom ? 'Rules:' : 'Template logic:'}</strong>
               <span>${escapeHtml(strategy.logic)}</span>
             </div>
+            ${strategy.isCustom ? '' : `<button type="button" class="secondary-btn strategy-use-template" data-template="${escapeHtml(strategy.templateKey)}"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Customize template</button>`}
           </article>
         `).join('');
       }
@@ -290,10 +313,46 @@
         valueInput.className = 'condition-value';
         valueInput.type = 'number';
         valueInput.step = 'any';
-        valueInput.required = true;
+        valueInput.required = !condition.compare_to;
         valueInput.value = condition.value ?? '';
         valueInput.setAttribute('aria-label', `${side.toUpperCase()} condition value`);
-        valueLabel.append(valueInput);
+        const compareSelect = document.createElement('select');
+        compareSelect.className = 'condition-compare-to';
+        compareSelect.setAttribute('aria-label', `${side.toUpperCase()} condition comparison indicator`);
+        const numberOption = document.createElement('option');
+        numberOption.value = '';
+        numberOption.textContent = 'Number';
+        compareSelect.append(numberOption);
+        Object.entries(indicatorLabels).forEach(([value, label]) => {
+          if (value === indicatorSelect.value) return;
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = label;
+          option.selected = condition.compare_to === value;
+          compareSelect.append(option);
+        });
+        compareSelect.value = condition.compare_to || '';
+        valueInput.disabled = Boolean(compareSelect.value);
+        valueLabel.append(valueInput, compareSelect);
+        compareSelect.addEventListener('change', () => {
+          valueInput.disabled = Boolean(compareSelect.value);
+          valueInput.required = !compareSelect.value;
+          updateRulePreview();
+        });
+        indicatorSelect.addEventListener('change', () => {
+          const selectedComparison = compareSelect.value;
+          compareSelect.replaceChildren(numberOption);
+          Object.entries(indicatorLabels).forEach(([value, label]) => {
+            if (value === indicatorSelect.value) return;
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            compareSelect.append(option);
+          });
+          compareSelect.value = selectedComparison === indicatorSelect.value ? '' : selectedComparison;
+          valueInput.disabled = Boolean(compareSelect.value);
+          valueInput.required = !compareSelect.value;
+        });
 
         const removeButton = document.createElement('button');
         removeButton.type = 'button';
@@ -325,15 +384,21 @@
           throw new Error(`Add at least one ${side.toUpperCase()} condition.`);
         }
         return rows.map((row) => {
+          const compareTo = row.querySelector('.condition-compare-to').value;
+          const condition = {
+            indicator: row.querySelector('.condition-indicator').value,
+            operator: row.querySelector('.condition-operator').value,
+          };
+          if (compareTo) {
+            condition.compare_to = compareTo;
+            return condition;
+          }
           const value = row.querySelector('.condition-value').value.trim();
           if (value === '' || !Number.isFinite(Number(value))) {
             throw new Error(`Enter a valid number for every ${side.toUpperCase()} condition.`);
           }
-          return {
-            indicator: row.querySelector('.condition-indicator').value,
-            operator: row.querySelector('.condition-operator').value,
-            value: Number(value),
-          };
+          condition.value = Number(value);
+          return condition;
         });
       }
 
@@ -348,7 +413,7 @@
 
       function formatConditions(conditions, logic) {
         return conditions.map((condition) =>
-          `${indicatorLabels[condition.indicator]} ${operatorLabels[condition.operator]} ${condition.value}`
+          `${indicatorLabels[condition.indicator]} ${operatorLabels[condition.operator]} ${condition.compare_to ? indicatorLabels[condition.compare_to] : condition.value}`
         ).join(` ${logic} `);
       }
 
@@ -364,7 +429,9 @@
           const sellLogic = document.getElementById('sell-logic').value;
           preview.textContent = `BUY when ${formatConditions(buyConditions, buyLogic)}. SELL when ${formatConditions(sellConditions, sellLogic)}.`;
 
-          const indicators = [...new Set([...buyConditions, ...sellConditions].map((condition) => condition.indicator))];
+          const indicators = [...new Set([...buyConditions, ...sellConditions].flatMap((condition) =>
+            [condition.indicator, condition.compare_to].filter(Boolean)
+          ))];
           const existing = new Map([...snapshotFields.querySelectorAll('input')].map((input) => [
             input.dataset.indicator, input.value,
           ]));
@@ -392,15 +459,10 @@
         try {
           const data = await apiRequest('/api/strategies');
           const savedStrategies = data.data || [];
-          const builtIns = savedStrategies.filter((item) => !item.is_custom);
-          const cards = builtIns.length ? builtIns.map((item, index) => ({
-            ...strategyCatalog[index % strategyCatalog.length],
-            name: item.name || strategyCatalog[index % strategyCatalog.length].name,
-            score: Number(item.win_rate),
-            totalTrades: item.total_trades,
-            description: item.description || strategyCatalog[index % strategyCatalog.length].description,
-            logic: strategyCatalog[index % strategyCatalog.length].logic,
-          })) : strategyCatalog.map((item) => ({ ...item }));
+          const cards = strategyCatalog.map((item) => ({
+            ...item,
+            templateKey: item.name,
+          }));
           savedStrategies.filter((item) => item.is_custom).forEach((item) => {
             cards.push({
               name: item.name,
@@ -413,7 +475,7 @@
 
           currentStrategyCards = cards;
           document.getElementById('strategy-status').textContent =
-            `${builtIns.length} seeded strategy examples · metrics are demo values, not results calculated from current prices.`;
+            `${strategyCatalog.length} ready-to-customize templates · ${cards.filter((item) => item.isCustom).length} saved custom strategies · previews use manual indicator snapshots.`;
           renderStrategyCards(currentStrategyCards);
         } catch (error) {
           if (error.message.includes('Authorization')) {
@@ -452,6 +514,34 @@
       });
       document.getElementById('close-builder-button').addEventListener('click', () => {
         builderPanel.hidden = true;
+      });
+      document.getElementById('strategy-grid').addEventListener('click', (event) => {
+        const useButton = event.target.closest('[data-template]');
+        if (!useButton) return;
+        const template = strategyCatalog.find((item) => item.name === useButton.dataset.template);
+        if (!template) return;
+
+        resetBuilder();
+        document.getElementById('strategy-name').value = `${template.name} Strategy`;
+        document.getElementById('strategy-description').value = template.description;
+        document.getElementById('buy-condition-list').replaceChildren();
+        document.getElementById('sell-condition-list').replaceChildren();
+        template.buy_conditions.forEach((condition) => addCondition('buy', condition));
+        template.sell_conditions.forEach((condition) => addCondition('sell', condition));
+        builderPanel.hidden = false;
+        builderPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('strategy-name').focus();
+      });
+      document.querySelectorAll('[data-strategy-filter]').forEach((button) => {
+        button.addEventListener('click', () => {
+          activeStrategyFilter = button.dataset.strategyFilter;
+          document.querySelectorAll('[data-strategy-filter]').forEach((filterButton) => {
+            const isActive = filterButton === button;
+            filterButton.classList.toggle('active', isActive);
+            filterButton.setAttribute('aria-pressed', String(isActive));
+          });
+          renderStrategyCards(currentStrategyCards);
+        });
       });
       document.querySelectorAll('.add-condition-button').forEach((button) => {
         button.addEventListener('click', () => addCondition(button.dataset.side));

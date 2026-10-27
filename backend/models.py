@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -31,6 +31,69 @@ class User(db.Model):
             'username': self.username,
             'plan': self.plan,
         }
+
+
+class AcademyAccess(db.Model):
+    __tablename__ = 'academy_access'
+
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
+    access_type = db.Column(db.String(20), nullable=False, default='free')
+    expires_at = db.Column(db.DateTime, nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class EmailLoginCode(db.Model):
+    __tablename__ = 'email_login_codes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    code_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    attempts = db.Column(db.Integer, default=0, nullable=False)
+
+
+class UserAuthPin(db.Model):
+    __tablename__ = 'user_auth_pins'
+
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
+    pin_hash = db.Column(db.String(255), nullable=False)
+    failed_attempts = db.Column(db.Integer, default=0, nullable=False)
+    locked_until = db.Column(db.DateTime)
+
+
+class AssistantChatUsage(db.Model):
+    __tablename__ = 'assistant_chat_usage'
+
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
+    window_started_at = db.Column(db.DateTime, nullable=False)
+    request_count = db.Column(db.Integer, nullable=False, default=0)
+
+
+class PasskeyCredential(db.Model):
+    __tablename__ = 'passkey_credentials'
+
+    id = db.Column(db.Integer, primary_key=True)
+    credential_id = db.Column(db.String(512), unique=True, nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    public_key = db.Column(db.Text, nullable=False)
+    sign_count = db.Column(db.Integer, nullable=False, default=0)
+    transports = db.Column(db.Text, nullable=False, default='[]')
+    created_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        nullable=False,
+    )
+
+
+class WebAuthnChallenge(db.Model):
+    __tablename__ = 'webauthn_challenges'
+
+    id = db.Column(db.String(64), primary_key=True)
+    challenge = db.Column(db.Text, nullable=False)
+    ceremony = db.Column(db.String(16), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
 
 
 class Stock(db.Model):
@@ -217,6 +280,86 @@ class Alert(db.Model):
             'type': self.type,
             'status': self.status,
             'time': self.created_at.strftime('%H:%M %p') if self.created_at else '',
+        }
+
+
+class PriceAlert(db.Model):
+    __tablename__ = 'price_alerts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    symbol = db.Column(db.String(20), nullable=False)
+    exchange = db.Column(db.String(10), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    target_price = db.Column(db.Float, nullable=False)
+    direction = db.Column(db.String(8), nullable=False)
+    enabled = db.Column(db.Boolean, nullable=False, default=True)
+    triggered_at = db.Column(db.DateTime)
+    triggered_price = db.Column(db.Float)
+    notification_delivered_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.Index('ix_price_alerts_user_enabled', 'user_id', 'enabled'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'symbol': self.symbol,
+            'exchange': self.exchange,
+            'name': self.name,
+            'target_price': round(self.target_price, 2),
+            'direction': self.direction,
+            'enabled': self.enabled,
+            'triggered': self.triggered_at is not None,
+            'triggered_at': self.triggered_at.isoformat() if self.triggered_at else None,
+            'triggered_price': round(self.triggered_price, 2) if self.triggered_price is not None else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class AlertPushSubscription(db.Model):
+    __tablename__ = 'alert_push_subscriptions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    endpoint = db.Column(db.String(1024), nullable=False)
+    p256dh = db.Column(db.String(256), nullable=False)
+    auth = db.Column(db.String(256), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'endpoint', name='uq_alert_push_user_endpoint'),
+    )
+
+
+class AlertWorkerHeartbeat(db.Model):
+    __tablename__ = 'alert_worker_heartbeats'
+
+    name = db.Column(db.String(40), primary_key=True)
+    last_seen_at = db.Column(db.DateTime, nullable=False)
+
+
+class AlertNotificationSettings(db.Model):
+    __tablename__ = 'alert_notification_settings'
+
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
+    enabled = db.Column(db.Boolean, nullable=False, default=False)
+    quiet_hours_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    quiet_start = db.Column(db.String(5), nullable=False, default='22:00')
+    quiet_end = db.Column(db.String(5), nullable=False, default='08:00')
+    timezone = db.Column(db.String(64), nullable=False, default='UTC')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def to_dict(self):
+        return {
+            'enabled': self.enabled,
+            'quiet_hours_enabled': self.quiet_hours_enabled,
+            'quiet_start': self.quiet_start,
+            'quiet_end': self.quiet_end,
+            'timezone': self.timezone,
         }
 
 

@@ -47,23 +47,35 @@ def validate_condition_group(conditions, logic, label):
             raise ValueError(f'{label} condition {index} uses an unsupported indicator.')
         if not isinstance(operator, str) or operator not in OPERATORS:
             raise ValueError(f'{label} condition {index} uses an unsupported comparison.')
-        if isinstance(threshold, bool):
-            raise ValueError(f'{label} condition {index} value must be a valid number.')
-        try:
-            threshold = float(threshold)
-        except (TypeError, ValueError):
-            raise ValueError(f'{label} condition {index} value must be a valid number.') from None
-        if not math.isfinite(threshold):
-            raise ValueError(f'{label} condition {index} value must be finite.')
-        if indicator not in SIGNED_INDICATORS and threshold < 0:
-            raise ValueError(f'{INDICATORS[indicator]} condition values cannot be negative.')
-        if indicator == 'rsi' and threshold > 100:
-            raise ValueError(f'{label} RSI condition values must be between 0 and 100.')
-        validated.append({
-            'indicator': indicator,
-            'operator': operator,
-            'value': threshold,
-        })
+        compare_to = condition.get('compare_to')
+        if compare_to is not None:
+            if not isinstance(compare_to, str) or compare_to not in INDICATORS or compare_to == indicator:
+                raise ValueError(f'{label} condition {index} uses an unsupported comparison indicator.')
+            if threshold is not None:
+                raise ValueError(f'{label} condition {index} must compare to either a number or an indicator.')
+            validated.append({
+                'indicator': indicator,
+                'operator': operator,
+                'compare_to': compare_to,
+            })
+        else:
+            if isinstance(threshold, bool):
+                raise ValueError(f'{label} condition {index} value must be a valid number.')
+            try:
+                threshold = float(threshold)
+            except (TypeError, ValueError):
+                raise ValueError(f'{label} condition {index} value must be a valid number.') from None
+            if not math.isfinite(threshold):
+                raise ValueError(f'{label} condition {index} value must be finite.')
+            if indicator not in SIGNED_INDICATORS and threshold < 0:
+                raise ValueError(f'{INDICATORS[indicator]} condition values cannot be negative.')
+            if indicator == 'rsi' and threshold > 100:
+                raise ValueError(f'{label} RSI condition values must be between 0 and 100.')
+            validated.append({
+                'indicator': indicator,
+                'operator': operator,
+                'value': threshold,
+            })
     return validated
 
 
@@ -85,14 +97,34 @@ def evaluate_condition_group(conditions, logic, indicator_values):
             raise ValueError(f'{INDICATORS[indicator]} preview value is invalid.')
         if indicator == 'rsi' and actual > 100:
             raise ValueError('RSI preview value must be between 0 and 100.')
+        if 'compare_to' in condition:
+            compare_to = condition['compare_to']
+            if compare_to not in indicator_values:
+                raise ValueError(f'{INDICATORS[compare_to]} value is required for preview.')
+            expected = indicator_values[compare_to]
+            if isinstance(expected, bool):
+                raise ValueError(f'{INDICATORS[compare_to]} preview value must be a valid number.')
+            try:
+                expected = float(expected)
+            except (TypeError, ValueError):
+                raise ValueError(f'{INDICATORS[compare_to]} preview value must be a valid number.') from None
+            if not math.isfinite(expected) or (compare_to not in SIGNED_INDICATORS and expected < 0):
+                raise ValueError(f'{INDICATORS[compare_to]} preview value is invalid.')
+            if compare_to == 'rsi' and expected > 100:
+                raise ValueError('RSI preview value must be between 0 and 100.')
+            threshold_label = INDICATORS[compare_to]
+        else:
+            expected = condition['value']
+            threshold_label = f'{expected:g}'
         operator_label, compare = OPERATORS[condition['operator']]
-        matched = compare(actual, condition['value'])
+        matched = compare(actual, expected)
         outcomes.append(matched)
         results.append({
             **condition,
             'actual': actual,
+            'expected': expected,
             'matched': matched,
-            'label': f"{INDICATORS[indicator]} {operator_label} {condition['value']:g}",
+            'label': f"{INDICATORS[indicator]} {operator_label} {threshold_label}",
         })
     return (all(outcomes) if logic == 'AND' else any(outcomes)), results
 
@@ -101,9 +133,11 @@ def validate_indicator_values(values, conditions):
     if not isinstance(values, dict):
         raise ValueError('Indicator values must be an object.')
     required_indicators = {
-        condition['indicator']
+        indicator
         for group in conditions
         for condition in group
+        for indicator in (condition['indicator'], condition.get('compare_to'))
+        if indicator is not None
     }
     normalized = {}
     for indicator in required_indicators:

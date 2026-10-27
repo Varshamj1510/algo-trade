@@ -104,7 +104,7 @@ def test_alpha_research_api_uses_bundled_demo_candles_without_kite(monkeypatch):
     })
 
     assert response.status_code == 200
-    assert response.get_json()['data']['provider'] == 'Bundled historical CSV demo data (not Kite Connect)'
+    assert response.get_json()['data']['provider'] == 'Bundled historical CSV data (not Kite Connect)'
 
 
 def test_demo_research_candles_load_from_bundled_csv(tmp_path, monkeypatch):

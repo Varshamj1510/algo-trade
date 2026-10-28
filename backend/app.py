@@ -450,11 +450,16 @@ def _auth_success(user):
     })
 
 
+def _expected_webauthn_rp_id():
+    configured_rp_id = app.config['WEBAUTHN_RP_ID']
+    request_hostname = urlsplit(request.host_url).hostname
+    if configured_rp_id == 'localhost' and request_hostname and request_hostname != 'localhost':
+        return request_hostname
+    return configured_rp_id
+
+
 def _expected_webauthn_origin():
-    if (
-        app.config['WEBAUTHN_RP_ID'] == 'localhost'
-        and urlsplit(request.host_url).hostname == 'localhost'
-    ):
+    if app.config['WEBAUTHN_RP_ID'] == 'localhost':
         return request.host_url.rstrip('/')
     return app.config['WEBAUTHN_ORIGIN']
 
@@ -564,7 +569,7 @@ def passkey_login_options():
         }), 400
 
     options = generate_authentication_options(
-        rp_id=app.config['WEBAUTHN_RP_ID'],
+        rp_id=_expected_webauthn_rp_id(),
         allow_credentials=[
             PublicKeyCredentialDescriptor(
                 id=base64url_to_bytes(credential.credential_id),
@@ -613,7 +618,7 @@ def passkey_login_verify():
         verification = verify_authentication_response(
             credential=credential_data,
             expected_challenge=challenge,
-            expected_rp_id=app.config['WEBAUTHN_RP_ID'],
+            expected_rp_id=_expected_webauthn_rp_id(),
             expected_origin=_expected_webauthn_origin(),
             credential_public_key=base64url_to_bytes(passkey.public_key),
             credential_current_sign_count=passkey.sign_count,
@@ -634,7 +639,7 @@ def passkey_registration_options():
     user = db.get_or_404(User, int(get_jwt_identity()))
     existing = PasskeyCredential.query.filter_by(user_id=user.id).all()
     options = generate_registration_options(
-        rp_id=app.config['WEBAUTHN_RP_ID'],
+        rp_id=_expected_webauthn_rp_id(),
         rp_name=app.config['WEBAUTHN_RP_NAME'],
         user_id=str(user.id).encode('utf-8'),
         user_name=user.email,
@@ -677,7 +682,7 @@ def passkey_registration_verify():
         verification = verify_registration_response(
             credential=credential_data,
             expected_challenge=challenge,
-            expected_rp_id=app.config['WEBAUTHN_RP_ID'],
+            expected_rp_id=_expected_webauthn_rp_id(),
             expected_origin=_expected_webauthn_origin(),
             require_user_verification=True,
         )

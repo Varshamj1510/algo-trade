@@ -160,7 +160,7 @@ WEBAUTHN_RP_NAME=AlgoMind
 WEBAUTHN_ORIGIN=https://your-site.example.com
 ```
 
-`RP_ID` and `RP_NAME` are accepted as aliases for `WEBAUTHN_RP_ID` and `WEBAUTHN_RP_NAME`. For local development, the expected passkey origin follows the current `http://localhost:<port>` page URL, so it works when the development port changes. For deployment, configure `WEBAUTHN_RP_ID`, `WEBAUTHN_RP_NAME`, and `WEBAUTHN_ORIGIN` explicitly; the browser origin must match exactly, including the scheme and port.
+`RP_ID` and `RP_NAME` are accepted as aliases for `WEBAUTHN_RP_ID` and `WEBAUTHN_RP_NAME`. With the development default `RP_ID=localhost`, the server uses the current page host for passkey options and verification, which prevents the browser's RP-ID mismatch error when testing through a public HTTPS tunnel. For deployment, configure `WEBAUTHN_RP_ID`, `WEBAUTHN_RP_NAME`, and `WEBAUTHN_ORIGIN` explicitly; the browser origin must match exactly, including the scheme and port.
 
 ## API endpoints
 

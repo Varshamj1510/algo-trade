@@ -114,7 +114,14 @@ def test_pin_sign_in_without_pin_explains_password_setup():
 
 def test_local_passkey_origin_uses_current_server_port():
     with app.test_request_context('/', base_url='http://localhost:3000'):
+        assert app_module._expected_webauthn_rp_id() == 'localhost'
         assert app_module._expected_webauthn_origin() == 'http://localhost:3000'
+
+
+def test_default_passkey_rp_id_follows_the_current_public_host():
+    with app.test_request_context('/', base_url='https://alphamind.example.test'):
+        assert app_module._expected_webauthn_rp_id() == 'alphamind.example.test'
+        assert app_module._expected_webauthn_origin() == 'https://alphamind.example.test'
 
 
 def test_email_code_sign_in():

@@ -93,7 +93,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 app = Flask(__name__, static_folder=str(BASE_DIR / 'frontend'), static_url_path='')
 app.config.from_object(Config)
 
-CORS(app, supports_credentials=True)
+CORS(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
 jwt = JWTManager(app)
 app.register_blueprint(protection_bp)
 app.register_blueprint(strategy_bp)

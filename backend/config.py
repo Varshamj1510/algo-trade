@@ -68,6 +68,11 @@ class Config:
         or os.getenv('SMTP_FROM')
         or MAIL_USERNAME
     )
+    CORS_ORIGINS = [
+        origin.strip().rstrip('/')
+        for origin in (os.getenv('FRONTEND_ORIGIN') or os.getenv('APP_ORIGIN') or 'http://localhost:5173').split(',')
+        if origin.strip()
+    ]
     WEBAUTHN_RP_ID = os.getenv('WEBAUTHN_RP_ID') or os.getenv('RP_ID', 'localhost')
     WEBAUTHN_RP_NAME = os.getenv('WEBAUTHN_RP_NAME') or os.getenv('RP_NAME', 'AlgoMind')
     WEBAUTHN_ORIGIN = (

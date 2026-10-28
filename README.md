@@ -42,6 +42,33 @@ pip install -r requirements.txt
 python app.py
 ```
 
+## Deploy the legacy frontend on Vercel and the API on Render
+
+This repository's production frontend is the multi-page site under `frontend/`, not the Vite React prototype under `frontend/src`. The Vercel build copies that complete legacy site to `frontend/dist`, makes `/` serve the registration page, and supports clean routes such as `/login` and `/dashboard`.
+
+1. Create a Render **Web Service** from this GitHub repository first. Set its root directory to the repository root, then configure:
+   - Build command: `pip install -r requirements.txt`
+   - Start command: `gunicorn --bind 0.0.0.0:$PORT run:app`
+   - Health check path: `/healthz`
+2. Provision a Render PostgreSQL database and set `DATABASE_URL` to its internal connection string. Set strong, unique `SECRET_KEY`, `JWT_SECRET_KEY`, and `OTP_HASH_SECRET` values.
+3. When Render has assigned the backend URL, for example `https://algomind-api.onrender.com`, set these Render environment variables:
+
+   ```dotenv
+   FRONTEND_ORIGIN=https://your-vercel-project.vercel.app
+   APP_ORIGIN=https://your-vercel-project.vercel.app
+   WEBAUTHN_ORIGIN=https://your-vercel-project.vercel.app
+   WEBAUTHN_RP_ID=your-vercel-project.vercel.app
+   WEBAUTHN_RP_NAME=AlgoMind
+   KITE_REDIRECT_URI=https://algomind-api.onrender.com/kite/callback
+   ```
+
+   `FRONTEND_ORIGIN` may contain a comma-separated list if you also want to allow a custom Vercel domain. Never add secrets, database URLs, or provider tokens to Vercel.
+4. In Vercel, import the same GitHub repository and set **Root Directory** to `frontend`. Vercel will run `npm run build` and deploy `dist` using `vercel.json`.
+5. In Vercel's environment variables, set `VITE_API_BASE_URL` to the exact public Render URL, such as `https://algomind-api.onrender.com`. Configure it for Production and Preview if you use preview deployments. The legacy build writes this public API URL into the generated browser JavaScript; it must not contain a secret.
+6. Redeploy Render after the Vercel production URL exists, then redeploy Vercel. Verify `https://your-render-service.onrender.com/healthz`, create an account at the Vercel URL, and test an authenticated API action.
+
+For browser push alerts, also create the separate Render Background Worker described below. It uses the same Postgres database and server-side environment variables as the web service.
+
 ## Deploy on Render
 
 Create a **Web Service** from this repository with the repository root as the root directory. Use:
@@ -64,9 +91,10 @@ SECRET_KEY=<strong-random-secret>
 JWT_SECRET_KEY=<strong-random-secret>
 OTP_HASH_SECRET=<strong-random-secret>
 DATABASE_URL=<Render-PostgreSQL-connection-string>
-APP_ORIGIN=https://<your-service>.onrender.com
-WEBAUTHN_ORIGIN=https://<your-service>.onrender.com
-RP_ID=<your-service>.onrender.com
+FRONTEND_ORIGIN=https://<your-vercel-project>.vercel.app
+APP_ORIGIN=https://<your-vercel-project>.vercel.app
+WEBAUTHN_ORIGIN=https://<your-vercel-project>.vercel.app
+RP_ID=<your-vercel-project>.vercel.app
 RP_NAME=AlgoMind
 ```
 

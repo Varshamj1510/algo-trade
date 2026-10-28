@@ -1,3 +1,5 @@
+const API_BASE = (window.__ALGOMIND_API_BASE__ || '').replace(/\/+$/, '');
+
 function getToken() {
   return localStorage.getItem('algotrade_token');
 }
@@ -17,7 +19,7 @@ function apiRequest(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  return fetch(path, {
+  return fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
   }).then(async (response) => {

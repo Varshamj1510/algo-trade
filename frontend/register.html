@@ -59,11 +59,6 @@
 
           <form id="register-form">
             <div class="form-group">
-              <label for="full-name">Full name</label>
-              <input id="full-name" name="full_name" type="text" autocomplete="name" maxlength="120" placeholder="Your full name" required />
-            </div>
-
-            <div class="form-group">
               <label for="register-email">Email address</label>
               <input id="register-email" name="email" type="email" autocomplete="email" maxlength="120" placeholder="you@example.com" required />
             </div>
@@ -127,17 +122,6 @@
             <button type="submit" class="auth-submit">Create account <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
           </form>
 
-          <form id="register-verify-form" hidden>
-            <p class="auth-card-copy">Enter the 6-digit code sent to <strong id="registration-email"></strong>. The code expires in 10 minutes.</p>
-            <div class="form-group">
-              <label for="registration-code">Email verification code</label>
-              <input id="registration-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="6-digit code" required />
-            </div>
-            <button type="submit" class="auth-submit">Verify email <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
-            <button id="resend-registration-code" type="button" class="auth-resend">Resend code</button>
-            <button id="edit-registration-details" type="button" class="auth-resend">Change account details</button>
-          </form>
-
           <div class="auth-divider"><span>ALREADY A MEMBER?</span></div>
           <a class="auth-create-link" href="/login">Sign in to your account <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
         </section>
@@ -153,8 +137,6 @@
     <script>
       const alertBox = document.getElementById('register-alert');
       const form = document.getElementById('register-form');
-      const verifyForm = document.getElementById('register-verify-form');
-      let pendingRegistration = null;
 
       function showAlert(message, type = 'error', link) {
         const alert = document.createElement('div');
@@ -183,7 +165,6 @@
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const payload = {
-          full_name: document.getElementById('full-name').value.trim(),
           email: document.getElementById('register-email').value.trim(),
           username: document.getElementById('username').value.trim(),
           password: document.getElementById('register-password').value,
@@ -203,21 +184,11 @@
         }
 
         try {
-          const result = await apiRequest('/api/auth/register', {
+          await apiRequest('/api/auth/register', {
             method: 'POST',
             body: JSON.stringify(payload),
           });
-          if (result.verification_required !== true || !result.message) {
-            throw new Error(
-              'Email verification is not enabled on this server yet. The backend must be updated before you can register.'
-            );
-          }
-          pendingRegistration = payload;
-          document.getElementById('registration-email').textContent = payload.email;
-          form.hidden = true;
-          verifyForm.hidden = false;
-          document.getElementById('registration-code').focus();
-          showAlert(result.message, 'success');
+          window.location.assign('/login?registered=1');
         } catch (error) {
           if (/email or username already exists|account with this email already exists/i.test(error.message)) {
             showAlert('This email or username already has an account. Sign in instead.', 'error', {
@@ -230,47 +201,6 @@
         }
       });
 
-      verifyForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        if (!pendingRegistration) return;
-        try {
-          await apiRequest('/api/auth/verify-registration-otp', {
-            method: 'POST',
-            body: JSON.stringify({
-              email: pendingRegistration.email,
-              code: document.getElementById('registration-code').value.trim(),
-            }),
-          });
-          window.location.assign('/login?registered=1');
-        } catch (error) {
-          showAlert(error.message);
-        }
-      });
-
-      document.getElementById('resend-registration-code').addEventListener('click', async () => {
-        if (!pendingRegistration) return;
-        try {
-          const result = await apiRequest('/api/auth/register', {
-            method: 'POST',
-            body: JSON.stringify(pendingRegistration),
-          });
-          if (result.verification_required !== true || !result.message) {
-            throw new Error(
-              'Email verification is not enabled on this server yet. The backend must be updated before you can register.'
-            );
-          }
-          showAlert(result.message, 'success');
-        } catch (error) {
-          showAlert(error.message);
-        }
-      });
-
-      document.getElementById('edit-registration-details').addEventListener('click', () => {
-        verifyForm.hidden = true;
-        form.hidden = false;
-        document.getElementById('registration-code').value = '';
-        document.getElementById('full-name').focus();
-      });
     </script>
   </body>
 </html>

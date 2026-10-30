@@ -45,7 +45,7 @@ python app.py
 
 ## Deploy the full app on Render
 
-The Render Web Service serves both the multi-page frontend (`frontend/`) and Flask API from one origin. Users should register and sign in using the Render URL; this keeps account and OTP requests on the same backend and shared database. The Vite app under `frontend/src` is a separate prototype and is not the deployed frontend.
+The Render Web Service serves both the multi-page frontend (`frontend/`) and Flask API from one origin. Users should register and sign in using the Render URL so accounts use the shared database. Registration does not require email verification. The Vite app under `frontend/src` is a separate prototype and is not the deployed frontend.
 
 Create one Render **Web Service** from this repository with the repository root as its root directory:
 
@@ -66,16 +66,9 @@ APP_ORIGIN=https://<your-render-service>.onrender.com
 WEBAUTHN_ORIGIN=https://<your-render-service>.onrender.com
 WEBAUTHN_RP_ID=<your-render-service>.onrender.com
 WEBAUTHN_RP_NAME=AlgoMind
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
-SMTP_USE_SSL=true
-SMTP_USE_TLS=false
-SMTP_USER=<Gmail-address-that-sends-the-codes>
-SMTP_PASS=<Google-App-Password-for-that-Gmail-account>
-SMTP_FROM=<same-Gmail-address-that-sends-the-codes>
 ```
 
-Use your exact Render service hostname (no trailing slash) in the four origin/RP variables. Render sets `PORT` automatically. Generate different strong values for `SECRET_KEY` and `JWT_SECRET_KEY`. For Gmail, use a Google **App Password**, not the normal account password; keep it private. `SMTP_FROM` should be the authenticated Gmail address.
+Use your exact Render service hostname (no trailing slash) in the four origin/RP variables. Render sets `PORT` automatically. Generate different strong values for `SECRET_KEY` and `JWT_SECRET_KEY`.
 
 The frontend and API are same-origin on Render; no separate frontend URL or API-base setting is needed.
 
@@ -102,20 +95,7 @@ PRICE_ALERT_POLL_SECONDS=30
 
 For closed-page price-alert delivery, create a Render **Background Worker** with start command `python -m backend.alert_worker` and copy the same `DATABASE_URL` and required VAPID variables to it. Configure the same callback URL in the Kite Connect developer portal. Keep all real keys in Render Environment settings only; never commit `.env` or paste secrets into source control.
 
-New accounts verify their email before registration completes. Email-code sign-in uses the same SMTP settings. For local development, configure SMTP values in `.env`; for the live service, configure them in Render Environment:
-
-```dotenv
-MAIL_SERVER=smtp.example.com
-MAIL_PORT=587
-MAIL_USE_TLS=true
-MAIL_USE_SSL=false
-MAIL_USERNAME=your-smtp-username
-MAIL_PASSWORD=your-smtp-password
-MAIL_DEFAULT_SENDER=AlgoMind <no-reply@example.com>
-```
-
-Use the sender address authorized by your SMTP provider. Registration and email sign-in fail until the SMTP values are correctly set in the Render Web Service environment and the service has restarted/redeployed. Verification codes expire after 10 minutes, and resend requests are limited to one per 60 seconds. Local and deployed environments use separate databases; register and sign in on the same site.
-The equivalent `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` names are also supported. Gmail commonly uses port `465` with SSL or port `587` with TLS; use a Gmail app password rather than your normal account password. If you request another code within 60 seconds, wait for the cooldown and use the latest code. Check spam or junk if the message is delayed.
+Sign in with your password, Alpha PIN, or a device passkey. Local and deployed environments use separate databases; register and sign in on the same site.
 
 ## Price alerts
 
@@ -133,7 +113,7 @@ In production, run `web` and `worker` as separate long-running processes using t
 
 The default SQLite database is suitable only for a temporary demo: Render's service filesystem is not persistent, so user data can be lost when the service restarts or is redeployed. If using this demo database, leave `DATABASE_URL` unset on Render; never use a SQLite path copied from a local Windows `.env` file. For persistent production data, provision a Render Postgres database and configure `DATABASE_URL` with its connection string before relying on the service for user accounts or saved data. Both `postgres://` and `postgresql://` connection strings are supported.
 
-Optional secure sign-in methods are available alongside account-password and email-code sign-in. In **Profile Settings**, sign in with your account password to register a device passkey (fingerprint, face, or device PIN when supported) and/or set a 6-digit Alpha PIN. PINs are stored as password hashes and lock temporarily after repeated failed attempts. If your email already has an account, sign in instead of registering again. If PIN sign-in says no PIN is configured, password sign-in will take you to **Profile Settings** to create one; there is no shared/default PIN. Passkey sign-in requires HTTPS in deployment (localhost is permitted for local development); set the relying-party values to match the exact public site:
+Optional secure sign-in methods are available alongside account-password sign-in. In **Profile Settings**, you can set a 6-digit Alpha PIN. PINs are stored as password hashes and lock temporarily after repeated failed attempts. If your email already has an account, sign in instead of registering again. If PIN sign-in says no PIN is configured, password sign-in will take you to **Profile Settings** to create one; there is no shared/default PIN.
 
 ```dotenv
 WEBAUTHN_RP_ID=your-site.example.com

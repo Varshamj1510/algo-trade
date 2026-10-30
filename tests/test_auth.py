@@ -1,7 +1,3 @@
-import re
-from email.message import EmailMessage
-from datetime import datetime, timedelta, timezone
-from types import TracebackType
 from unittest.mock import patch
 from types import SimpleNamespace
 
@@ -9,77 +5,10 @@ import backend.app as app_module
 from backend.app import app
 from backend.database import db
 from backend.models import (
-    EmailLoginCode,
     PasskeyCredential,
-    PendingEmailRegistration,
     User,
     UserAuthPin,
 )
-from sqlalchemy import delete
-
-
-def register_with_email_code(client, payload):
-    sent_messages = []
-
-    class FakeSMTP:
-        def __init__(self, host, port, timeout):
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            return False
-
-        def starttls(self):
-            pass
-
-        def login(self, username, password):
-            pass
-
-        def send_message(self, message):
-            sent_messages.append(message)
-
-    mail_config = {
-        'MAIL_SERVER': 'smtp.example.com',
-        'MAIL_PORT': 587,
-        'MAIL_DEFAULT_SENDER': 'no-reply@example.com',
-        'MAIL_USE_TLS': True,
-        'MAIL_USE_SSL': False,
-        'MAIL_USERNAME': 'smtp-user',
-        'MAIL_PASSWORD': 'smtp-password',
-    }
-    with patch.object(app_module.smtplib, 'SMTP', FakeSMTP), patch.dict(app.config, mail_config):
-        response = client.post('/api/auth/register', json=payload)
-
-    if response.status_code != 202:
-        return response, None
-
-    assert response.get_json()['verification_required'] is True
-    assert response.get_json()['message']
-    assert len(sent_messages) == 1
-    match = re.search(r'\b(\d{6})\b', sent_messages[0].get_content())
-    assert match is not None
-    with app.app_context():
-        assert User.query.filter_by(email=payload['email']).first() is None
-        pending = PendingEmailRegistration.query.filter_by(email=payload['email']).first()
-        assert pending is not None
-        assert pending.password_hash != payload['password']
-        assert pending.code_hash != match.group(1)
-        if payload.get('pin'):
-            assert pending.pin_hash != payload['pin']
-    code = match.group(1)
-    wrong_code = ('0' if code[0] != '0' else '1') + code[1:]
-    rejected = client.post('/api/auth/verify-registration-otp', json={
-        'email': payload['email'],
-        'code': wrong_code,
-    })
-    assert rejected.status_code == 401
-    verified = client.post('/api/auth/verify-registration-otp', json={
-        'email': payload['email'],
-        'code': code,
-    })
-    return response, verified
 
 
 def test_registration_page_includes_relevant_terms_before_acceptance():
@@ -93,15 +22,14 @@ def test_registration_page_includes_relevant_terms_before_acceptance():
     assert 'Simulated trading' in page
     assert 'possible loss of some or all of your invested capital' in page
     assert 'id="terms-agreement" type="checkbox" required' in page
-    assert 'id="register-verify-form" hidden' in page
-    assert '/api/auth/verify-registration-otp' in page
+    assert 'verification' not in page.lower()
 
 
-def test_login_confirmation_explains_email_code_sign_in():
+def test_login_confirmation_explains_available_sign_in_methods():
     response = app.test_client().get('/login?registered=1')
 
     assert response.status_code == 200
-    assert 'Email verified. You can now sign in with an email code, PIN, or password.' in (
+    assert 'Your account is ready. Sign in with your password, PIN, or passkey.' in (
         response.get_data(as_text=True)
     )
 
@@ -137,12 +65,12 @@ def test_registration_sets_hashed_alpha_pin_for_pin_sign_in():
         'password': 'registration-password',
         'pin': '482917',
     }
-    registration, verified = register_with_email_code(client, payload)
-
-    assert registration.status_code == 202
-    assert verified.status_code == 201
+    registration = client.post('/api/auth/register', json=payload)
+    assert registration.status_code == 201
+    assert registration.get_json()['user']['email'] == email
     with app.app_context():
         user = User.query.filter_by(email=email).first()
+        assert user.check_password('registration-password')
         auth_pin = UserAuthPin.query.filter_by(user_id=user.id).first()
         assert auth_pin is not None
         assert auth_pin.pin_hash != '482917'
@@ -153,6 +81,19 @@ def test_registration_sets_hashed_alpha_pin_for_pin_sign_in():
     })
     assert signed_in.status_code == 200
     assert signed_in.get_json()['user']['email'] == email
+
+
+def test_registration_uses_username_without_a_full_name_field():
+    response = app.test_client().post('/api/auth/register', json={
+        'email': f'username-{app_module.secrets.token_hex(8)}@example.test',
+        'username': f'username-{app_module.secrets.token_hex(8)}',
+        'password': 'registration-password',
+    })
+
+    assert response.status_code == 201
+    user_data = response.get_json()['user']
+    assert 'full_name' not in user_data
+    assert user_data['username']
 
 
 def test_registration_rejects_invalid_alpha_pin():
@@ -171,15 +112,14 @@ def test_registration_rejects_invalid_alpha_pin():
 def test_registration_with_existing_email_points_to_sign_in():
     client = app.test_client()
     email = f'existing-{app_module.secrets.token_hex(8)}@example.test'
-    first, verified = register_with_email_code(client, {
+    first = client.post('/api/auth/register', json={
         'full_name': 'Existing Trader',
         'email': email,
         'username': f'existing-{app_module.secrets.token_hex(8)}',
         'password': 'registration-password',
         'pin': '482917',
     })
-    assert first.status_code == 202
-    assert verified.status_code == 201
+    assert first.status_code == 201
 
     duplicate = client.post('/api/auth/register', json={
         'full_name': 'Existing Trader',
@@ -198,14 +138,13 @@ def test_registration_with_existing_email_points_to_sign_in():
 def test_pin_sign_in_without_pin_explains_password_setup():
     client = app.test_client()
     email = f'no-pin-{app_module.secrets.token_hex(8)}@example.test'
-    registration, verified = register_with_email_code(client, {
+    registration = client.post('/api/auth/register', json={
         'full_name': 'No PIN Trader',
         'email': email,
         'username': f'no-pin-{app_module.secrets.token_hex(8)}',
         'password': 'registration-password',
     })
-    assert registration.status_code == 202
-    assert verified.status_code == 201
+    assert registration.status_code == 201
 
     response = client.post('/api/auth/pin/login', json={
         'email': email,
@@ -230,124 +169,36 @@ def test_default_passkey_rp_id_follows_the_current_public_host():
         assert app_module._expected_webauthn_origin() == 'https://alphamind.example.test'
 
 
-def test_email_code_sign_in():
-    sent_messages: list[EmailMessage] = []
+def test_otp_auth_routes_are_removed():
+    client = app.test_client()
 
-    class FakeSMTP:
-        def __init__(self, host: str, port: int, timeout: float):
-            pass
+    for path in (
+        '/api/auth/request-otp',
+        '/api/auth/verify-otp',
+        '/api/auth/verify-registration-otp',
+    ):
+        response = client.post(path, json={})
+        assert response.status_code in {404, 405}
 
-        def __enter__(self):
-            return self
-
-        def __exit__(
-            self,
-            exc_type: type[BaseException] | None,
-            exc_value: BaseException | None,
-            traceback: TracebackType | None,
-        ) -> bool:
-            return False
-
-        def starttls(self) -> None:
-            pass
-
-        def login(self, username: str, password: str) -> None:
-            pass
-
-        def send_message(self, message: EmailMessage) -> None:
-            sent_messages.append(message)
-
-    mail_config: dict[str, str | int | bool] = {
-        'MAIL_SERVER': 'smtp.example.com',
-        'MAIL_PORT': 587,
-        'MAIL_DEFAULT_SENDER': 'no-reply@example.com',
-        'MAIL_USE_TLS': True,
-        'MAIL_USE_SSL': False,
-        'MAIL_USERNAME': 'smtp-user',
-        'MAIL_PASSWORD': 'smtp-password',
-    }
-    with patch.object(app_module.smtplib, 'SMTP', FakeSMTP), patch.dict(app.config, mail_config):
-        with app.app_context():
-            db.session.execute(delete(EmailLoginCode).where(
-                EmailLoginCode.email == 'demo@algotrade.com'
-            ))
-            db.session.commit()
-
-        client = app.test_client()
-        response = client.post('/api/auth/request-otp', json={
-            'email': 'demo@algotrade.com',
-        })
-
-        assert response.status_code == 200
-        assert len(sent_messages) == 1
-        match = re.search(r'\b(\d{6})\b', sent_messages[0].get_content())
-        assert match is not None
-        code = match.group(1)
-        assert code is not None
-        verified = client.post('/api/auth/verify-otp', json={
-            'email': 'demo@algotrade.com',
-            'code': code,
-        })
-
-        assert verified.status_code == 200
-        assert verified.get_json()['user']['email'] == 'demo@algotrade.com'
-        assert verified.get_json()['token']
+    login_page = client.get('/login').get_data(as_text=True).lower()
+    registration_page = client.get('/').get_data(as_text=True).lower()
+    assert 'otp' not in login_page
+    assert 'otp' not in registration_page
 
 
-def test_email_code_request_explains_resend_cooldown_without_sending_again():
-    email = 'demo@algotrade.com'
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    with app.app_context():
-        existing = EmailLoginCode.query.filter_by(email=email).first()
-        if existing:
-            db.session.delete(existing)
-        db.session.add(EmailLoginCode(
-            email=email,
-            code_hash=app_module.generate_password_hash('123456'),
-            created_at=now,
-            expires_at=now + timedelta(minutes=10),
-            attempts=0,
-        ))
-        db.session.commit()
+def test_login_page_has_no_passkey_or_fingerprint_sign_in():
+    page = app.test_client().get('/login').get_data(as_text=True).lower()
 
-    try:
-        with patch.dict(app.config, {
-            'MAIL_SERVER': 'smtp.example.com',
-            'MAIL_PORT': 587,
-            'MAIL_DEFAULT_SENDER': 'no-reply@example.com',
-        }):
-            response = app.test_client().post('/api/auth/request-otp', json={'email': email})
-
-        assert response.status_code == 200
-        assert 'Wait 60 seconds' in response.get_json()['message']
-    finally:
-        with app.app_context():
-            EmailLoginCode.query.filter_by(email=email).delete()
-            db.session.commit()
+    assert 'fingerprint' not in page
+    assert 'passkey-login-btn' not in page
+    assert '/api/auth/passkey/login' not in page
 
 
-def test_email_code_sign_in_requires_smtp_configuration():
-    with patch.dict(app.config, {'MAIL_SERVER': None}):
-        response = app.test_client().post('/api/auth/request-otp', json={
-            'email': 'demo@algotrade.com',
-        })
+def test_profile_page_uses_username_without_full_name_editor():
+    page = app.test_client().get('/profile').get_data(as_text=True).lower()
 
-    assert response.status_code == 503
-    assert 'SMTP' in response.get_json()['message']
-
-
-def test_registration_requires_email_verification_configuration():
-    with patch.dict(app.config, {'MAIL_SERVER': None}):
-        response = app.test_client().post('/api/auth/register', json={
-            'full_name': 'Unverified Trader',
-            'email': f'unverified-{app_module.secrets.token_hex(8)}@example.test',
-            'username': f'unverified-{app_module.secrets.token_hex(8)}',
-            'password': 'registration-password',
-            'pin': '482917',
-        })
-
-    assert response.status_code == 503
-    assert 'Email verification' in response.get_json()['message']
+    assert 'profile-name' not in page
+    assert 'full name' not in page
 
 
 def test_pin_setup_requires_password_and_allows_pin_sign_in():

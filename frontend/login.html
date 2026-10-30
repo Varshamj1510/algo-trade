@@ -59,25 +59,15 @@
 
           <div class="auth-method-intro">Choose a secure way to continue to your account.</div>
           <div class="form-group auth-email-group">
-            <label for="auth-email">Email address</label>
-            <input id="auth-email" name="email" type="text" autocomplete="username" placeholder="you@example.com" required />
-            <small class="auth-input-hint">Use an email for passkey, PIN, or OTP sign-in.</small>
+            <label for="auth-email">Email or username</label>
+            <input id="auth-email" name="email" type="text" autocomplete="username" placeholder="you@example.com or username" required />
+            <small class="auth-input-hint">Use your email for PIN sign-in, or your email/username for password sign-in.</small>
           </div>
 
           <div class="auth-secure-options" id="auth-secure-options">
-            <button class="auth-option-card auth-option-featured" id="passkey-login-btn" type="button">
-              <span class="auth-option-icon"><i class="fa-solid fa-fingerprint" aria-hidden="true"></i></span>
-              <span class="auth-option-copy"><strong>Login with fingerprint</strong><small>Use your device's available biometric sign-in</small></span>
-              <i class="fa-solid fa-arrow-right auth-option-arrow" aria-hidden="true"></i>
-            </button>
             <button class="auth-option-card" id="pin-option-btn" type="button">
               <span class="auth-option-icon"><i class="fa-solid fa-grip" aria-hidden="true"></i></span>
               <span class="auth-option-copy"><strong>Enter Alpha PIN</strong><small>Sign in with your 6-digit personal PIN</small></span>
-              <i class="fa-solid fa-arrow-right auth-option-arrow" aria-hidden="true"></i>
-            </button>
-            <button class="auth-option-card" id="otp-option-btn" type="button">
-              <span class="auth-option-icon"><i class="fa-regular fa-envelope" aria-hidden="true"></i></span>
-              <span class="auth-option-copy"><strong>Use OTP instead</strong><small>Get a one-time sign-in code by email</small></span>
               <i class="fa-solid fa-arrow-right auth-option-arrow" aria-hidden="true"></i>
             </button>
           </div>
@@ -89,21 +79,6 @@
             </div>
             <button type="submit" class="auth-submit">Sign in with PIN <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
             <button type="button" class="auth-resend auth-method-back">Choose another method</button>
-          </form>
-
-          <form id="otp-request-form" class="auth-inline-panel" hidden>
-            <button type="submit" class="auth-submit">Send one-time code <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
-            <button type="button" class="auth-resend auth-method-back">Choose another method</button>
-          </form>
-          <form id="otp-verify-form" class="auth-inline-panel" hidden>
-            <p class="auth-code-hint">Enter the 6-digit code sent to <strong id="otp-destination"></strong>.</p>
-            <div class="form-group">
-              <label for="otp-code">Your sign-in code</label>
-              <input id="otp-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required />
-            </div>
-            <button type="submit" class="auth-submit">Verify and sign in <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
-            <button type="button" class="auth-resend auth-method-back">Choose another method</button>
-            <p class="auth-code-footnote">Codes expire after 10 minutes and can only be used once.</p>
           </form>
 
           <form id="login-form" class="auth-inline-panel" hidden>
@@ -137,12 +112,10 @@
     <script>
       const alertBox = document.getElementById('login-alert');
       const emailInput = document.getElementById('auth-email');
-      const requestForm = document.getElementById('otp-request-form');
-      const verifyForm = document.getElementById('otp-verify-form');
       const authOptions = document.getElementById('auth-secure-options');
       const emailGroup = document.querySelector('.auth-email-group');
       const passwordForm = document.getElementById('login-form');
-      const panels = [requestForm, verifyForm, document.getElementById('pin-login-form'), document.getElementById('login-form')];
+      const panels = [document.getElementById('pin-login-form'), document.getElementById('login-form')];
       let postLoginRedirect = '/dashboard';
 
       function showAlert(message, type = 'error') {
@@ -154,7 +127,7 @@
 
       const params = new URLSearchParams(window.location.search);
       if (params.get('registered') === '1') {
-        showAlert('Email verified. You can now sign in with an email code, PIN, or password.', 'success');
+        showAlert('Your account is ready. Sign in with your password, PIN, or passkey.', 'success');
         emailInput.focus();
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -175,16 +148,6 @@
         return email;
       }
 
-      function getAccountEmail() {
-        const email = getEmail();
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          showAlert('Enter the email address linked to your account.');
-          emailInput.focus();
-          return null;
-        }
-        return email;
-      }
-
       function showPanel(panel) {
         authOptions.hidden = Boolean(panel);
         panels.forEach((item) => { item.hidden = item !== panel; });
@@ -193,76 +156,6 @@
         if (panel) {
           const firstInput = panel.querySelector('input');
           if (firstInput) firstInput.focus();
-        }
-      }
-
-      function base64urlToBuffer(value) {
-        const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-        const binary = atob(normalized + '='.repeat((4 - normalized.length % 4) % 4));
-        return Uint8Array.from(binary, (character) => character.charCodeAt(0)).buffer;
-      }
-
-      function bufferToBase64url(value) {
-        const bytes = new Uint8Array(value);
-        let binary = '';
-        bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
-        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-      }
-
-      function serializeCredential(credential) {
-        const response = {
-          clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
-        };
-        if (credential.response.attestationObject) {
-          response.attestationObject = bufferToBase64url(credential.response.attestationObject);
-          response.transports = credential.response.getTransports?.() || [];
-        } else {
-          response.authenticatorData = bufferToBase64url(credential.response.authenticatorData);
-          response.signature = bufferToBase64url(credential.response.signature);
-          response.userHandle = credential.response.userHandle
-            ? bufferToBase64url(credential.response.userHandle)
-            : null;
-        }
-        return {
-          id: credential.id,
-          rawId: bufferToBase64url(credential.rawId),
-          type: credential.type,
-          response,
-          clientExtensionResults: credential.getClientExtensionResults(),
-          authenticatorAttachment: credential.authenticatorAttachment,
-        };
-      }
-
-      async function startPasskeySignIn() {
-        const email = getAccountEmail();
-        if (!email) return;
-        if (!window.isSecureContext || !navigator.credentials || !window.PublicKeyCredential) {
-          showAlert('Device passkeys require a supported browser on HTTPS or localhost.');
-          return;
-        }
-        const button = document.getElementById('passkey-login-btn');
-        button.disabled = true;
-        try {
-          const { challenge_id: challengeId, public_key: publicKey } = await apiRequest(
-            '/api/auth/passkey/login/options',
-            { method: 'POST', body: JSON.stringify({ email }) }
-          );
-          publicKey.challenge = base64urlToBuffer(publicKey.challenge);
-          publicKey.allowCredentials = publicKey.allowCredentials.map((item) => ({
-            ...item,
-            id: base64urlToBuffer(item.id),
-          }));
-          const credential = await navigator.credentials.get({ publicKey });
-          if (!credential) throw new Error('No passkey was selected.');
-          const result = await apiRequest('/api/auth/passkey/login/verify', {
-            method: 'POST',
-            body: JSON.stringify({ challenge_id: challengeId, credential: serializeCredential(credential) }),
-          });
-          finishSignIn(result);
-        } catch (error) {
-          showAlert(error.message || 'Passkey sign-in was cancelled or could not be verified.');
-        } finally {
-          button.disabled = false;
         }
       }
 
@@ -277,17 +170,10 @@
         });
       });
 
-      document.getElementById('passkey-login-btn').addEventListener('click', startPasskeySignIn);
       document.getElementById('pin-option-btn').addEventListener('click', () => {
-        if (!getAccountEmail()) return;
+        if (!getEmail()) return;
         postLoginRedirect = '/dashboard';
         showPanel(document.getElementById('pin-login-form'));
-      });
-      document.getElementById('otp-option-btn').addEventListener('click', () => {
-        if (!getAccountEmail()) return;
-        postLoginRedirect = '/dashboard';
-        showPanel(requestForm);
-        requestForm.requestSubmit();
       });
       document.getElementById('password-option-btn').addEventListener('click', () => {
         postLoginRedirect = '/dashboard';
@@ -316,29 +202,6 @@
         }
       });
 
-      requestForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const email = getAccountEmail();
-        if (!email) return;
-        const submitButton = requestForm.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        try {
-          const data = await apiRequest('/api/auth/request-otp', {
-            method: 'POST',
-            body: JSON.stringify({ email }),
-          });
-          document.getElementById('otp-destination').textContent = email;
-          requestForm.hidden = true;
-          verifyForm.hidden = false;
-          document.getElementById('otp-code').focus();
-          showAlert(data.message, 'success');
-        } catch (error) {
-          showAlert(error.message);
-        } finally {
-          submitButton.disabled = false;
-        }
-      });
-
       document.getElementById('pin-login-form').addEventListener('submit', async (event) => {
         event.preventDefault();
         try {
@@ -361,21 +224,6 @@
         }
       });
 
-      verifyForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        try {
-          const data = await apiRequest('/api/auth/verify-otp', {
-            method: 'POST',
-            body: JSON.stringify({
-              email: emailInput.value.trim(),
-              code: document.getElementById('otp-code').value.trim(),
-            }),
-          });
-          finishSignIn(data);
-        } catch (error) {
-          showAlert(error.message);
-        }
-      });
     </script>
   </body>
 </html>

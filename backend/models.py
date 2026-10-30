@@ -26,7 +26,6 @@ class User(db.Model):
     def to_public_dict(self):
         return {
             'id': self.id,
-            'full_name': self.full_name,
             'email': self.email,
             'username': self.username,
             'plan': self.plan,
@@ -40,32 +39,6 @@ class AcademyAccess(db.Model):
     access_type = db.Column(db.String(20), nullable=False, default='free')
     expires_at = db.Column(db.DateTime, nullable=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-
-class EmailLoginCode(db.Model):
-    __tablename__ = 'email_login_codes'
-
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
-    code_hash = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    expires_at = db.Column(db.DateTime, nullable=False)
-    attempts = db.Column(db.Integer, default=0, nullable=False)
-
-
-class PendingEmailRegistration(db.Model):
-    __tablename__ = 'pending_email_registrations'
-
-    id = db.Column(db.Integer, primary_key=True)
-    full_name = db.Column(db.String(120), nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
-    username = db.Column(db.String(80), nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
-    pin_hash = db.Column(db.String(255), nullable=True)
-    code_hash = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    expires_at = db.Column(db.DateTime, nullable=False)
-    attempts = db.Column(db.Integer, default=0, nullable=False)
 
 
 class UserAuthPin(db.Model):

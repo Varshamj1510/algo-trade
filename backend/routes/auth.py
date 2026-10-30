@@ -11,12 +11,11 @@ bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 @bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json(silent=True) or {}
-    full_name = (data.get('full_name') or '').strip()
     email = (data.get('email') or '').strip().lower()
     username = (data.get('username') or '').strip()
     password = data.get('password') or ''
 
-    if not all([full_name, email, username, password]):
+    if not all([email, username, password]):
         return jsonify({'success': False, 'message': 'All fields are required.'}), 400
     if '@' not in email:
         return jsonify({'success': False, 'message': 'Enter a valid email.'}), 400
@@ -41,7 +40,7 @@ def register():
             'message': 'That username is already taken. Choose another.',
         }), 409
 
-    user = User(full_name=full_name, email=email, username=username, plan='Premium Plan')
+    user = User(full_name=username, email=email, username=username, plan='Premium Plan')
     user.set_password(password)
     db.session.add(user)
     db.session.flush()

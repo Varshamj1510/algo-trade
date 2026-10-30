@@ -25,6 +25,14 @@ def test_registration_page_includes_relevant_terms_before_acceptance():
     assert 'id="terms-agreement" type="checkbox" required' in page
 
 
+def test_profile_page_marks_profile_navigation_anchor():
+    response = app.test_client().get('/profile')
+
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert '<li class="nav-item active" data-page="profile">' in page
+
+
 def test_login_accepts_email_or_username():
     client = app.test_client()
 

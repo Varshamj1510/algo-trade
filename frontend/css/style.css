@@ -2342,48 +2342,42 @@ body:not(.auth-login) {
 }
 
 .app-shell {
-  display: block;
+  display: flex;
 }
 
 .app-shell > .sidebar {
   position: sticky;
   top: 0;
   z-index: 50;
-  width: 100%;
-  height: auto;
-  max-height: none;
-  overflow: visible;
-  padding: 10px 8px;
-  border-right: none;
-  border-bottom: 1px solid var(--border);
+  flex: 0 0 250px;
+  width: 250px;
+  height: 100vh;
+  max-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 22px 16px;
+  border-right: 1px solid var(--border);
+  border-bottom: none;
   background: rgba(7, 15, 28, 0.98);
 }
 
 .app-shell .brand {
-  display: none;
+  display: flex;
 }
 
 .app-shell .sidebar-nav {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 0 0 4px;
-  scrollbar-width: thin;
-  overscroll-behavior-x: contain;
+  display: block;
+  width: auto;
+  overflow: visible;
+  padding: 0;
 }
 
 .app-shell .nav-item {
-  flex: 0 0 auto;
-  min-width: max-content;
-  justify-content: center;
-  margin: 0;
-  padding: 12px 10px;
+  justify-content: flex-start;
+  margin: 0 0 6px;
+  padding: 12px 14px;
   border-radius: 9px;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .app-shell {
@@ -2569,7 +2563,7 @@ body.theme-light .app-shell .overview-table td {
 }
 
 .app-shell .nav-item.logout {
-  margin-left: auto;
+  margin-left: 0;
   color: #ff8d9f;
 }
 
@@ -2580,16 +2574,31 @@ body.theme-light .app-shell .overview-table td {
 }
 
 @media (max-width: 980px) {
+  .app-shell {
+    display: block;
+  }
+
   .app-shell > .sidebar,
   .app-shell > .sidebar.open {
-    position: relative;
-    left: auto;
-    width: 100%;
-    height: auto;
+    position: fixed;
+    left: -270px;
+    top: 0;
+    width: 260px;
+    height: 100vh;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 22px 16px;
+    border-right: 1px solid var(--border);
+    border-bottom: none;
+    transition: left 0.25s ease;
+  }
+
+  .app-shell > .sidebar.open {
+    left: 0;
   }
 
   .app-shell .mobile-menu {
-    display: none;
+    display: inline-grid;
   }
 
   .app-shell .nav-item {

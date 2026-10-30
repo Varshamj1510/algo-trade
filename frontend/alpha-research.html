@@ -66,6 +66,11 @@
                   <p class="muted alpha-explainer">PCA and a compact neural autoencoder compress standardized factor inputs. Latent dimensions are statistical representations, not named economic factors.</p>
                 </section>
               </div>
+              <section class="alpha-subpanel">
+                <h2>Explainable AI · SHAP &amp; LIME</h2>
+                <div id="alpha-explanations" class="alpha-explanation-grid"></div>
+                <p class="muted alpha-explainer" id="alpha-explanation-note"></p>
+              </section>
               <section class="alpha-subpanel alpha-history-panel">
                 <h2>Dynamic composite alpha</h2>
                 <div id="alpha-history-chart" class="alpha-history-chart" role="img" aria-label="Historical dynamic composite alpha scores"></div>
@@ -144,6 +149,34 @@
         target.setAttribute('aria-label', `Dynamic alpha score history, ${values.length} observations`);
       }
 
+      function renderExplanationTable(features) {
+        return `<div class="alpha-table-wrap"><table class="alpha-table alpha-explanation-table">
+          <thead><tr><th>Factor</th><th>Current value</th><th>Contribution to estimate</th></tr></thead>
+          <tbody>${features.map((feature) => `
+            <tr><td>${safe(feature.factor)}</td><td>${safe(feature.value)}</td>
+              <td class="${feature.contribution_percent >= 0 ? 'positive' : 'negative'}">${safe(pct(feature.contribution_percent))}</td></tr>
+          `).join('')}</tbody>
+        </table></div>`;
+      }
+
+      function renderExplainability(explainability) {
+        const labels = { random_forest: 'Random Forest', xgboost: 'XGBoost' };
+        document.getElementById('alpha-explanations').innerHTML = Object.entries(explainability.models)
+          .map(([model, explanation]) => `
+            <article class="alpha-explanation-model">
+              <h3>${safe(labels[model] || model)}</h3>
+              <section><h4>SHAP · additive feature attribution</h4>
+                <p class="muted">Baseline estimate: ${safe(pct(explanation.shap.base_value_percent))}</p>
+                ${renderExplanationTable([...explanation.shap.features]
+                  .sort((a, b) => Math.abs(b.contribution_percent) - Math.abs(a.contribution_percent))
+                  .slice(0, 6))}
+              </section>
+              <section><h4>LIME · local surrogate</h4>${renderExplanationTable(explanation.lime.features)}</section>
+            </article>
+          `).join('');
+        document.getElementById('alpha-explanation-note').textContent = explainability.interpretation;
+      }
+
       function renderResearch(data) {
         const alpha = data.composite_alpha;
         document.getElementById('alpha-summary').innerHTML = `
@@ -159,6 +192,7 @@
             const validation = data.validation[key];
             return `<article><strong>${safe(labels[key])}</strong><span>5-session estimate <b>${safe(pct(prediction))}</b></span><span>Holdout RMSE <b>${safe(pct(validation.validation_rmse_percent))}</b></span><span>Direction accuracy <b>${safe(validation.validation_direction_accuracy_percent)}%</b></span></article>`;
           }).join('');
+        renderExplainability(data.explainability);
 
         const latent = data.latent_factors;
         const latentItems = [

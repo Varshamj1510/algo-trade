@@ -22,6 +22,7 @@ A full-stack algorithmic trading dashboard starter with a React frontend and a F
 - Trading Academy with YouTube Data API lesson search (`YOUTUBE_API_KEY`) restricted to trading education
 - Kite-backed signal analysis with RSI, MACD, EMA/SMA, Bollinger bands, VWAP, ATR, OBV, volume context, and candle charts
 - Kite-backed alpha research with historical feature engineering, Random Forest/XGBoost estimates, factor ranking, PCA, autoencoder latent factors, and rolling composite-alpha weights
+- Local model explainability for alpha research using SHAP tree attributions and LIME surrogate explanations for Random Forest and XGBoost estimates; contributions are informational, not causal
 - User-scoped, one-time above/below price alerts with browser notifications, quiet hours, and Kite Connect quote checks
 
 ## Frontend setup

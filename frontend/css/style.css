@@ -468,6 +468,13 @@ img { max-width: 100%; }
 .alpha-model-grid article > span { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 0.76rem; }
 .alpha-model-grid article b { color: var(--text); text-align: right; }
 .alpha-explainer { margin: 11px 0 0; font-size: 0.76rem; line-height: 1.5; }
+.alpha-explanation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.alpha-explanation-model { display: grid; align-content: start; gap: 12px; min-width: 0; padding: 11px; border: 1px solid var(--border); border-radius: 8px; }
+.alpha-explanation-model h3, .alpha-explanation-model h4 { margin: 0 0 8px; font-size: 0.84rem; }
+.alpha-explanation-model h4 { color: var(--primary-2); }
+.alpha-explanation-model p { margin: 0 0 6px; font-size: 0.74rem; }
+.alpha-explanation-table { min-width: 420px; font-size: 0.72rem; }
+.alpha-explanation-table th, .alpha-explanation-table td { padding: 7px; }
 .latent-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
 .latent-grid > div { display: grid; gap: 6px; padding: 9px; border: 1px solid var(--border); border-radius: 7px; }
 .latent-grid span { color: var(--muted); font-size: 0.7rem; }
@@ -574,6 +581,7 @@ input[type="text"], input[type="email"], input[type="password"], select { width:
   .alpha-controls label { flex: 1 1 90px; }
   .alpha-controls input, .alpha-controls select { width: 100%; }
   .alpha-columns { grid-template-columns: 1fr; }
+  .alpha-explanation-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {

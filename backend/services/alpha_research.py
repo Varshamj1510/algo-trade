@@ -1,4 +1,6 @@
 import numpy as np
+import shap
+from lime.lime_tabular import LimeTabularExplainer
 from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestRegressor
 
@@ -202,6 +204,57 @@ def _model_summary(model, train_features, train_target, test_features, test_targ
     }
 
 
+def _explain_predictions(models, training, current):
+    background = training[-min(100, len(training)):]
+    lime_explainer = LimeTabularExplainer(
+        training_data=training,
+        feature_names=list(FACTOR_NAMES),
+        mode='regression',
+        random_state=17,
+    )
+    explanations = {}
+    for model_name, model in models.items():
+        shap_explainer = shap.TreeExplainer(model, data=background)
+        shap_values = np.asarray(shap_explainer.shap_values(current)).reshape(-1)
+        shap_base_value = float(np.asarray(shap_explainer.expected_value).reshape(-1)[0])
+        lime_result = lime_explainer.explain_instance(
+            current[0],
+            model.predict,
+            num_features=min(6, len(FACTOR_NAMES)),
+            num_samples=1000,
+        )
+        lime_values = sorted(
+            lime_result.as_map()[1],
+            key=lambda item: abs(item[1]),
+            reverse=True,
+        )
+
+        explanations[model_name] = {
+            'shap': {
+                'base_value_percent': round(shap_base_value * 100, 3),
+                'features': [
+                    {
+                        'factor': factor,
+                        'value': round(float(current[0][index]), 5),
+                        'contribution_percent': round(float(shap_values[index]) * 100, 3),
+                    }
+                    for index, factor in enumerate(FACTOR_NAMES)
+                ],
+            },
+            'lime': {
+                'features': [
+                    {
+                        'factor': FACTOR_NAMES[index],
+                        'value': round(float(current[0][index]), 5),
+                        'contribution_percent': round(float(weight) * 100, 3),
+                    }
+                    for index, weight in lime_values
+                ],
+            },
+        }
+    return explanations
+
+
 def _autoencoder_projection(training, current):
     rng = np.random.default_rng(23)
     input_size = training.shape[1]
@@ -312,6 +365,11 @@ def analyze_alpha(candles, symbol, exchange, timeframe):
         'xgboost': float(boosted.predict(current)[0]),
     }
     predictions['ensemble'] = float(np.mean(list(predictions.values())))
+    explainability = _explain_predictions(
+        {'random_forest': forest, 'xgboost': boosted},
+        features,
+        current,
+    )
 
     coefficients = _information_coefficients(features, target)
     ic_weights = np.abs(coefficients)
@@ -374,6 +432,14 @@ def analyze_alpha(candles, symbol, exchange, timeframe):
             model: round(prediction * 100, 3) for model, prediction in predictions.items()
         },
         'validation': validation_metrics,
+        'explainability': {
+            'models': explainability,
+            'interpretation': (
+                'SHAP values are additive local feature contributions for each tree model. '
+                'LIME contributions are a local surrogate approximation and may differ from SHAP. '
+                'Correlated market factors can share or shift attribution; neither method implies causation.'
+            ),
+        },
         'factor_ranking': factor_ranking,
         'latent_factors': {
             'pca': {

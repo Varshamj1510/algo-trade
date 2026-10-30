@@ -33,6 +33,24 @@ def test_alpha_research_trains_models_ranks_factors_and_composes_alpha():
     assert result['training_rows'] >= 120
     assert set(result['model_predictions']) == {'random_forest', 'xgboost', 'ensemble'}
     assert set(result['validation']) == {'random_forest', 'xgboost'}
+    assert set(result['explainability']['models']) == {'random_forest', 'xgboost'}
+    for model_name, explanation in result['explainability']['models'].items():
+        assert len(explanation['shap']['features']) == 18
+        assert len(explanation['lime']['features']) == 6
+        shap_estimate = explanation['shap']['base_value_percent'] + sum(
+            feature['contribution_percent']
+            for feature in explanation['shap']['features']
+        )
+        assert math.isclose(
+            shap_estimate,
+            result['model_predictions'][model_name],
+            abs_tol=0.02,
+        )
+        assert all(
+            math.isfinite(feature['contribution_percent'])
+            for method in explanation.values()
+            for feature in method['features']
+        )
     assert len(result['factor_ranking']) == 18
     assert abs(sum(item['dynamic_weight'] for item in result['factor_ranking']) - 1) < 0.001
     assert result['composite_alpha']['direction'] in {'POSITIVE', 'NEGATIVE', 'NEUTRAL'}

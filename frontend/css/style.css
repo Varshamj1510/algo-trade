@@ -3921,15 +3921,15 @@ body.theme-light .app-shell :is(.subtitle, .market-data-status, .dashboard-stock
   color: #64748b;
 }
 
-body.theme-light .dashboard-page .stat-header {
+body.theme-light.dashboard-page .stat-header {
   color: #64748b;
 }
 
-body.theme-light .dashboard-page .stat-value {
+body.theme-light.dashboard-page .stat-value {
   color: #172033;
 }
 
-body.theme-light .dashboard-page .stat-trend {
+body.theme-light.dashboard-page .stat-trend {
   color: #087f5b;
 }
 

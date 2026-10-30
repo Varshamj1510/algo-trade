@@ -1722,6 +1722,33 @@ input[type="text"], input[type="email"], input[type="password"], select { width:
 .auth-register-card input[type="email"],
 .auth-register-card input[type="password"] { min-height: 42px; padding: 9px 12px; }
 .auth-register-card .auth-field-hint { color: var(--auth-muted); font-size: 0.62rem; font-weight: 400; }
+.auth-register-card .auth-terms-details {
+  margin: 5px 0 10px;
+  border: 1px solid var(--auth-border);
+  border-radius: 4px;
+  color: #a9b4b0;
+  font-size: 0.7rem;
+}
+.auth-register-card .auth-terms-details summary {
+  padding: 9px 11px;
+  color: var(--auth-gold);
+  cursor: pointer;
+  font-weight: 600;
+}
+.auth-register-card .auth-terms-content {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 0 11px 10px;
+  line-height: 1.55;
+}
+.auth-register-card .auth-terms-content h3 {
+  margin: 11px 0 4px;
+  color: #dce3dd;
+  font-size: 0.72rem;
+  letter-spacing: 0;
+}
+.auth-register-card .auth-terms-content p { margin: 0 0 8px; }
+.auth-register-card .auth-terms-content .auth-terms-effective { color: var(--auth-muted); }
 .auth-register-card .auth-terms { justify-content: flex-start; margin: 5px 0 13px; color: #a9b4b0; cursor: pointer; font-size: 0.7rem; line-height: 1.5; }
 .auth-register-card .auth-terms input { width: 15px; height: 15px; flex: 0 0 auto; margin: 0; accent-color: var(--auth-gold); }
 .auth-register-card .auth-submit { margin-top: 2px; }

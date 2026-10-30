@@ -12,6 +12,19 @@ from backend.models import EmailLoginCode, PasskeyCredential, User, UserAuthPin
 from sqlalchemy import delete
 
 
+def test_registration_page_includes_relevant_terms_before_acceptance():
+    response = app.test_client().get('/')
+
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert 'id="terms-and-conditions"' in page
+    assert 'I have read and agree to the Terms &amp; Conditions.' in page
+    assert 'No investment advice' in page
+    assert 'Simulated trading' in page
+    assert 'possible loss of some or all of your invested capital' in page
+    assert 'id="terms-agreement" type="checkbox" required' in page
+
+
 def test_login_accepts_email_or_username():
     client = app.test_client()
 

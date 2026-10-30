@@ -99,9 +99,29 @@
               <input id="confirm-register-pin" name="confirm_pin" type="password" inputmode="numeric" autocomplete="new-password" pattern="[0-9]{6}" minlength="6" maxlength="6" placeholder="Enter the PIN again" required />
             </div>
 
+            <details class="auth-terms-details" id="terms-and-conditions">
+              <summary>Read Terms &amp; Conditions</summary>
+              <div class="auth-terms-content">
+                <p class="auth-terms-effective">Effective date: October 30, 2026</p>
+                <h3>Using AlgoMind</h3>
+                <p>AlgoMind provides market research, charting, strategy tools, alerts, and simulated trading features for informational and educational use. You agree to provide accurate account information, protect your sign-in credentials, and use the service lawfully.</p>
+                <h3>No investment advice</h3>
+                <p>Information, signals, model estimates, sentiment analysis, and other outputs are not investment, financial, tax, or legal advice, and are not a recommendation to buy or sell any security. Model outputs are estimates, may be inaccurate, and do not predict or guarantee future results. Make your own decisions and consult a qualified professional when appropriate.</p>
+                <h3>Trading involves risk</h3>
+                <p>Investing and trading involve risk, including the possible loss of some or all of your invested capital. Past performance and backtests do not guarantee future results. You are responsible for evaluating the risks and suitability of any transaction.</p>
+                <h3>Simulated trading</h3>
+                <p>Paper and virtual trading features use simulated balances and trades. They do not place real orders or transfer money to a broker. Simulated results may differ from actual market execution and should not be treated as evidence of future performance.</p>
+                <h3>Market data and connected services</h3>
+                <p>Market data may be delayed, incomplete, or inaccurate and may come from third-party providers. Connected services, including broker integrations, are subject to their own terms and availability. Verify information with an authoritative source before acting on it.</p>
+                <h3>Availability and responsible use</h3>
+                <p>We may update, suspend, or change features to maintain or improve the service. Do not attempt unauthorized access, disrupt the service, or use AlgoMind in violation of applicable laws or third-party rights.</p>
+                <p>These terms describe use of this application and are not a substitute for legal advice.</p>
+              </div>
+            </details>
+
             <label class="auth-terms">
               <input id="terms-agreement" type="checkbox" required />
-              <span>I agree to the Terms &amp; Conditions.</span>
+              <span>I have read and agree to the Terms &amp; Conditions.</span>
             </label>
 
             <button type="submit" class="auth-submit">Create account <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>

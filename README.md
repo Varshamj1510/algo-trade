@@ -122,7 +122,7 @@ PRICE_ALERT_POLL_SECONDS=30
 
 Configure the same callback URL in the Kite Connect developer portal. Keep all real keys in Render Environment settings only; never commit `.env` or paste secrets into source control.
 
-Email-code sign-in is optional. Configure these server-side variables in `.env` locally or in the hosting provider's environment settings; never expose them in frontend code:
+New accounts must verify their email before registration completes. Email-code sign-in uses the same server-side SMTP settings. Configure these values in `.env` locally and in the backend hosting provider's environment settings; never expose them in frontend code:
 
 ```dotenv
 MAIL_SERVER=smtp.example.com
@@ -134,7 +134,7 @@ MAIL_PASSWORD=your-smtp-password
 MAIL_DEFAULT_SENDER=AlgoMind <no-reply@example.com>
 ```
 
-Use the sender address authorized by your SMTP provider. Email sign-in returns a setup error until a mail server, port, and sender are configured.
+Use the sender address authorized by your SMTP provider. Registration and email sign-in return a setup error until a mail server, port, and sender are configured. Verification codes expire after 10 minutes, and resend requests are limited to one per 60 seconds. Local and deployed environments use separate databases; register and sign in on the same site.
 The equivalent `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` names are also supported. Gmail commonly uses port `465` with SSL or port `587` with TLS; use a Gmail app password rather than your normal account password. If you request another code within 60 seconds, wait for the cooldown and use the latest code. Check spam or junk if the message is delayed.
 
 ## Price alerts

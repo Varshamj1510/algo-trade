@@ -46,6 +46,7 @@ from backend.models import (
     Holding,
     Order,
     PasskeyCredential,
+    PendingEmailRegistration,
     PriceAlert,
     Report,
     Signal,
@@ -209,6 +210,24 @@ def profile_page():
     return send_file(str(BASE_DIR / 'frontend' / 'profile.html'))
 
 
+def _send_auth_email(message):
+    smtp_factory = (
+        smtplib.SMTP_SSL if app.config.get('MAIL_USE_SSL') else smtplib.SMTP
+    )
+    with smtp_factory(
+        app.config['MAIL_SERVER'],
+        app.config['MAIL_PORT'],
+        timeout=10,
+    ) as smtp:
+        if app.config['MAIL_USE_TLS'] and not app.config.get('MAIL_USE_SSL'):
+            smtp.starttls()
+        username = app.config.get('MAIL_USERNAME')
+        password = app.config.get('MAIL_PASSWORD')
+        if username and password:
+            smtp.login(username, password)
+        smtp.send_message(message)
+
+
 @app.route('/api/auth/register', methods=['POST'])
 def register_user():
     data = request.get_json(silent=True) or {}
@@ -242,16 +261,143 @@ def register_user():
             "message": "That username is already taken. Choose another.",
         }), 409
 
-    user = User(full_name=full_name, email=email, username=username, plan='Premium Plan')
-    user.set_password(password)
+    mail_settings = (
+        app.config.get('MAIL_SERVER'),
+        app.config.get('MAIL_PORT'),
+        app.config.get('MAIL_DEFAULT_SENDER'),
+    )
+    if not all(mail_settings):
+        return jsonify({
+            "success": False,
+            "message": "Email verification is not configured. Set the SMTP values in the server environment.",
+        }), 503
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    pending = PendingEmailRegistration.query.filter_by(email=email).first()
+    if pending and pending.created_at > now - timedelta(seconds=60):
+        return jsonify({
+            "success": False,
+            "message": "A verification code was just sent. Wait 60 seconds before requesting another.",
+        }), 429
+
+    conflicting_pending = PendingEmailRegistration.query.filter(
+        PendingEmailRegistration.username == username,
+        PendingEmailRegistration.email != email,
+        PendingEmailRegistration.expires_at > now,
+    ).first()
+    if conflicting_pending:
+        return jsonify({
+            "success": False,
+            "message": "That username is already being used. Choose another.",
+        }), 409
+
+    code = f'{secrets.randbelow(1_000_000):06d}'
+    if pending:
+        db.session.delete(pending)
+        db.session.flush()
+    pending = PendingEmailRegistration(
+        full_name=full_name,
+        email=email,
+        username=username,
+        password_hash=generate_password_hash(password),
+        pin_hash=generate_password_hash(pin) if pin is not None else None,
+        code_hash=generate_password_hash(code),
+        created_at=now,
+        expires_at=now + timedelta(minutes=10),
+        attempts=0,
+    )
+    db.session.add(pending)
+
+    message = EmailMessage()
+    message['Subject'] = 'Verify your AlgoMind account'
+    message['From'] = app.config['MAIL_DEFAULT_SENDER']
+    message['To'] = email
+    message.set_content(
+        f'Your AlgoMind account verification code is {code}. It expires in 10 minutes. '
+        'If you did not request this code, you can ignore this email.'
+    )
+
+    try:
+        _send_auth_email(message)
+        db.session.commit()
+    except (OSError, smtplib.SMTPException):
+        db.session.rollback()
+        app.logger.exception('Unable to send an email account verification code')
+        return jsonify({
+            "success": False,
+            "message": "The verification email could not be sent. Check the SMTP settings and try again.",
+        }), 502
+
+    return jsonify({
+        "success": True,
+        "verification_required": True,
+        "message": "A verification code was sent to your email. Enter it to finish creating your account.",
+    }), 202
+
+
+@app.route('/api/auth/verify-registration-otp', methods=['POST'])
+def verify_registration_otp():
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+    code = (data.get('code') or '').strip()
+    if not email or '@' not in email or len(code) != 6 or not code.isdigit():
+        return jsonify({
+            'success': False,
+            'message': 'Enter a valid email address and 6-digit verification code.',
+        }), 400
+
+    pending = PendingEmailRegistration.query.filter_by(email=email).first()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if not pending or pending.expires_at <= now:
+        if pending:
+            db.session.delete(pending)
+            db.session.commit()
+        return jsonify({
+            'success': False,
+            'message': 'That verification code is invalid or expired. Request a new code.',
+        }), 401
+    if pending.attempts >= 5:
+        return jsonify({
+            'success': False,
+            'message': 'Too many attempts. Request a new verification code.',
+        }), 429
+
+    pending.attempts += 1
+    if not check_password_hash(pending.code_hash, code):
+        db.session.commit()
+        return jsonify({
+            'success': False,
+            'message': 'That verification code is invalid or expired. Request a new code.',
+        }), 401
+
+    if User.query.filter(
+        db.or_(User.email == email, User.username == pending.username)
+    ).first():
+        db.session.delete(pending)
+        db.session.commit()
+        return jsonify({
+            'success': False,
+            'message': 'That email or username already has an account. Sign in or choose another username.',
+        }), 409
+
+    user = User(
+        full_name=pending.full_name,
+        email=pending.email,
+        username=pending.username,
+        password_hash=pending.password_hash,
+        plan='Premium Plan',
+    )
     db.session.add(user)
     db.session.flush()
-    if pin is not None:
-        db.session.add(UserAuthPin(user_id=user.id, pin_hash=generate_password_hash(pin)))
+    if pending.pin_hash:
+        db.session.add(UserAuthPin(user_id=user.id, pin_hash=pending.pin_hash))
+    db.session.delete(pending)
     db.session.commit()
 
-    token = create_access_token(identity=str(user.id))
-    return jsonify({"success": True, "token": token, "user": user.to_public_dict()}), 201
+    return jsonify({
+        'success': True,
+        'message': 'Your email is verified. You can now sign in.',
+    }), 201
 
 
 @app.route('/api/auth/login', methods=['POST'])
@@ -332,21 +478,7 @@ def request_login_otp():
     )
 
     try:
-        smtp_factory = (
-            smtplib.SMTP_SSL if app.config.get('MAIL_USE_SSL') else smtplib.SMTP
-        )
-        with smtp_factory(
-            app.config['MAIL_SERVER'],
-            app.config['MAIL_PORT'],
-            timeout=10,
-        ) as smtp:
-            if app.config['MAIL_USE_TLS'] and not app.config.get('MAIL_USE_SSL'):
-                smtp.starttls()
-            username = app.config.get('MAIL_USERNAME')
-            password = app.config.get('MAIL_PASSWORD')
-            if username and password:
-                smtp.login(username, password)
-            smtp.send_message(message)
+        _send_auth_email(message)
         db.session.commit()
     except (OSError, smtplib.SMTPException):
         db.session.rollback()

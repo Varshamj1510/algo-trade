@@ -1674,6 +1674,8 @@ input[type="text"], input[type="email"], input[type="password"], select { width:
 .auth-code-footnote { margin: 14px 0 0; color: var(--auth-muted); font-size: 0.66rem; line-height: 1.5; }
 .auth-resend { display: block; margin: 13px auto 0; padding: 7px; border: 0; background: transparent; color: var(--auth-gold); font-size: 0.7rem; cursor: pointer; }
 .auth-login-card #otp-code { text-align: center; font-size: 1.2rem; letter-spacing: 0.38em; font-variant-numeric: tabular-nums; }
+.auth-register-card #registration-code { text-align: center; font-size: 1.2rem; letter-spacing: 0.38em; font-variant-numeric: tabular-nums; }
+.auth-register-card #registration-email { color: var(--auth-ink); overflow-wrap: anywhere; }
 .auth-bottom { min-height: 56px; display: flex; justify-content: space-between; align-items: center; gap: 16px; border-top: 1px solid var(--auth-border); color: var(--auth-muted); font-size: 0.65rem; }
 .auth-bottom i { padding: 0 5px; color: var(--auth-gold); font-style: normal; }
 

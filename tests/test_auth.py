@@ -8,8 +8,78 @@ from types import SimpleNamespace
 import backend.app as app_module
 from backend.app import app
 from backend.database import db
-from backend.models import EmailLoginCode, PasskeyCredential, User, UserAuthPin
+from backend.models import (
+    EmailLoginCode,
+    PasskeyCredential,
+    PendingEmailRegistration,
+    User,
+    UserAuthPin,
+)
 from sqlalchemy import delete
+
+
+def register_with_email_code(client, payload):
+    sent_messages = []
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def starttls(self):
+            pass
+
+        def login(self, username, password):
+            pass
+
+        def send_message(self, message):
+            sent_messages.append(message)
+
+    mail_config = {
+        'MAIL_SERVER': 'smtp.example.com',
+        'MAIL_PORT': 587,
+        'MAIL_DEFAULT_SENDER': 'no-reply@example.com',
+        'MAIL_USE_TLS': True,
+        'MAIL_USE_SSL': False,
+        'MAIL_USERNAME': 'smtp-user',
+        'MAIL_PASSWORD': 'smtp-password',
+    }
+    with patch.object(app_module.smtplib, 'SMTP', FakeSMTP), patch.dict(app.config, mail_config):
+        response = client.post('/api/auth/register', json=payload)
+
+    if response.status_code != 202:
+        return response, None
+
+    assert response.get_json()['verification_required'] is True
+    assert response.get_json()['message']
+    assert len(sent_messages) == 1
+    match = re.search(r'\b(\d{6})\b', sent_messages[0].get_content())
+    assert match is not None
+    with app.app_context():
+        assert User.query.filter_by(email=payload['email']).first() is None
+        pending = PendingEmailRegistration.query.filter_by(email=payload['email']).first()
+        assert pending is not None
+        assert pending.password_hash != payload['password']
+        assert pending.code_hash != match.group(1)
+        if payload.get('pin'):
+            assert pending.pin_hash != payload['pin']
+    code = match.group(1)
+    wrong_code = ('0' if code[0] != '0' else '1') + code[1:]
+    rejected = client.post('/api/auth/verify-registration-otp', json={
+        'email': payload['email'],
+        'code': wrong_code,
+    })
+    assert rejected.status_code == 401
+    verified = client.post('/api/auth/verify-registration-otp', json={
+        'email': payload['email'],
+        'code': code,
+    })
+    return response, verified
 
 
 def test_registration_page_includes_relevant_terms_before_acceptance():
@@ -23,6 +93,17 @@ def test_registration_page_includes_relevant_terms_before_acceptance():
     assert 'Simulated trading' in page
     assert 'possible loss of some or all of your invested capital' in page
     assert 'id="terms-agreement" type="checkbox" required' in page
+    assert 'id="register-verify-form" hidden' in page
+    assert '/api/auth/verify-registration-otp' in page
+
+
+def test_login_confirmation_explains_email_code_sign_in():
+    response = app.test_client().get('/login?registered=1')
+
+    assert response.status_code == 200
+    assert 'Email verified. You can now sign in with an email code, PIN, or password.' in (
+        response.get_data(as_text=True)
+    )
 
 
 def test_profile_page_marks_profile_navigation_anchor():
@@ -49,15 +130,17 @@ def test_login_accepts_email_or_username():
 def test_registration_sets_hashed_alpha_pin_for_pin_sign_in():
     client = app.test_client()
     email = f'pin-{app_module.secrets.token_hex(8)}@example.test'
-    registration = client.post('/api/auth/register', json={
+    payload = {
         'full_name': 'PIN Trader',
         'email': email,
         'username': f'pin-{app_module.secrets.token_hex(8)}',
         'password': 'registration-password',
         'pin': '482917',
-    })
+    }
+    registration, verified = register_with_email_code(client, payload)
 
-    assert registration.status_code == 201
+    assert registration.status_code == 202
+    assert verified.status_code == 201
     with app.app_context():
         user = User.query.filter_by(email=email).first()
         auth_pin = UserAuthPin.query.filter_by(user_id=user.id).first()
@@ -88,14 +171,15 @@ def test_registration_rejects_invalid_alpha_pin():
 def test_registration_with_existing_email_points_to_sign_in():
     client = app.test_client()
     email = f'existing-{app_module.secrets.token_hex(8)}@example.test'
-    first = client.post('/api/auth/register', json={
+    first, verified = register_with_email_code(client, {
         'full_name': 'Existing Trader',
         'email': email,
         'username': f'existing-{app_module.secrets.token_hex(8)}',
         'password': 'registration-password',
         'pin': '482917',
     })
-    assert first.status_code == 201
+    assert first.status_code == 202
+    assert verified.status_code == 201
 
     duplicate = client.post('/api/auth/register', json={
         'full_name': 'Existing Trader',
@@ -114,13 +198,14 @@ def test_registration_with_existing_email_points_to_sign_in():
 def test_pin_sign_in_without_pin_explains_password_setup():
     client = app.test_client()
     email = f'no-pin-{app_module.secrets.token_hex(8)}@example.test'
-    registration = client.post('/api/auth/register', json={
+    registration, verified = register_with_email_code(client, {
         'full_name': 'No PIN Trader',
         'email': email,
         'username': f'no-pin-{app_module.secrets.token_hex(8)}',
         'password': 'registration-password',
     })
-    assert registration.status_code == 201
+    assert registration.status_code == 202
+    assert verified.status_code == 201
 
     response = client.post('/api/auth/pin/login', json={
         'email': email,
@@ -249,6 +334,20 @@ def test_email_code_sign_in_requires_smtp_configuration():
 
     assert response.status_code == 503
     assert 'SMTP' in response.get_json()['message']
+
+
+def test_registration_requires_email_verification_configuration():
+    with patch.dict(app.config, {'MAIL_SERVER': None}):
+        response = app.test_client().post('/api/auth/register', json={
+            'full_name': 'Unverified Trader',
+            'email': f'unverified-{app_module.secrets.token_hex(8)}@example.test',
+            'username': f'unverified-{app_module.secrets.token_hex(8)}',
+            'password': 'registration-password',
+            'pin': '482917',
+        })
+
+    assert response.status_code == 503
+    assert 'Email verification' in response.get_json()['message']
 
 
 def test_pin_setup_requires_password_and_allows_pin_sign_in():

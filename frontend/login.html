@@ -154,7 +154,7 @@
 
       const params = new URLSearchParams(window.location.search);
       if (params.get('registered') === '1') {
-        showAlert('Account created. Sign in with your email and 6-digit Alpha PIN.', 'success');
+        showAlert('Email verified. You can now sign in with an email code, PIN, or password.', 'success');
         emailInput.focus();
         window.history.replaceState({}, document.title, window.location.pathname);
       }

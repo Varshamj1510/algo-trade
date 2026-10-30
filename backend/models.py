@@ -53,6 +53,21 @@ class EmailLoginCode(db.Model):
     attempts = db.Column(db.Integer, default=0, nullable=False)
 
 
+class PendingEmailRegistration(db.Model):
+    __tablename__ = 'pending_email_registrations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    username = db.Column(db.String(80), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    pin_hash = db.Column(db.String(255), nullable=True)
+    code_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    attempts = db.Column(db.Integer, default=0, nullable=False)
+
+
 class UserAuthPin(db.Model):
     __tablename__ = 'user_auth_pins'
 

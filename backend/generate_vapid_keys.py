@@ -10,19 +10,19 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ENV_PATH = PROJECT_ROOT / '.env'
 
 
-def _encode_urlsafe(value):
+def _encode_urlsafe(value: bytes) -> str:
     return base64.urlsafe_b64encode(value).decode('ascii').rstrip('=')
 
 
-def _read_environment():
+def _read_environment() -> list[str]:
     if not ENV_PATH.exists():
         return []
     return ENV_PATH.read_text(encoding='utf-8').splitlines()
 
 
-def generate_vapid_keys():
+def generate_vapid_keys() -> bool:
     lines = _read_environment()
-    values = {}
+    values: dict[str, str] = {}
     for line in lines:
         if not line.strip() or line.lstrip().startswith('#') or '=' not in line:
             continue

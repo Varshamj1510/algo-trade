@@ -3925,7 +3925,7 @@ body.theme-light.dashboard-page .stat-header {
   color: #64748b;
 }
 
-body.theme-light.dashboard-page .stat-value {
+body.theme-light.dashboard-page .app-shell .stats-grid .stat-card .stat-value {
   color: #172033;
 }
 

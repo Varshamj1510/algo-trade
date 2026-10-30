@@ -43,63 +43,43 @@ pip install -r requirements.txt
 python app.py
 ```
 
-## Deploy the legacy frontend on Vercel and the API on Render
+## Deploy the full app on Render
 
-This repository's production frontend is the multi-page site under `frontend/`, not the Vite React prototype under `frontend/src`. The Vercel build copies that complete legacy site to `frontend/dist`, makes `/` serve the registration page, and supports clean routes such as `/login` and `/dashboard`.
+The Render Web Service serves both the multi-page frontend (`frontend/`) and Flask API from one origin. Users should register and sign in using the Render URL; this keeps account and OTP requests on the same backend and shared database. The Vite app under `frontend/src` is a separate prototype and is not the deployed frontend.
 
-1. Create a Render **Web Service** from this GitHub repository first. Set its root directory to the repository root, then configure:
-   - Build command: `pip install -r requirements.txt`
-   - Start command: `gunicorn --bind 0.0.0.0:$PORT run:app`
-   - Health check path: `/healthz`
-2. Provision a Render PostgreSQL database and set `DATABASE_URL` to its internal connection string. Set strong, unique `SECRET_KEY`, `JWT_SECRET_KEY`, and `OTP_HASH_SECRET` values.
-3. When Render has assigned the backend URL, for example `https://algomind-api.onrender.com`, set these Render environment variables:
-
-   ```dotenv
-   FRONTEND_ORIGIN=https://your-vercel-project.vercel.app
-   APP_ORIGIN=https://your-vercel-project.vercel.app
-   WEBAUTHN_ORIGIN=https://your-vercel-project.vercel.app
-   WEBAUTHN_RP_ID=your-vercel-project.vercel.app
-   WEBAUTHN_RP_NAME=AlgoMind
-   KITE_REDIRECT_URI=https://algomind-api.onrender.com/kite/callback
-   ```
-
-   `FRONTEND_ORIGIN` may contain a comma-separated list if you also want to allow a custom Vercel domain. Never add secrets, database URLs, or provider tokens to Vercel.
-4. In Vercel, import the same GitHub repository and set **Root Directory** to `frontend`. Vercel will run `npm run build` and deploy `dist` using `vercel.json`.
-5. In Vercel's environment variables, set `VITE_API_BASE_URL` to the exact public Render URL, such as `https://algomind-api.onrender.com`. Configure it for Production and Preview if you use preview deployments. The legacy build writes this public API URL into the generated browser JavaScript; it must not contain a secret.
-6. Redeploy Render after the Vercel production URL exists, then redeploy Vercel. Verify `https://your-render-service.onrender.com/healthz`, create an account at the Vercel URL, and test an authenticated API action.
-
-For browser push alerts, also create the separate Render Background Worker described below. It uses the same Postgres database and server-side environment variables as the web service.
-
-## Deploy on Render
-
-Create a **Web Service** from this repository with the repository root as the root directory. Use:
+Create one Render **Web Service** from this repository with the repository root as its root directory:
 
 - Build command: `pip install -r requirements.txt`
 - Start command: `gunicorn --bind 0.0.0.0:$PORT run:app`
+- Health check path: `/healthz`
 
-Create a separate Render **Background Worker** for closed-page price-alert delivery:
+Attach the Render PostgreSQL database to this Web Service and set `DATABASE_URL` to the database's **internal** connection string. Do not set it to a local SQLite path. Both registration and sign-in accounts are stored in that shared database.
+
+In Render → Web Service → **Environment**, add the variables below. Replace every placeholder with your own value; do not paste secret values into source files or chat:
 
 ```text
-python -m backend.alert_worker
+SECRET_KEY=<generate-a-unique-random-secret>
+JWT_SECRET_KEY=<generate-a-different-unique-random-secret>
+DATABASE_URL=<Render-PostgreSQL-internal-connection-string>
+FRONTEND_ORIGIN=https://<your-render-service>.onrender.com
+APP_ORIGIN=https://<your-render-service>.onrender.com
+WEBAUTHN_ORIGIN=https://<your-render-service>.onrender.com
+WEBAUTHN_RP_ID=<your-render-service>.onrender.com
+WEBAUTHN_RP_NAME=AlgoMind
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USE_SSL=true
+SMTP_USE_TLS=false
+SMTP_USER=<Gmail-address-that-sends-the-codes>
+SMTP_PASS=<Google-App-Password-for-that-Gmail-account>
+SMTP_FROM=<same-Gmail-address-that-sends-the-codes>
 ```
 
-Use the same production database and environment values in both services. Render provides the `PORT` value automatically. Use PostgreSQL for persistent deployment data; do not use a local SQLite path on Render.
+Use your exact Render service hostname (no trailing slash) in the four origin/RP variables. Render sets `PORT` automatically. Generate different strong values for `SECRET_KEY` and `JWT_SECRET_KEY`. For Gmail, use a Google **App Password**, not the normal account password; keep it private. `SMTP_FROM` should be the authenticated Gmail address.
 
-Required production variables:
+The frontend and API are same-origin on Render; no separate frontend URL or API-base setting is needed.
 
-```dotenv
-SECRET_KEY=<strong-random-secret>
-JWT_SECRET_KEY=<strong-random-secret>
-OTP_HASH_SECRET=<strong-random-secret>
-DATABASE_URL=<Render-PostgreSQL-connection-string>
-FRONTEND_ORIGIN=https://<your-vercel-project>.vercel.app
-APP_ORIGIN=https://<your-vercel-project>.vercel.app
-WEBAUTHN_ORIGIN=https://<your-vercel-project>.vercel.app
-RP_ID=<your-vercel-project>.vercel.app
-RP_NAME=AlgoMind
-```
-
-Optional integrations:
+Optional integration variables (only add the ones you use):
 
 ```dotenv
 KITE_API_KEY=<kite-api-key>
@@ -120,9 +100,9 @@ VAPID_SUBJECT=mailto:<contact-email>
 PRICE_ALERT_POLL_SECONDS=30
 ```
 
-Configure the same callback URL in the Kite Connect developer portal. Keep all real keys in Render Environment settings only; never commit `.env` or paste secrets into source control.
+For closed-page price-alert delivery, create a Render **Background Worker** with start command `python -m backend.alert_worker` and copy the same `DATABASE_URL` and required VAPID variables to it. Configure the same callback URL in the Kite Connect developer portal. Keep all real keys in Render Environment settings only; never commit `.env` or paste secrets into source control.
 
-New accounts must verify their email before registration completes. Email-code sign-in uses the same server-side SMTP settings. Configure these values in `.env` locally and in the backend hosting provider's environment settings; never expose them in frontend code:
+New accounts verify their email before registration completes. Email-code sign-in uses the same SMTP settings. For local development, configure SMTP values in `.env`; for the live service, configure them in Render Environment:
 
 ```dotenv
 MAIL_SERVER=smtp.example.com
@@ -134,7 +114,7 @@ MAIL_PASSWORD=your-smtp-password
 MAIL_DEFAULT_SENDER=AlgoMind <no-reply@example.com>
 ```
 
-Use the sender address authorized by your SMTP provider. Registration and email sign-in return a setup error until a mail server, port, and sender are configured. Verification codes expire after 10 minutes, and resend requests are limited to one per 60 seconds. Local and deployed environments use separate databases; register and sign in on the same site.
+Use the sender address authorized by your SMTP provider. Registration and email sign-in fail until the SMTP values are correctly set in the Render Web Service environment and the service has restarted/redeployed. Verification codes expire after 10 minutes, and resend requests are limited to one per 60 seconds. Local and deployed environments use separate databases; register and sign in on the same site.
 The equivalent `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` names are also supported. Gmail commonly uses port `465` with SSL or port `587` with TLS; use a Gmail app password rather than your normal account password. If you request another code within 60 seconds, wait for the cooldown and use the latest code. Check spam or junk if the message is delayed.
 
 ## Price alerts

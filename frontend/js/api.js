@@ -79,27 +79,39 @@ function bindSidebarNavigation() {
 
   const sidebarNav = document.querySelector('.sidebar-nav');
   if (sidebarNav) {
-    const extraPages = [
-      ['paper-trading', '<i class="fa-solid fa-shuffle"></i> Virtual Trading'],
-      ['trading-academy', '<i class="fa-solid fa-graduation-cap"></i> Trading Academy'],
-      ['sentiment', '<i class="fa-solid fa-comments"></i> Sentiment Analysis'],
-      ['alpha-research', '<i class="fa-solid fa-flask"></i> Alpha Research'],
-      ['order-protection', '<i class="fa-solid fa-shield-halved"></i> Order Protection'],
-      ['candlestick-chart', '<i class="fa-solid fa-chart-simple"></i> Candlesticks'],
+    const pages = [
+      ['dashboard', 'fa-chart-line', 'Dashboard'],
+      ['market', 'fa-chart-column', 'Market Data'],
+      ['stocks', 'fa-address-book', 'Stock Directory'],
+      ['signals', 'fa-bolt', 'Trade Signals'],
+      ['sentiment', 'fa-comments', 'Sentiment Analysis'],
+      ['strategies', 'fa-diagram-project', 'Strategies'],
+      ['alpha-research', 'fa-flask', 'Alpha Research'],
+      ['candlestick-chart', 'fa-chart-simple', 'Candlesticks'],
+      ['portfolio', 'fa-wallet', 'Portfolio'],
+      ['paper-trading', 'fa-shuffle', 'Virtual Trading'],
+      ['backtesting', 'fa-flask-vial', 'Backtesting'],
+      ['reports', 'fa-file-lines', 'Reports'],
+      ['watchlist', 'fa-star', 'Watchlist'],
+      ['alerts', 'fa-bell', 'Alerts'],
+      ['order-protection', 'fa-shield-halved', 'Order Protection'],
+      ['trading-academy', 'fa-graduation-cap', 'Trading Academy'],
+      ['profile', 'fa-user', 'Profile Settings'],
     ];
-    const profileItem = sidebarNav.querySelector('[data-page="profile"]');
-
-    extraPages.forEach(([page, label]) => {
-      let item = sidebarNav.querySelector(`[data-page="${page}"]`);
-      if (!item) {
-        item = document.createElement('li');
-        item.className = 'nav-item';
-        item.dataset.page = page;
-        item.innerHTML = label;
+    const logoutItem = sidebarNav.querySelector('#logout-btn');
+    const currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
+    const pageItems = pages.map(([page, icon, label]) => {
+      const item = document.createElement('li');
+      item.className = 'nav-item';
+      item.dataset.page = page;
+      item.innerHTML = `<i class="fa-solid ${icon}" aria-hidden="true"></i> ${label}`;
+      if (currentPath === `/${page}`) {
+        item.classList.add('active');
+        item.setAttribute('aria-current', 'page');
       }
-      item.classList.toggle('active', window.location.pathname === `/${page}`);
-      if (profileItem) sidebarNav.insertBefore(item, profileItem);
+      return item;
     });
+    sidebarNav.replaceChildren(...pageItems, ...(logoutItem ? [logoutItem] : []));
   }
 
   document.querySelectorAll('.nav-item[data-page]').forEach((item) => {

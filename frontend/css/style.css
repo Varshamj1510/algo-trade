@@ -3921,6 +3921,18 @@ body.theme-light .app-shell :is(.subtitle, .market-data-status, .dashboard-stock
   color: #64748b;
 }
 
+body.theme-light .dashboard-page .stat-header {
+  color: #64748b;
+}
+
+body.theme-light .dashboard-page .stat-value {
+  color: #172033;
+}
+
+body.theme-light .dashboard-page .stat-trend {
+  color: #087f5b;
+}
+
 body.theme-light .app-shell :is(input, select, textarea) {
   border: 1px solid #dce3ed;
   border-radius: 8px;

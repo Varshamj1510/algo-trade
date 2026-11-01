@@ -4,11 +4,37 @@ AlgoMind is a Flask application with a multi-page HTML/CSS/JavaScript frontend. 
 
 ## Project structure
 
-- `backend/` — Flask application, API routes, database models, and trading services
-- `frontend/` — deployed multi-page UI and separate Vite prototype
-- `database/` — local SQLite databases (ignored by Git)
-- `tests/` — automated tests
-- `symbols.csv/` — bundled historical demo data
+```text
+AlphaMind/
+├── backend/                  # Flask application and backend logic
+│   ├── algorithms/           # RSI, MACD, moving-average, and VWAP calculations
+│   ├── data/                 # Instrument lists and stock data
+│   ├── database/             # Local backend database files
+│   ├── routes/               # Flask API and page routes
+│   ├── services/             # Market data, indicators, alerts, and trading logic
+│   ├── app.py                # Application setup and route registration
+│   ├── config.py             # Application configuration
+│   ├── database.py           # Database setup
+│   ├── models.py             # Database models
+│   └── alert_worker.py       # Background price-alert worker
+├── database/                 # Local SQLite databases (ignored by Git)
+├── frontend/                 # Frontend assets and pages served by Flask
+│   ├── css/                  # Stylesheets
+│   ├── images/               # UI images
+│   ├── js/                   # Browser-side JavaScript
+│   ├── scripts/              # Frontend utility scripts
+│   ├── src/                  # Separate React + Vite prototype
+│   └── *.html                # Multi-page application screens
+├── symbols.csv/              # Bundled historical CSV data
+├── tests/                    # Pytest test suite
+├── requirements.txt          # Python dependencies
+├── run.py                    # Local application entry point
+├── Procfile                  # Deployment process definition
+├── conftest.py               # Shared pytest configuration
+└── pytest.ini                # Pytest settings
+```
+
+The SQLite files are local development data and are not committed. The deployed frontend is the multi-page HTML application; `frontend/src/` is a separate React + Vite prototype.
 
 ## Features
 

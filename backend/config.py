@@ -14,6 +14,11 @@ database_uri = os.getenv(
 )
 if database_uri.startswith('postgres://'):
     database_uri = database_uri.replace('postgres://', 'postgresql://', 1)
+if os.getenv('RENDER_EXTERNAL_URL') and database_uri.startswith('sqlite:'):
+    raise RuntimeError(
+        'Render requires persistent PostgreSQL for accounts and saved data. '
+        'Attach a Render PostgreSQL database and set DATABASE_URL to its internal connection string.'
+    )
 if database_uri.startswith('sqlite:'):
     database_url = make_url(database_uri)
     database_name = database_url.database

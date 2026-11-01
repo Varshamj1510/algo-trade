@@ -44,11 +44,14 @@ The SQLite files are local development data and are not committed. The deployed 
 - Saved trading strategies and manual rule previews
 - Financial-text sentiment analysis with Hugging Face and/or Gemini
 - Alpha research with Random Forest/XGBoost estimates, factor ranking, PCA, and SHAP/LIME explanations
+- Offline tabular Q-learning experiments with a chronological held-out paper-trading evaluation
 - Order-protection calculations for stop/target levels and position sizing
 - Virtual equity and futures trading; no live broker orders or real payments
 - Trading Academy with YouTube Data API lesson search
 - Kite Connect integration for supported market analysis and price-alert checks
 - User-scoped price alerts with browser notifications and quiet hours
+
+Open `/reinforcement-learning` to train a tabular Q-learning agent on bundled historical candles and evaluate it on a later held-out period. This is an offline simulation; it does not place broker orders.
 
 ## Local development
 
@@ -94,6 +97,7 @@ Create one Render **Web Service** using the repository root:
 | Health check path | `/healthz` |
 
 For persistent accounts and saved data, attach Render PostgreSQL and set `DATABASE_URL` to its **internal connection string**. Render's local filesystem is not persistent; SQLite is suitable only for temporary demos. Do not use a local Windows SQLite path on Render.
+The app refuses to start on Render if `DATABASE_URL` is missing or points to SQLite, rather than silently losing accounts after a restart or redeploy.
 
 Add these required settings in **Render → Web Service → Environment**. Replace the placeholders with your own values:
 
@@ -200,6 +204,7 @@ Market Data, dashboard overview, watchlist, and portfolio valuations use seeded 
 - `GET /api/instruments/search`, `GET /api/instruments/<symbol>` — seeded demo-stock search and details
 - `GET /api/market`, `GET /api/market/overview` — demo market data and overview
 - `GET /api/market/indices`, `/api/market/gainers`, `/api/market/losers`, `/api/market/active`, `/api/market/sectors` — overview sections
+- `GET /api/reinforcement-learning/instruments`, `POST /api/reinforcement-learning/backtest` — offline Q-learning experiments on bundled historical candles
 - `GET /api/watchlist`, `POST /api/watchlist`, `DELETE /api/watchlist/<symbol>` — user watchlist
 - `GET /api/alerts`, `PUT /api/alerts/settings`, `POST /api/alerts/check`, `POST /api/alerts/acknowledge`, `/api/price-alerts` — price alerts and settings
 - `GET /api/alerts/push/public-key`, `POST /api/alerts/push/subscribe`, `DELETE /api/alerts/push/subscribe` — browser push subscriptions

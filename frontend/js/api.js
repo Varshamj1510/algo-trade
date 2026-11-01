@@ -87,6 +87,7 @@ function bindSidebarNavigation() {
       ['sentiment', 'fa-comments', 'Sentiment Analysis'],
       ['strategies', 'fa-diagram-project', 'Strategies'],
       ['alpha-research', 'fa-flask', 'Alpha Research'],
+      ['reinforcement-learning', 'fa-brain', 'Reinforcement Learning'],
       ['candlestick-chart', 'fa-chart-simple', 'Candlesticks'],
       ['portfolio', 'fa-wallet', 'Portfolio'],
       ['paper-trading', 'fa-shuffle', 'Virtual Trading'],

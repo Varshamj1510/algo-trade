@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Experiment with an offline reinforcement-learning paper-trading backtest." />
+    <title>AlgoMind | RL Research</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/reinforcement-learning.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  </head>
+  <body class="reinforcement-learning-page">
+    <script>document.body.classList.toggle('theme-light', localStorage.getItem('alphamind_theme') !== 'dark');</script>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">
+          <div class="brand-mark"><img src="/images/algomind-mark.svg" alt="" aria-hidden="true"></div>
+          <h1>AlgoMind</h1>
+        </div>
+        <ul class="sidebar-nav">
+          <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Logout</li>
+        </ul>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu" id="menu-toggle" type="button" aria-label="Toggle navigation"><i class="fa fa-bars" aria-hidden="true"></i></button>
+            <span class="page-title">Reinforcement Learning</span>
+          </div>
+          <div class="topbar-right">
+            <div class="user-chip">
+              <div class="avatar" id="user-avatar">A</div>
+              <div><div class="user-name" id="top-user-name">Investor</div></div>
+            </div>
+          </div>
+        </header>
+
+        <div class="rl-shell">
+          <section class="rl-hero">
+            <p class="rl-eyebrow">RESEARCH LAB · OFFLINE SIMULATION</p>
+            <h1>Reinforcement learning</h1>
+            <p>
+              Train a small Q-learning agent on historical candles, then evaluate its
+              decisions on a later, held-out period. No live orders are placed.
+            </p>
+          </section>
+
+          <section class="rl-layout" aria-label="Reinforcement learning backtest">
+            <form class="rl-panel rl-controls" id="rl-form">
+          <div class="rl-section-heading">
+            <div>
+              <p class="rl-eyebrow">CONFIGURATION</p>
+              <h2>Run an experiment</h2>
+            </div>
+            <span class="rl-step">01</span>
+          </div>
+
+          <label for="rl-symbol">Historical instrument</label>
+          <select id="rl-symbol" name="symbol" required>
+            <option value="">Loading historical data…</option>
+          </select>
+
+          <label for="rl-capital">Starting virtual capital</label>
+          <div class="rl-input-wrap">
+            <span aria-hidden="true">₹</span>
+            <input id="rl-capital" name="initial_capital" type="number" min="1000" max="10000000" step="1000" value="100000" required />
+          </div>
+
+          <div class="rl-method-card">
+            <span class="rl-method-icon" aria-hidden="true">Q</span>
+            <div>
+              <strong>Tabular Q-learning</strong>
+              <p>Long or cash · 250 training episodes · 0.1% simulated cost per side</p>
+            </div>
+          </div>
+
+          <button class="rl-run-button" id="rl-run" type="submit">
+            <span>Train &amp; evaluate</span>
+            <span aria-hidden="true">↗</span>
+          </button>
+          <p class="rl-status" id="rl-status" role="status" aria-live="polite">Loading historical instruments…</p>
+            </form>
+
+            <aside class="rl-panel rl-process">
+          <p class="rl-eyebrow">HOW IT LEARNS</p>
+          <h2>Past first. Future held out.</h2>
+          <ol class="rl-steps">
+            <li><span>1</span><div><strong>Observe</strong><p>Recent five-candle price trend and whether the agent holds a position.</p></div></li>
+            <li><span>2</span><div><strong>Choose</strong><p>Hold, buy, or sell in a simulated long-or-cash portfolio.</p></div></li>
+            <li><span>3</span><div><strong>Learn</strong><p>Q-values update from price changes, with transaction costs included.</p></div></li>
+            <li><span>4</span><div><strong>Evaluate</strong><p>Freeze learning and test only on chronologically later candles.</p></div></li>
+          </ol>
+          <p class="rl-disclaimer">A historical test is an experiment, not a forecast or investment recommendation.</p>
+            </aside>
+          </section>
+
+          <section class="rl-results" id="rl-results" hidden aria-live="polite">
+        <div class="rl-result-heading">
+          <div>
+            <p class="rl-eyebrow">HELD-OUT TEST RESULTS</p>
+            <h2 id="rl-result-title">Agent evaluation</h2>
+            <p class="rl-result-period" id="rl-result-period"></p>
+          </div>
+          <span class="rl-offline-badge"><span></span> Offline · no orders</span>
+        </div>
+
+        <div class="rl-metrics">
+          <article class="rl-panel rl-metric">
+            <span>Agent return</span>
+            <strong id="rl-return">—</strong>
+            <small>after simulated costs</small>
+          </article>
+          <article class="rl-panel rl-metric">
+            <span>Final virtual value</span>
+            <strong id="rl-final-value">—</strong>
+            <small id="rl-capital-label">from starting capital</small>
+          </article>
+          <article class="rl-panel rl-metric">
+            <span>Buy &amp; hold</span>
+            <strong id="rl-benchmark">—</strong>
+            <small>same held-out dates, costs included</small>
+          </article>
+          <article class="rl-panel rl-metric">
+            <span>Maximum drawdown</span>
+            <strong id="rl-drawdown">—</strong>
+            <small><span id="rl-trades">0</span> completed round trips</small>
+          </article>
+        </div>
+
+        <article class="rl-panel rl-chart-panel">
+          <div class="rl-chart-heading">
+            <div><h3>Virtual equity curve</h3><p>Agent evaluation on unseen historical candles</p></div>
+            <span class="rl-chart-legend"><i></i> Agent</span>
+          </div>
+          <div class="rl-chart-wrap">
+            <svg id="rl-chart" viewBox="0 0 760 220" role="img" aria-labelledby="rl-chart-title rl-chart-desc">
+              <title id="rl-chart-title">Reinforcement-learning agent equity curve</title>
+              <desc id="rl-chart-desc">Virtual portfolio value over the held-out historical test period.</desc>
+              <line class="rl-chart-grid" x1="0" y1="25" x2="760" y2="25"></line>
+              <line class="rl-chart-grid" x1="0" y1="110" x2="760" y2="110"></line>
+              <line class="rl-chart-grid" x1="0" y1="195" x2="760" y2="195"></line>
+              <polyline id="rl-chart-line" points=""></polyline>
+            </svg>
+          </div>
+          <div class="rl-chart-dates"><span id="rl-chart-start"></span><span id="rl-chart-end"></span></div>
+        </article>
+
+        <div class="rl-detail-grid">
+          <article class="rl-panel rl-period-card">
+            <p class="rl-eyebrow">TRAINING WINDOW</p>
+            <h3 id="rl-training-range">—</h3>
+            <p><span id="rl-training-observations">0</span> historical observations · <span id="rl-episodes">250</span> episodes</p>
+          </article>
+          <article class="rl-panel rl-period-card">
+            <p class="rl-eyebrow">TEST WINDOW</p>
+            <h3 id="rl-test-range">—</h3>
+            <p><span id="rl-test-observations">0</span> observations kept out of training</p>
+          </article>
+        </div>
+
+        <article class="rl-panel rl-actions-panel">
+          <div class="rl-chart-heading">
+            <div><h3>Agent actions</h3><p>Executed position changes during the held-out test period</p></div>
+          </div>
+          <div class="rl-table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Action</th><th>Historical close</th></tr></thead>
+              <tbody id="rl-actions"></tbody>
+            </table>
+          </div>
+          <p class="rl-empty-actions" id="rl-empty-actions" hidden>The agent remained in cash throughout the test period.</p>
+        </article>
+        <p class="rl-footnote">For educational research only. Past performance does not predict future results. This tool uses bundled historical data and never sends broker orders.</p>
+              </section>
+            </div>
+          </main>
+    </div>
+    <script src="/js/api.js"></script>
+    <script src="/js/reinforcement-learning.js"></script>
+  </body>
+</html>

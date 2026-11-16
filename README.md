@@ -38,6 +38,7 @@ The SQLite files are local development data and are not committed. The deployed 
 
 ## Features
 
+- Responsive navigation with a scrollable off-canvas menu on mobile
 - Dashboard with portfolio views, charts, watchlists, and virtual trading
 - Technical indicators: RSI, MACD, moving averages, and VWAP
 - Historical CSV-based moving-average backtesting

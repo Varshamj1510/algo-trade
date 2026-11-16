@@ -3804,7 +3804,7 @@ body.theme-light.sentiment-page .sentiment-score-bar-track {
   font-size: 0.68rem;
 }
 
-@media (max-width: 840px) {
+@media (max-width: 980px) {
   .dashboard-site-footer {
     margin: 28px -16px -28px;
   }

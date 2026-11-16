@@ -53,7 +53,7 @@ class Config:
         if origin.strip()
     ]
     WEBAUTHN_RP_ID = os.getenv('WEBAUTHN_RP_ID') or os.getenv('RP_ID', 'localhost')
-    WEBAUTHN_RP_NAME = os.getenv('WEBAUTHN_RP_NAME') or os.getenv('RP_NAME', 'AlgoMind')
+    WEBAUTHN_RP_NAME = os.getenv('WEBAUTHN_RP_NAME') or os.getenv('RP_NAME', 'Alpha-Mind')
     WEBAUTHN_ORIGIN = (
         os.getenv('WEBAUTHN_ORIGIN')
         or os.getenv('APP_ORIGIN')

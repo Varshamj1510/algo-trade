@@ -706,7 +706,7 @@ def kite_callback():
             'Kite did not authorize this account for the configured Kite Connect app. '
             'If Kite reports that the user is not enabled for the app, the app owner must '
             'enable this Zerodha account in the Kite Connect developer console, or Kite '
-            'Connect support must resolve the app access. AlgoMind cannot grant this '
+            'Connect support must resolve the app access. Alpha-Mind cannot grant this '
             'permission. After access is enabled, start the connection again from Market Data.',
             403,
         )

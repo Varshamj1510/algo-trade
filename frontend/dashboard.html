@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AlgoMind | Dashboard</title>
+    <title>Alpha-Mind | Dashboard</title>
     <link rel="stylesheet" href="/css/style.css?v=alpha-mobile-drawer-4" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -14,7 +14,7 @@
       <aside class="sidebar" id="sidebar">
         <div class="brand">
           <div class="brand-mark"><img src="/images/algomind-mark.svg" alt="" aria-hidden="true"></div>
-          <h1>AlgoMind</h1>
+          <h1>Alpha-Mind</h1>
         </div>
 
         <ul class="sidebar-nav">
@@ -128,7 +128,7 @@
           <div class="dashboard-ai-heading">
             <div class="dashboard-ai-icon" aria-hidden="true">AI</div>
             <div>
-              <h2 id="dashboard-ai-title">Ask AlgoMind AI</h2>
+              <h2 id="dashboard-ai-title">Ask Alpha-Mind AI</h2>
               <p>Ask about investing concepts, indicators, risk management, or how to use this dashboard.</p>
             </div>
             <span class="dashboard-ai-badge"><i class="fa-solid fa-circle" aria-hidden="true"></i> Gemini AI</span>
@@ -136,7 +136,7 @@
           <div id="dashboard-ai-messages" class="dashboard-ai-messages" role="log" aria-live="polite" aria-relevant="additions">
             <article class="dashboard-ai-message assistant">
               <div class="dashboard-ai-message-avatar" aria-hidden="true">AI</div>
-              <p>Hi! I can explain indicators, trading concepts, risk management, and AlgoMind features. I don’t provide current market quotes or access your account.</p>
+              <p>Hi! I can explain indicators, trading concepts, risk management, and Alpha-Mind features. I don’t provide current market quotes or access your account.</p>
             </article>
           </div>
           <div class="dashboard-ai-prompts" aria-label="Suggested questions">
@@ -145,12 +145,12 @@
             <button type="button" data-ai-prompt="What is the difference between a market order and a limit order?">Trading basics</button>
           </div>
           <form id="dashboard-ai-form" class="dashboard-ai-form">
-            <label class="visually-hidden" for="dashboard-ai-input">Message AlgoMind AI</label>
-            <textarea id="dashboard-ai-input" rows="2" maxlength="2000" placeholder="Ask AlgoMind AI…" required></textarea>
+            <label class="visually-hidden" for="dashboard-ai-input">Message Alpha-Mind AI</label>
+            <textarea id="dashboard-ai-input" rows="2" maxlength="2000" placeholder="Ask Alpha-Mind AI…" required></textarea>
             <button type="submit" id="dashboard-ai-send" aria-label="Send message"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
           </form>
           <div class="dashboard-ai-footer">
-            <span id="dashboard-ai-status" role="status" aria-live="polite">Replies use Google Gemini. Messages are not saved by AlgoMind.</span>
+            <span id="dashboard-ai-status" role="status" aria-live="polite">Replies use Google Gemini. Messages are not saved by Alpha-Mind.</span>
             <span>Educational only · not financial advice</span>
           </div>
         </section>
@@ -315,12 +315,12 @@
         </div>
         <footer class="dashboard-site-footer">
           <div class="dashboard-footer-main">
-            <section class="dashboard-footer-brand" aria-label="About AlgoMind">
-              <a class="dashboard-footer-wordmark" href="/dashboard"><span class="brand-mark"><img src="/images/algomind-mark.svg" alt="" aria-hidden="true"></span><strong>AlgoMind</strong></a>
+            <section class="dashboard-footer-brand" aria-label="About Alpha-Mind">
+              <a class="dashboard-footer-wordmark" href="/dashboard"><span class="brand-mark"><img src="/images/algomind-mark.svg" alt="" aria-hidden="true"></span><strong>Alpha-Mind</strong></a>
               <p>Learn the market. Explore the data. Practise with virtual trades.</p>
               <span class="dashboard-footer-note">Educational use only · Not investment advice</span>
             </section>
-            <nav class="dashboard-footer-column" aria-label="Explore AlgoMind">
+            <nav class="dashboard-footer-column" aria-label="Explore Alpha-Mind">
               <h2>EXPLORE</h2>
               <a href="/dashboard">Dashboard</a>
               <a href="/market">Market data</a>
@@ -376,8 +376,8 @@
               <a href="/order-protection">Risk information</a>
               <a href="/trading-academy">Learning resources</a>
             </div>
-            <p>Virtual orders do not reach a broker. AlgoMind does not provide investment advice.</p>
-            <span class="dashboard-footer-copyright">© 2026 AlgoMind · Built for market learning</span>
+            <p>Virtual orders do not reach a broker. Alpha-Mind does not provide investment advice.</p>
+            <span class="dashboard-footer-copyright">© 2026 Alpha-Mind · Built for market learning</span>
           </div>
         </footer>
       </main>
@@ -895,7 +895,7 @@
         dashboardAiSend.disabled = true;
         dashboardAiInput.disabled = true;
         document.querySelectorAll('[data-ai-prompt]').forEach((button) => { button.disabled = true; });
-        dashboardAiStatus.textContent = 'AlgoMind AI is thinking…';
+        dashboardAiStatus.textContent = 'Alpha-Mind AI is thinking…';
         const loadingMessage = appendAssistantMessage('assistant', 'Thinking…', true);
 
         try {
@@ -906,7 +906,7 @@
           loadingMessage.remove();
           dashboardAiHistory.push({ role: 'assistant', content: response.data.reply });
           appendAssistantMessage('assistant', response.data.reply);
-          dashboardAiStatus.textContent = `Reply from ${response.data.provider} · messages are not saved by AlgoMind`;
+          dashboardAiStatus.textContent = `Reply from ${response.data.provider} · messages are not saved by Alpha-Mind`;
         } catch (error) {
           loadingMessage.remove();
           dashboardAiHistory.pop();

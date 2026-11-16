@@ -1,6 +1,6 @@
-# AlgoMind
+# Alpha-Mind
 
-AlgoMind is a Flask application with a multi-page HTML/CSS/JavaScript frontend. A separate React + Vite prototype is in `frontend/src`.
+Alpha-Mind is a Flask application with a multi-page HTML/CSS/JavaScript frontend. A separate React + Vite prototype is in `frontend/src`.
 
 ## Project structure
 

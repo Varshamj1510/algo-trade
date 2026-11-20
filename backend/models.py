@@ -179,6 +179,7 @@ class BacktestResult(db.Model):
     __tablename__ = 'backtests'
 
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
     strategy_name = db.Column(db.String(80), nullable=False)
     symbol = db.Column(db.String(20), nullable=False)
     initial_capital = db.Column(db.Float, nullable=False)
@@ -494,3 +495,18 @@ class PaperFutureTrade(db.Model):
             'value': round(value, 2),
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
         }
+
+
+class PaperTradeJournal(db.Model):
+    __tablename__ = 'paper_trade_journal'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    trade_type = db.Column(db.String(12), nullable=False)
+    trade_id = db.Column(db.Integer, nullable=False)
+    note = db.Column(db.String(500), nullable=False, default='')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'trade_type', 'trade_id', name='uq_paper_trade_journal_owner_trade'),
+    )

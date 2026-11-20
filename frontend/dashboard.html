@@ -64,10 +64,37 @@
           <div class="dashboard-ticker-item" data-index="NIFTY 50"><span>NIFTY 50</span><strong>--</strong><small></small></div>
           <div class="dashboard-ticker-item" data-index="SENSEX"><span>SENSEX</span><strong>--</strong><small></small></div>
           <div class="dashboard-ticker-item" data-index="BANK NIFTY"><span>BANK NIFTY</span><strong>--</strong><small></small></div>
-          <div class="dashboard-ticker-status" aria-label="Market and alert service health">
-            <span class="demo-status-badge">Demo · not live</span>
-            <span id="dashboard-market-status" aria-live="polite">Loading demo snapshot...</span>
-            <span id="dashboard-alert-status" class="dashboard-health-badge is-checking" role="status" aria-live="polite">Checking alert service...</span>
+          <div class="dashboard-ticker-status">
+            <span id="dashboard-market-status" aria-live="polite">Loading market data...</span>
+          </div>
+        </section>
+
+        <section class="dashboard-pulse panel" aria-labelledby="dashboard-pulse-title">
+          <div class="dashboard-pulse-heading">
+            <h2 id="dashboard-pulse-title">Account overview</h2>
+            <span>Virtual account · personal activity</span>
+          </div>
+          <div class="dashboard-pulse-grid">
+            <a class="dashboard-pulse-item" href="/paper-trading">
+              <span>Paper account equity</span>
+              <strong id="dashboard-paper-equity">--</strong>
+              <small id="dashboard-paper-pnl">Loading realized and unrealized P&amp;L…</small>
+            </a>
+            <a class="dashboard-pulse-item" href="/alerts">
+              <span>Active price alerts</span>
+              <strong id="dashboard-alert-count">--</strong>
+              <small>Enabled and not yet triggered</small>
+            </a>
+            <a class="dashboard-pulse-item" href="/watchlist">
+              <span>Watchlist</span>
+              <strong id="dashboard-watchlist-summary">--</strong>
+              <small>Saved instruments</small>
+            </a>
+            <a class="dashboard-pulse-item" href="/backtesting">
+              <span>Latest backtest</span>
+              <strong id="dashboard-latest-backtest">--</strong>
+              <small id="dashboard-latest-backtest-detail">No saved runs yet</small>
+            </a>
           </div>
         </section>
 
@@ -688,7 +715,7 @@
           renderDecision(null);
           renderSignals(response.signals || []);
           loadDemoDashboardMarket();
-          loadDashboardAlertHealth();
+          loadDashboardPulse();
           renderAllocationChart();
         } catch (error) {
           logoutUser();
@@ -768,9 +795,9 @@
           renderDashboardMovers('dashboard-losers', overview.losers, 'No losers available.');
           const updatedAt = overview.updated_at ? new Date(overview.updated_at) : null;
           const updateLabel = updatedAt && !Number.isNaN(updatedAt.getTime())
-            ? `Generated ${updatedAt.toLocaleTimeString('en-IN')}`
+            ? ` · updated ${updatedAt.toLocaleTimeString('en-IN')}`
             : '';
-          status.textContent = updateLabel || 'Illustrative market snapshot';
+          status.textContent = `${overview.provider || 'Market prices'}${updateLabel}`;
         } catch (error) {
           dashboardIndices = [];
           renderDashboardTicker(dashboardIndices);
@@ -781,38 +808,50 @@
         }
       }
 
-      async function loadDashboardAlertHealth() {
-        const status = document.getElementById('dashboard-alert-status');
-        try {
-          const response = await apiRequest('/api/alerts/health');
-          const delivery = response.delivery || {};
-          const settings = response.settings || {};
-          let message = 'Background alerts ready';
-          let state = 'online';
-          if (!delivery.push_configured) {
-            message = 'Push alerts not configured';
-            state = 'offline';
-          } else if (!delivery.background_worker_online) {
-            message = 'Alert worker offline';
-            state = 'offline';
-          } else if (!settings.enabled) {
-            message = 'Alerts paused for this account';
-            state = 'paused';
-          } else if (!delivery.push_subscription_registered) {
-            message = 'No notification device registered';
-            state = 'paused';
-          }
-          status.textContent = message;
-          status.className = `dashboard-health-badge is-${state}`;
-        } catch (error) {
-          status.textContent = 'Alert service status unavailable';
-          status.className = 'dashboard-health-badge is-offline';
+      async function loadDashboardPulse() {
+        const [accountResult, alertsResult, backtestsResult] = await Promise.allSettled([
+          apiRequest('/api/paper-trading/account'),
+          apiRequest('/api/alerts'),
+          apiRequest('/api/backtest/history'),
+        ]);
+        const equity = document.getElementById('dashboard-paper-equity');
+        const pnl = document.getElementById('dashboard-paper-pnl');
+        if (accountResult.status === 'fulfilled') {
+          const account = accountResult.value.data;
+          equity.textContent = formatCurrency(account.total_equity);
+          pnl.textContent = `${formatCurrency(account.realized_pnl)} realized · ${formatCurrency(account.unrealized_pnl)} unrealized`;
+          pnl.className = account.realized_pnl + account.unrealized_pnl >= 0 ? 'positive' : 'negative';
+        } else {
+          equity.textContent = 'Unavailable';
+          pnl.textContent = 'Paper account could not be loaded';
+        }
+
+        if (alertsResult.status === 'fulfilled') {
+          const activeAlerts = (alertsResult.value.price_alerts || [])
+            .filter((alert) => alert.enabled && !alert.triggered).length;
+          document.getElementById('dashboard-alert-count').textContent = String(activeAlerts);
+        } else {
+          document.getElementById('dashboard-alert-count').textContent = 'Unavailable';
+        }
+
+        if (backtestsResult.status === 'fulfilled') {
+          const latest = (backtestsResult.value.data || [])[0];
+          document.getElementById('dashboard-latest-backtest').textContent = latest
+            ? `${latest.symbol} · ${latest.total_return >= 0 ? '+' : ''}${latest.total_return}%`
+            : 'No runs yet';
+          document.getElementById('dashboard-latest-backtest-detail').textContent = latest
+            ? `${latest.strategy_name} · ${latest.created_at}`
+            : 'Run a historical backtest to see results';
+        } else {
+          document.getElementById('dashboard-latest-backtest').textContent = 'Unavailable';
+          document.getElementById('dashboard-latest-backtest-detail').textContent = 'Backtest history could not be loaded';
         }
       }
 
       function renderDashboardWatchlist(items) {
         document.getElementById('dashboard-watchlist-count').textContent =
           `${items.length} instrument${items.length === 1 ? '' : 's'}`;
+        document.getElementById('dashboard-watchlist-summary').textContent = String(items.length);
         dashboardWatchlistItems.innerHTML = items.length ? items.map((item) => {
           const hasQuote = item.price != null;
           const positive = Number(item.change) >= 0;
@@ -841,6 +880,7 @@
           dashboardWatchlistStatus.textContent = 'Prices';
         } catch (error) {
           renderDashboardWatchlist([]);
+          document.getElementById('dashboard-watchlist-summary').textContent = 'Unavailable';
           dashboardWatchlistStatus.textContent = error.message;
         }
       }
@@ -1038,7 +1078,7 @@
       loadDashboardWatchlist();
       loadDashboardStock();
       setInterval(loadDemoDashboardMarket, 30000);
-      setInterval(loadDashboardAlertHealth, 30000);
+      setInterval(loadDashboardPulse, 30000);
       setInterval(loadDashboardWatchlist, 30000);
     </script>
   </body>

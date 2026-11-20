@@ -239,6 +239,32 @@ def test_virtual_buy_sell_updates_cash_holdings_and_trade_history(quote_prices):
     assert sell_data['account']['cash_balance'] == round(1500000 - price, 2)
     assert sell_data['account']['holdings'][0]['quantity'] == 1
     assert [trade['side'] for trade in sell_data['account']['trades'][:2]] == ['SELL', 'BUY']
+    assert sell_data['account']['journal_summary']['closed_exits'] == 1
+    assert 0 <= sell_data['account']['journal_summary']['profitable_exit_rate'] <= 100
+
+
+def test_paper_trade_journal_is_persisted_and_user_scoped():
+    client, headers = authenticated_client()
+    other_client, other_headers = authenticated_client()
+    account_response = client.get('/api/paper-trading/account', headers=headers)
+    instrument = account_response.get_json()['data']['instruments'][0]
+    buy = client.post('/api/paper-trading/trades', headers=headers, json={
+        'symbol': instrument['symbol'],
+        'exchange': instrument['exchange'],
+        'side': 'BUY',
+        'quantity': 1,
+    })
+    trade = buy.get_json()['data']
+    journal_url = f"/api/paper-trading/trades/EQUITY/{trade['id']}/journal"
+
+    saved = client.put(journal_url, headers=headers, json={'note': 'Entry after trend confirmation.'})
+    assert saved.status_code == 200
+    updated_account = client.get('/api/paper-trading/account', headers=headers).get_json()['data']
+    journal_trade = next(item for item in updated_account['trades'] if item['id'] == trade['id'])
+    assert journal_trade['journal_note'] == 'Entry after trend confirmation.'
+
+    cross_user_edit = other_client.put(journal_url, headers=other_headers, json={'note': 'Not mine'})
+    assert cross_user_edit.status_code == 404
 
 
 def test_virtual_trading_rejects_overselling_and_insufficient_cash(quote_prices):

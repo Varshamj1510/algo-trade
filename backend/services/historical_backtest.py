@@ -4,40 +4,58 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 
-HISTORICAL_DATA_PATH = Path(__file__).resolve().parents[2] / 'symbols.csv' / 'adani.csv'
+HISTORICAL_DATA_PATH = Path(__file__).resolve().parents[2] / 'symbols.csv'
 FAST_WINDOW = 20
 SLOW_WINDOW = 50
 STRATEGY_NAME = '20/50 SMA crossover'
+PERIOD_WINDOWS = {'1Y': 252, '3Y': 756, '5Y': 1260}
+
+
+def _historical_csv_paths(path: Path | None = None) -> list[Path]:
+    source = path or HISTORICAL_DATA_PATH
+    if source.is_dir():
+        paths = sorted(source.glob('*.csv'))
+        if not paths:
+            raise FileNotFoundError(f'No historical CSV files were found in {source}.')
+        return paths
+    return [source]
 
 
 def _read_history(path: Path | None = None) -> dict[str, list[tuple[date, float]]]:
-    path = path or HISTORICAL_DATA_PATH
-    with path.open('r', encoding='utf-8-sig', newline='') as source:
-        reader = csv.DictReader(source)
-        required = {'timestamp', 'symbol', 'close'}
-        if not reader.fieldnames or not required.issubset(reader.fieldnames):
-            raise ValueError('Historical CSV must contain timestamp, symbol, and close columns.')
+    prices: dict[str, dict[date, float]] = {}
+    for csv_path in _historical_csv_paths(path):
+        with csv_path.open('r', encoding='utf-8-sig', newline='') as source:
+            reader = csv.DictReader(source)
+            required = {'timestamp', 'symbol', 'close'}
+            if not reader.fieldnames or not required.issubset(reader.fieldnames):
+                raise ValueError(f'{csv_path.name} must contain timestamp, symbol, and close columns.')
 
-        prices: dict[str, list[tuple[date, float]]] = {}
-        for row in reader:
-            try:
-                symbol = row['symbol'].strip().upper()
-                close = float(row['close'])
-                timestamp = int(row['timestamp'])
-            except (AttributeError, TypeError, ValueError) as error:
-                raise ValueError('Historical CSV contains an invalid symbol, close, or timestamp.') from error
-            if symbol.endswith('.NS'):
-                symbol = symbol[:-3]
-            elif symbol.endswith('.BO'):
-                symbol = symbol[:-3]
-            if not symbol or not math.isfinite(close) or close <= 0:
-                raise ValueError('Historical CSV contains a missing symbol or non-positive close.')
-            date = datetime.fromtimestamp(timestamp, timezone.utc).date()
-            prices.setdefault(symbol, []).append((date, close))
+            for row in reader:
+                try:
+                    symbol = row['symbol'].strip().upper()
+                    close = float(row['close'])
+                    timestamp = int(row['timestamp'])
+                except (AttributeError, TypeError, ValueError) as error:
+                    raise ValueError('Historical CSV contains an invalid symbol, close, or timestamp.') from error
+                if symbol.endswith('.NS'):
+                    symbol = symbol[:-3]
+                elif symbol.endswith('.BO'):
+                    symbol = symbol[:-3]
+                if not symbol or not math.isfinite(close) or close <= 0:
+                    raise ValueError('Historical CSV contains a missing symbol or non-positive close.')
+                observation_date = datetime.fromtimestamp(timestamp, timezone.utc).date()
+                symbol_prices = prices.setdefault(symbol, {})
+                existing_close = symbol_prices.get(observation_date)
+                if existing_close is not None and existing_close != close:
+                    raise ValueError(
+                        f'Historical CSV files contain conflicting closes for {symbol} on {observation_date}.'
+                    )
+                symbol_prices[observation_date] = close
 
-    for values in prices.values():
-        values.sort(key=lambda item: item[0])
-    return prices
+    return {
+        symbol: sorted(observations.items())
+        for symbol, observations in prices.items()
+    }
 
 
 def get_historical_universe() -> list[dict[str, str | int]]:
@@ -53,43 +71,54 @@ def get_historical_universe() -> list[dict[str, str | int]]:
 
 
 def _read_demo_research_history() -> dict[str, list[dict[str, str | float | int]]]:
-    candles_by_symbol: dict[str, list[dict[str, str | float | int]]] = {}
-    with HISTORICAL_DATA_PATH.open('r', encoding='utf-8-sig', newline='') as source:
-        reader = csv.DictReader(source)
-        required = {'timestamp', 'symbol', 'open', 'high', 'low', 'close', 'volume'}
-        if not reader.fieldnames or not required.issubset(reader.fieldnames):
-            raise ValueError('Historical CSV must contain timestamp, symbol, OHLC, and volume columns.')
-        for row in reader:
-            try:
-                raw_symbol = row['symbol'].strip().upper()
-                if not raw_symbol.endswith('.NS'):
-                    continue
-                timestamp = int(row['timestamp'])
-                candle = {
-                    'time': datetime.fromtimestamp(timestamp, timezone.utc).date().isoformat(),
-                    'open': float(row['open']),
-                    'high': float(row['high']),
-                    'low': float(row['low']),
-                    'close': float(row['close']),
-                    'volume': float(row['volume']),
-                }
-            except (AttributeError, TypeError, ValueError, OverflowError) as error:
-                raise ValueError('Historical CSV contains an invalid demo candle.') from error
-            prices = [candle[key] for key in ('open', 'high', 'low', 'close', 'volume')]
-            if (
-                not all(math.isfinite(value) for value in prices)
-                or min(prices[:4]) <= 0
-                or candle['volume'] < 0
-                or candle['high'] < max(candle['open'], candle['close'])
-                or candle['low'] > min(candle['open'], candle['close'])
-                or candle['high'] < candle['low']
-            ):
-                raise ValueError('Historical CSV contains an invalid demo candle.')
-            symbol = raw_symbol[:-3]
-            candles_by_symbol.setdefault(symbol, []).append(candle)
-    for candles in candles_by_symbol.values():
-        candles.sort(key=lambda candle: str(candle['time']))
-    return candles_by_symbol
+    candles_by_symbol: dict[str, dict[str, dict[str, str | float | int]]] = {}
+    for csv_path in _historical_csv_paths():
+        with csv_path.open('r', encoding='utf-8-sig', newline='') as source:
+            reader = csv.DictReader(source)
+            identity_columns = {'timestamp', 'symbol'}
+            candle_columns = {'open', 'high', 'low', 'close', 'volume'}
+            if not reader.fieldnames or not identity_columns.issubset(reader.fieldnames):
+                raise ValueError(f'{csv_path.name} must contain timestamp and symbol columns.')
+            if not candle_columns.issubset(reader.fieldnames):
+                continue
+            for row in reader:
+                try:
+                    raw_symbol = row['symbol'].strip().upper()
+                    if not raw_symbol.endswith('.NS'):
+                        continue
+                    timestamp = int(row['timestamp'])
+                    candle = {
+                        'time': datetime.fromtimestamp(timestamp, timezone.utc).date().isoformat(),
+                        'open': float(row['open']),
+                        'high': float(row['high']),
+                        'low': float(row['low']),
+                        'close': float(row['close']),
+                        'volume': float(row['volume']),
+                    }
+                except (AttributeError, TypeError, ValueError, OverflowError) as error:
+                    raise ValueError('Historical CSV contains an invalid demo candle.') from error
+                prices = [candle[key] for key in ('open', 'high', 'low', 'close', 'volume')]
+                if (
+                    not all(math.isfinite(value) for value in prices)
+                    or min(prices[:4]) <= 0
+                    or candle['volume'] < 0
+                    or candle['high'] < max(candle['open'], candle['close'])
+                    or candle['low'] > min(candle['open'], candle['close'])
+                    or candle['high'] < candle['low']
+                ):
+                    raise ValueError('Historical CSV contains an invalid demo candle.')
+                symbol = raw_symbol[:-3]
+                date_key = str(candle['time'])
+                existing = candles_by_symbol.setdefault(symbol, {}).get(date_key)
+                if existing is not None and existing != candle:
+                    raise ValueError(
+                        f'Historical CSV files contain conflicting candles for {symbol} on {date_key}.'
+                    )
+                candles_by_symbol[symbol][date_key] = candle
+    return {
+        symbol: [observations[key] for key in sorted(observations)]
+        for symbol, observations in candles_by_symbol.items()
+    }
 
 
 def get_demo_research_universe() -> list[dict[str, str | int]]:
@@ -230,14 +259,14 @@ def detect_candlestick_patterns(candles: list[dict[str, str | float | int]]) -> 
     return patterns
 
 
-def run_historical_backtest(symbol: str, initial_capital: float) -> dict[str, str | int | float]:
-    normalized_symbol = symbol.strip().upper()
-    values: list[tuple[date, float]] | None = _read_history().get(normalized_symbol)
-    if values is None:
-        raise LookupError(f'{normalized_symbol} is not available in the historical CSV.')
+def _simulate_sma_backtest(
+    values: list[tuple[date, float]],
+    initial_capital: float,
+    commission_pct: float,
+    slippage_pct: float,
+) -> dict[str, str | int | float]:
     if len(values) <= SLOW_WINDOW:
-        raise ValueError(f'{normalized_symbol} needs more than {SLOW_WINDOW} historical observations.')
-
+        raise ValueError(f'History needs more than {SLOW_WINDOW} observations.')
     cash = initial_capital
     quantity = 0.0
     entry_equity = 0.0
@@ -245,20 +274,23 @@ def run_historical_backtest(symbol: str, initial_capital: float) -> dict[str, st
     closed_trade_returns = []
     gross_profit = 0.0
     gross_loss = 0.0
-
     closes = [close for _, close in values]
-    for index, close in enumerate(closes):
-        if index < SLOW_WINDOW - 1:
-            continue
-
-        fast_average = sum(closes[index - FAST_WINDOW + 1:index + 1]) / FAST_WINDOW
-        slow_average = sum(closes[index - SLOW_WINDOW + 1:index + 1]) / SLOW_WINDOW
+    commission_rate = commission_pct / 100
+    slippage_rate = slippage_pct / 100
+    for index in range(SLOW_WINDOW, len(closes)):
+        signal_index = index - 1
+        fast_average = sum(closes[signal_index - FAST_WINDOW + 1:signal_index + 1]) / FAST_WINDOW
+        slow_average = sum(closes[signal_index - SLOW_WINDOW + 1:signal_index + 1]) / SLOW_WINDOW
         bullish = fast_average > slow_average
+        close = closes[index]
         if bullish and quantity == 0:
             entry_equity = cash
-            quantity = cash / close
+            execution_price = close * (1 + slippage_rate)
+            quantity = cash / (execution_price * (1 + commission_rate))
+            cash = 0.0
         elif not bullish and quantity:
-            cash = quantity * close
+            execution_price = close * (1 - slippage_rate)
+            cash = quantity * execution_price * (1 - commission_rate)
             trade_return = (cash / entry_equity - 1) * 100
             closed_trade_returns.append(trade_return)
             if trade_return > 0:
@@ -270,7 +302,8 @@ def run_historical_backtest(symbol: str, initial_capital: float) -> dict[str, st
         equity_curve.append(quantity * close if quantity else cash)
 
     if quantity:
-        cash = quantity * closes[-1]
+        execution_price = closes[-1] * (1 - slippage_rate)
+        cash = quantity * execution_price * (1 - commission_rate)
         trade_return = (cash / entry_equity - 1) * 100
         closed_trade_returns.append(trade_return)
         if trade_return > 0:
@@ -278,6 +311,12 @@ def run_historical_backtest(symbol: str, initial_capital: float) -> dict[str, st
         else:
             gross_loss += entry_equity - cash
         equity_curve[-1] = cash
+
+    benchmark_entry = closes[SLOW_WINDOW] * (1 + slippage_rate)
+    benchmark_quantity = initial_capital / (benchmark_entry * (1 + commission_rate))
+    benchmark_final_value = (
+        benchmark_quantity * closes[-1] * (1 - slippage_rate) * (1 - commission_rate)
+    )
 
     peak = initial_capital
     maximum_drawdown = 0.0
@@ -287,13 +326,14 @@ def run_historical_backtest(symbol: str, initial_capital: float) -> dict[str, st
             maximum_drawdown = max(maximum_drawdown, (peak - equity) / peak * 100)
 
     total_return = (cash / initial_capital - 1) * 100
+    benchmark_return = (benchmark_final_value / initial_capital - 1) * 100
     winning_trades = sum(trade_return > 0 for trade_return in closed_trade_returns)
     return {
-        'strategy_name': STRATEGY_NAME,
-        'symbol': normalized_symbol,
         'initial_capital': round(initial_capital, 2),
         'final_value': round(cash, 2),
         'total_return': round(total_return, 2),
+        'benchmark_final_value': round(benchmark_final_value, 2),
+        'benchmark_return': round(benchmark_return, 2),
         'win_rate': round(winning_trades / len(closed_trade_returns) * 100, 2) if closed_trade_returns else 0,
         'total_trades': len(closed_trade_returns),
         'max_drawdown': round(maximum_drawdown, 2),
@@ -301,5 +341,59 @@ def run_historical_backtest(symbol: str, initial_capital: float) -> dict[str, st
         'start_date': values[0][0].isoformat(),
         'end_date': values[-1][0].isoformat(),
         'observations': len(values),
+    }
+
+
+def run_historical_backtest(
+    symbol: str,
+    initial_capital: float,
+    commission_pct: float = 0.05,
+    slippage_pct: float = 0.05,
+) -> dict[str, str | int | float | list[dict[str, str | int | float]]]:
+    normalized_symbol = symbol.strip().upper()
+    if isinstance(initial_capital, bool) or not math.isfinite(initial_capital) or initial_capital <= 0:
+        raise ValueError('Initial capital must be greater than zero.')
+    for label, value in (('Commission', commission_pct), ('Slippage', slippage_pct)):
+        if isinstance(value, bool) or not math.isfinite(value) or not 0 <= value <= 1:
+            raise ValueError(f'{label} must be between 0 and 1 percent per side.')
+    values: list[tuple[date, float]] | None = _read_history().get(normalized_symbol)
+    if values is None:
+        raise LookupError(f'{normalized_symbol} is not available in the historical CSV.')
+    result = _simulate_sma_backtest(values, initial_capital, commission_pct, slippage_pct)
+    period_comparison = []
+    for period, window in PERIOD_WINDOWS.items():
+        if len(values) < window:
+            continue
+        period_values = values[-window:]
+        if len(period_values) <= SLOW_WINDOW:
+            continue
+        metrics = _simulate_sma_backtest(
+            period_values, initial_capital, commission_pct, slippage_pct,
+        )
+        period_comparison.append({
+            'period': period,
+            'observations': metrics['observations'],
+            'total_return': metrics['total_return'],
+            'benchmark_return': metrics['benchmark_return'],
+            'max_drawdown': metrics['max_drawdown'],
+        })
+    if not period_comparison:
+        period_comparison.append({
+            'period': 'Available history',
+            'observations': result['observations'],
+            'total_return': result['total_return'],
+            'benchmark_return': result['benchmark_return'],
+            'max_drawdown': result['max_drawdown'],
+        })
+
+    return {
+        **result,
+        'strategy_name': STRATEGY_NAME,
+        'symbol': normalized_symbol,
+        'commission_pct_per_side': round(commission_pct, 3),
+        'slippage_pct_per_side': round(slippage_pct, 3),
+        'period_comparison': period_comparison,
+        'start_date': values[0][0].isoformat(),
+        'end_date': values[-1][0].isoformat(),
         'data_source': 'Historical CSV',
     }

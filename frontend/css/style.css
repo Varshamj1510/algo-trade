@@ -57,10 +57,16 @@ img { max-width: 100%; }
 .dashboard-ticker-item > strong { font-size: 1.02rem; font-variant-numeric: tabular-nums; }
 .dashboard-ticker-item > small { font-size: 0.76rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .dashboard-ticker-status { color: var(--muted); font-size: 0.76rem; text-align: right; overflow-wrap: anywhere; }
-.dashboard-health-badge { display: inline-flex; align-items: center; justify-content: center; padding: 3px 7px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: 0.62rem; font-weight: 700; }
-.dashboard-health-badge.is-online { border-color: rgba(70, 190, 130, 0.35); background: rgba(70, 190, 130, 0.1); color: var(--green); }
-.dashboard-health-badge.is-offline { border-color: rgba(230, 90, 90, 0.35); background: rgba(230, 90, 90, 0.1); color: var(--red); }
-.dashboard-health-badge.is-paused { border-color: rgba(247, 201, 73, 0.3); background: rgba(247, 201, 73, 0.1); color: #ffda78; }
+.dashboard-pulse { display: grid; gap: 12px; margin-bottom: 18px; }
+.dashboard-pulse-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.dashboard-pulse-heading h2 { margin: 0; font-size: 0.95rem; }
+.dashboard-pulse-heading > span { color: var(--muted); font-size: 0.72rem; }
+.dashboard-pulse-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
+.dashboard-pulse-item { display: grid; gap: 6px; min-width: 0; padding: 4px 14px; border-left: 1px solid var(--border); text-decoration: none; }
+.dashboard-pulse-item:first-child { padding-left: 0; border-left: 0; }
+.dashboard-pulse-item > span, .dashboard-pulse-item > small { color: var(--muted); font-size: 0.7rem; }
+.dashboard-pulse-item > strong { overflow: hidden; color: var(--text); font-size: 1.05rem; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-pulse-item:hover > strong { color: var(--primary-2); }
 .dashboard-stock { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; margin-bottom: 18px; padding: 18px; }
 .dashboard-stock-main { min-width: 0; }
 .dashboard-stock-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
@@ -539,6 +545,8 @@ body.sidebar-open { overflow: hidden; }
 @media (max-width: 1100px) {
   .stats-grid { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
   .portfolio-summary { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+  .dashboard-pulse-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 12px; }
+  .dashboard-pulse-item:nth-child(3) { padding-left: 0; border-left: 0; }
   .two-col { grid-template-columns: 1fr; }
   .dashboard-stock { grid-template-columns: minmax(0, 1fr) 250px; gap: 14px; }
   .terminal-layout { grid-template-columns: minmax(0, 1fr); }
@@ -602,6 +610,14 @@ body.sidebar-open { overflow: hidden; }
   .alpha-controls input, .alpha-controls select { width: 100%; }
   .alpha-columns { grid-template-columns: 1fr; }
   .alpha-explanation-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .dashboard-pulse-grid { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-pulse-item,
+  .dashboard-pulse-item:nth-child(3) { padding: 8px 0; border-left: 0; border-top: 1px solid var(--border); }
+  .dashboard-pulse-item:first-child { border-top: 0; }
+  .dashboard-pulse-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
 }
 
 @media (max-width: 560px) {
@@ -2872,6 +2888,9 @@ body.theme-light .app-shell .overview-table td {
 .paper-trading-page .portfolio-table th {
   font-size: 0.67rem;
 }
+.paper-trading-page .paper-journal-cell { min-width: 220px; }
+.paper-trading-page .paper-journal-cell textarea { display: block; width: 100%; min-height: 42px; resize: vertical; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-strong); color: var(--text); font: inherit; }
+.paper-trading-page .paper-journal-cell button { margin-top: 5px; min-height: 28px; padding: 4px 8px; font-size: 0.72rem; }
 
 .paper-trading-page > .app-shell > .main-panel > .content-grid > .market-data-status:last-child {
   margin: 0;

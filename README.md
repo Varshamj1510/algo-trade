@@ -39,15 +39,15 @@ The SQLite files are local development data and are not committed. The deployed 
 ## Features
 
 - Responsive navigation with a scrollable off-canvas menu on mobile
-- Dashboard with portfolio views, charts, watchlists, and virtual trading
+- Dashboard with a personal account pulse for virtual equity, active alerts, watchlist, and latest backtest
 - Technical indicators: RSI, MACD, moving averages, and VWAP
-- Historical CSV-based moving-average backtesting
+- Historical CSV-based moving-average backtesting with next-session fills, configurable commission/slippage, buy-and-hold comparison, and available 1Y/3Y/5Y windows
 - Saved trading strategies and manual rule previews
 - Financial-text sentiment analysis with Hugging Face and/or Gemini
 - Alpha research with Random Forest/XGBoost estimates, factor ranking, PCA, and SHAP/LIME explanations
 - Offline tabular Q-learning experiments with a chronological held-out paper-trading evaluation
 - Order-protection calculations for stop/target levels and position sizing
-- Virtual equity and futures trading; no live broker orders or real payments
+- Virtual equity and futures trading with per-trade journal notes and realized exit summaries; no live broker orders or real payments
 - Trading Academy with YouTube Data API lesson search
 - Kite Connect integration for supported market analysis and price-alert checks
 - User-scoped price alerts with browser notifications and quiet hours
@@ -201,7 +201,7 @@ Market Data, dashboard overview, watchlist, and portfolio valuations use seeded 
 - `GET /healthz` — health check
 - `GET /api/signals` — demo signals
 - `POST /api/ai-signal` — Kite-backed technical analysis
-- `GET /api/backtest/instruments`, `POST /api/backtest`, `GET /api/backtest/history` — historical backtests
+- `GET /api/backtest/instruments`, `POST /api/backtest`, `GET /api/backtest/history` — historical backtests; supports `commission_pct` and `slippage_pct` per side and returns a cost-adjusted buy-and-hold comparison and available-period summaries; saved history is user-scoped
 - `GET /api/instruments/search`, `GET /api/instruments/<symbol>` — seeded demo-stock search and details
 - `GET /api/market`, `GET /api/market/overview` — demo market data and overview
 - `GET /api/market/indices`, `/api/market/gainers`, `/api/market/losers`, `/api/market/active`, `/api/market/sectors` — overview sections
@@ -209,7 +209,7 @@ Market Data, dashboard overview, watchlist, and portfolio valuations use seeded 
 - `GET /api/watchlist`, `POST /api/watchlist`, `DELETE /api/watchlist/<symbol>` — user watchlist
 - `GET /api/alerts`, `PUT /api/alerts/settings`, `POST /api/alerts/check`, `POST /api/alerts/acknowledge`, `/api/price-alerts` — price alerts and settings
 - `GET /api/alerts/push/public-key`, `POST /api/alerts/push/subscribe`, `DELETE /api/alerts/push/subscribe` — browser push subscriptions
-- `/api/paper-trading/*` — simulated account, quotes, equity trades, and futures
+- `/api/paper-trading/*` — simulated account, quotes, equity trades, futures, and per-trade journal notes via `PUT /api/paper-trading/trades/<trade_type>/<id>/journal`
 - `/api/candlestick-chart/*` — bundled historical candles and pattern labels
 - `POST /api/protection/calculate` — authenticated risk calculations
 - `GET /api/strategies`, `POST /api/strategies`, `POST /api/strategies/preview` — user strategies and manual previews
@@ -222,7 +222,9 @@ Market Data, dashboard overview, watchlist, and portfolio valuations use seeded 
 
 The instrument catalog can read `backend/data/instruments/`, `symbols.csv/`, or `backend/data/instruments.csv`. Set `INSTRUMENTS_CSV` to use a different single CSV file. CSV headers are case-insensitive; a `symbol` or `ticker` column is required.
 
-Market Data search and Watchlist intentionally use seeded demo stocks. Historical Backtesting and chart pages use the bundled CSV data separately.
+Historical services merge all `*.csv` files in `symbols.csv/`; add separate sector or index files there without changing application code. Backtesting files must include `timestamp,symbol,close`; charts, research, and reinforcement-learning data also need `open,high,low,volume`. Close-only files can coexist with OHLCV files. Timestamps are Unix seconds in UTC. Use exchange-suffixed symbols such as `RELIANCE.NS`; chart/research pages currently consume `.NS` rows. Identical duplicate symbol/date rows are ignored, while conflicting duplicates are rejected.
+
+Only add historical data from a source you are authorized to use, and retain its attribution/license and retrieval date. The app does not fetch live market prices from these CSVs. Market Data search and Watchlist intentionally use seeded demo stocks; Historical Backtesting and chart pages use the bundled CSV data separately.
 
 ## Notes
 

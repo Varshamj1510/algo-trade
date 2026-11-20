@@ -123,10 +123,11 @@
 
           <section class="panel">
             <div class="panel-header"><div class="panel-title">Virtual trade history</div></div>
+            <p class="market-data-status" id="paper-journal-summary">No closed exits yet. Journal notes are saved per trade.</p>
             <div style="overflow-x:auto;">
               <table class="portfolio-table">
-                <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Quantity</th><th>Fill price</th><th>Value</th></tr></thead>
-                <tbody id="paper-trades"><tr><td colspan="6" class="empty-state">No virtual trades yet.</td></tr></tbody>
+                <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Quantity</th><th>Fill price</th><th>Value</th><th>Journal</th></tr></thead>
+                <tbody id="paper-trades"><tr><td colspan="7" class="empty-state">No virtual trades yet.</td></tr></tbody>
               </table>
             </div>
           </section>
@@ -173,6 +174,9 @@
         pnl.className = `stat-value ${totalPnl >= 0 ? 'positive' : 'negative'}`;
         document.getElementById('paper-pnl-detail').textContent =
           `${money(account.realized_pnl)} realized · ${money(account.unrealized_pnl)} unrealized`;
+        const journalSummary = account.journal_summary || {};
+        document.getElementById('paper-journal-summary').textContent =
+          `${journalSummary.closed_exits || 0} sell fills · ${journalSummary.profitable_exit_rate || 0}% profitable · ${money(journalSummary.max_realized_pnl_drawdown)} max realized P&L drawdown`;
 
         const holdings = document.getElementById('paper-holdings');
         holdings.innerHTML = account.holdings.length ? account.holdings.map((holding) => `
@@ -194,6 +198,10 @@
             <td>${Number(trade.quantity).toLocaleString('en-IN')}</td>
             <td>${money(trade.price)}</td>
             <td>${money(trade.value)}</td>
+            <td class="paper-journal-cell">
+              <textarea rows="1" maxlength="500" data-journal-note aria-label="Journal note for ${escapeHtml(trade.symbol)} ${escapeHtml(trade.side)} trade">${escapeHtml(trade.journal_note || '')}</textarea>
+              <button type="button" class="secondary-btn" data-journal-save data-trade-id="${Number(trade.id)}" data-trade-type="${escapeHtml(trade.trade_type)}">Save</button>
+            </td>
           </tr>`).join('') : '<tr><td colspan="6" class="empty-state">No virtual trades yet.</td></tr>';
 
         const instrumentSelect = document.getElementById('paper-symbol');
@@ -205,6 +213,25 @@
           instrumentSelect.value = selected;
         }
       }
+
+      document.getElementById('paper-trades').addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-journal-save]');
+        if (!button) return;
+        const row = button.closest('tr');
+        const note = row.querySelector('[data-journal-note]').value;
+        button.disabled = true;
+        try {
+          await apiRequest(`/api/paper-trading/trades/${button.dataset.tradeType}/${button.dataset.tradeId}/journal`, {
+            method: 'PUT',
+            body: JSON.stringify({ note }),
+          });
+          status.textContent = 'Trade journal note saved.';
+        } catch (error) {
+          status.textContent = error.message || 'Could not save this journal note.';
+        } finally {
+          button.disabled = false;
+        }
+      });
 
       async function loadAccount() {
         try {

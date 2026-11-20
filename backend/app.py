@@ -901,14 +901,23 @@ def run_backtest():
     symbol = data.get('symbol', '')
     if not isinstance(symbol, str) or not symbol.strip():
         return jsonify({'success': False, 'message': 'Select a historical symbol.'}), 400
+    raw_capital = data.get('initial_capital', 100000)
+    raw_commission = data.get('commission_pct', 0.05)
+    raw_slippage = data.get('slippage_pct', 0.05)
+    if any(isinstance(value, bool) for value in (raw_capital, raw_commission, raw_slippage)):
+        return jsonify({'success': False, 'message': 'Capital, commission, and slippage must be numbers.'}), 400
     try:
-        initial_capital = float(data.get('initial_capital', 100000))
+        initial_capital = float(raw_capital)
+        commission_pct = float(raw_commission)
+        slippage_pct = float(raw_slippage)
     except (TypeError, ValueError):
-        return jsonify({'success': False, 'message': 'Initial capital must be a valid number.'}), 400
+        return jsonify({'success': False, 'message': 'Capital, commission, and slippage must be valid numbers.'}), 400
     if not math.isfinite(initial_capital) or initial_capital <= 0:
         return jsonify({'success': False, 'message': 'Initial capital must be greater than zero.'}), 400
     try:
-        result_data = run_historical_backtest(symbol, initial_capital)
+        result_data = run_historical_backtest(
+            symbol, initial_capital, commission_pct, slippage_pct,
+        )
     except LookupError as error:
         return jsonify({'success': False, 'message': str(error)}), 404
     except ValueError as error:
@@ -917,6 +926,7 @@ def run_backtest():
         return jsonify({'success': False, 'message': f'Historical CSV is unavailable: {error}'}), 503
 
     result = BacktestResult(
+        user_id=int(get_jwt_identity()),
         strategy_name=result_data['strategy_name'],
         symbol=result_data['symbol'],
         initial_capital=result_data['initial_capital'],
@@ -931,17 +941,26 @@ def run_backtest():
     db.session.commit()
     return jsonify({
         'success': True,
-        'data': {**result.to_dict(), **{
-            key: result_data[key]
-            for key in ('start_date', 'end_date', 'observations', 'data_source')
-        }},
+        'data': {
+            **result.to_dict(),
+            **{
+                key: result_data[key]
+                for key in (
+                    'start_date', 'end_date', 'observations', 'data_source',
+                    'benchmark_final_value', 'benchmark_return',
+                    'commission_pct_per_side', 'slippage_pct_per_side',
+                    'period_comparison',
+                )
+            },
+        },
     })
 
 
 @app.route('/api/backtest/history', methods=['GET'])
 @jwt_required()
 def backtest_history():
-    results = BacktestResult.query.order_by(BacktestResult.id.desc()).all()
+    user_id = int(get_jwt_identity())
+    results = BacktestResult.query.filter_by(user_id=user_id).order_by(BacktestResult.id.desc()).all()
     return jsonify({"success": True, "data": [r.to_dict() for r in results]})
 
 
@@ -1133,31 +1152,14 @@ def get_alerts():
             'quiet_end': '08:00',
             'timezone': 'UTC',
         },
-        "delivery": _alert_delivery_status(user_id),
+        "delivery": {
+            'method': 'browser_notification',
+            'requires_alerts_page_open': False,
+            'push_configured': bool(app.config['VAPID_PUBLIC_KEY'] and app.config['VAPID_PRIVATE_KEY']),
+            'background_worker_online': _price_alert_worker_online(),
+            'market_data': 'Kite Connect quotes only',
+        },
     })
-
-
-@app.route('/api/alerts/health', methods=['GET'])
-@jwt_required()
-def get_alert_delivery_health():
-    user_id = int(get_jwt_identity())
-    settings = AlertNotificationSettings.query.filter_by(user_id=user_id).first()
-    return jsonify({
-        'success': True,
-        'settings': {'enabled': settings.enabled if settings else False},
-        'delivery': _alert_delivery_status(user_id),
-    })
-
-
-def _alert_delivery_status(user_id):
-    return {
-        'method': 'browser_notification',
-        'requires_alerts_page_open': False,
-        'push_configured': bool(app.config['VAPID_PUBLIC_KEY'] and app.config['VAPID_PRIVATE_KEY']),
-        'background_worker_online': _price_alert_worker_online(),
-        'push_subscription_registered': AlertPushSubscription.query.filter_by(user_id=user_id).first() is not None,
-        'market_data': 'Kite Connect quotes only',
-    }
 
 
 def _price_alert_worker_online():

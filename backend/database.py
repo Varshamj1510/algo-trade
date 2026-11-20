@@ -29,6 +29,17 @@ def init_db(app):
                     connection.exec_driver_sql(
                         f'ALTER TABLE strategies ADD COLUMN {name} {definition}'
                     )
+        backtest_columns = {
+            column['name'] for column in inspect(db.engine).get_columns('backtests')
+        }
+        if 'user_id' not in backtest_columns:
+            with db.engine.begin() as connection:
+                connection.exec_driver_sql(
+                    'ALTER TABLE backtests ADD COLUMN user_id INTEGER REFERENCES users(id)'
+                )
+                connection.exec_driver_sql(
+                    'CREATE INDEX IF NOT EXISTS ix_backtests_user_id ON backtests (user_id)'
+                )
         alert_settings_columns = {
             column['name']
             for column in inspect(db.engine).get_columns('alert_notification_settings')

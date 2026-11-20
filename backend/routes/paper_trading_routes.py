@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from backend.database import db
-from backend.models import PaperAccount, PaperFutureTrade, PaperTrade, StrategyModel
+from backend.models import PaperAccount, PaperFutureTrade, PaperTrade, PaperTradeJournal, StrategyModel
 from backend.services.instrument_catalog import (
     find_demo_instrument,
     find_paper_trading_instrument,
@@ -27,7 +27,10 @@ LEGACY_STARTING_CASH = 100000.0
 
 def _quote_price(quote):
     try:
-        price = float((quote or {}).get('price'))
+        raw_price = (quote or {}).get('price')
+        if raw_price is None:
+            return None
+        price = float(raw_price)
     except (TypeError, ValueError, OverflowError):
         return None
     return price if math.isfinite(price) and price > 0 else None
@@ -51,6 +54,7 @@ def _account_for_user(user_id):
 def _positions_and_pnl(trades):
     positions = {}
     realized_pnl = 0.0
+    realized_exits = []
 
     for trade in trades:
         key = (trade.exchange, trade.symbol)
@@ -66,17 +70,20 @@ def _positions_and_pnl(trades):
             )
             position['quantity'] = new_quantity
         else:
-            realized_pnl += (trade.price - position['average_price']) * trade.quantity
+            exit_pnl = (trade.price - position['average_price']) * trade.quantity
+            realized_pnl += exit_pnl
+            realized_exits.append((trade.created_at, exit_pnl))
             position['quantity'] -= trade.quantity
             if position['quantity'] == 0:
                 position['average_price'] = 0.0
 
-    return positions, realized_pnl
+    return positions, realized_pnl, realized_exits
 
 
 def _future_positions_and_pnl(trades):
     positions = {}
     realized_pnl = 0.0
+    realized_exits = []
 
     for trade in trades:
         key = (trade.symbol, trade.expiry)
@@ -95,15 +102,17 @@ def _future_positions_and_pnl(trades):
             )
             position['lots'] = new_lots
         else:
-            realized_pnl += (
+            exit_pnl = (
                 (trade.price - position['average_price'])
                 * position['lot_size'] * trade.lots
             )
+            realized_pnl += exit_pnl
+            realized_exits.append((trade.created_at, exit_pnl))
             position['lots'] -= trade.lots
             if position['lots'] == 0:
                 position['average_price'] = 0.0
 
-    return positions, realized_pnl
+    return positions, realized_pnl, realized_exits
 
 
 def _account_snapshot(user_id, market_quotes=None):
@@ -111,11 +120,15 @@ def _account_snapshot(user_id, market_quotes=None):
     trades = PaperTrade.query.filter_by(user_id=user_id).order_by(
         PaperTrade.created_at.asc(), PaperTrade.id.asc(),
     ).all()
-    positions, realized_pnl = _positions_and_pnl(trades)
+    positions, realized_pnl, equity_exits = _positions_and_pnl(trades)
     future_trades = PaperFutureTrade.query.filter_by(user_id=user_id).order_by(
         PaperFutureTrade.created_at.asc(), PaperFutureTrade.id.asc(),
     ).all()
-    future_positions, future_realized_pnl = _future_positions_and_pnl(future_trades)
+    journal_notes = {
+        (entry.trade_type, entry.trade_id): entry.note
+        for entry in PaperTradeJournal.query.filter_by(user_id=user_id).all()
+    }
+    future_positions, future_realized_pnl, future_exits = _future_positions_and_pnl(future_trades)
     open_positions = {
         key: position for key, position in positions.items()
         if position['quantity'] > 0
@@ -181,6 +194,14 @@ def _account_snapshot(user_id, market_quotes=None):
         })
 
     market_value = sum(item['market_value'] for item in holdings)
+    realized_exits = sorted(equity_exits + future_exits, key=lambda item: item[0])
+    running_realized_pnl = 0.0
+    peak_realized_pnl = 0.0
+    realized_drawdown = 0.0
+    for _closed_at, exit_pnl in realized_exits:
+        running_realized_pnl += exit_pnl
+        peak_realized_pnl = max(peak_realized_pnl, running_realized_pnl)
+        realized_drawdown = max(realized_drawdown, peak_realized_pnl - running_realized_pnl)
     return {
         'starting_cash': STARTING_CASH,
         'cash_balance': round(account.cash_balance, 2),
@@ -188,10 +209,25 @@ def _account_snapshot(user_id, market_quotes=None):
         'total_equity': round(account.cash_balance + market_value, 2),
         'realized_pnl': round(realized_pnl + future_realized_pnl, 2),
         'unrealized_pnl': round(sum(item['unrealized_pnl'] for item in holdings), 2),
+        'journal_summary': {
+            'closed_exits': len(realized_exits),
+            'profitable_exit_rate': round(
+                sum(exit_pnl > 0 for _closed_at, exit_pnl in realized_exits)
+                / len(realized_exits) * 100,
+                2,
+            ) if realized_exits else 0,
+            'max_realized_pnl_drawdown': round(realized_drawdown, 2),
+        },
         'holdings': holdings,
         'trades': [
-            *[trade.to_dict() for trade in reversed(trades)],
-            *[trade.to_dict() for trade in reversed(future_trades)],
+            *[
+                {**trade.to_dict(), 'trade_type': 'EQUITY', 'journal_note': journal_notes.get(('EQUITY', trade.id), '')}
+                for trade in reversed(trades)
+            ],
+            *[
+                {**trade.to_dict(), 'trade_type': 'FUTURE', 'journal_note': journal_notes.get(('FUTURE', trade.id), '')}
+                for trade in reversed(future_trades)
+            ],
         ],
         'instruments': [
             {
@@ -226,7 +262,7 @@ def add_virtual_cash():
         return jsonify({'success': False, 'message': 'Request body must be a JSON object.'}), 400
     try:
         raw_amount = payload.get('amount')
-        if isinstance(raw_amount, bool):
+        if raw_amount is None or isinstance(raw_amount, bool):
             raise ValueError
         parsed_amount = float(raw_amount)
     except (TypeError, ValueError, OverflowError):
@@ -407,7 +443,7 @@ def create_nifty_future_trade():
         return jsonify({'success': False, 'message': 'Side must be BUY or SELL.'}), 400
     try:
         raw_lots = payload.get('lots')
-        if isinstance(raw_lots, bool):
+        if raw_lots is None or isinstance(raw_lots, bool):
             raise ValueError
         parsed_lots = float(raw_lots)
     except (TypeError, ValueError, OverflowError):
@@ -432,7 +468,7 @@ def create_nifty_future_trade():
     existing_future_trades = PaperFutureTrade.query.filter_by(user_id=user_id).order_by(
         PaperFutureTrade.created_at.asc(), PaperFutureTrade.id.asc(),
     ).all()
-    positions, _ = _future_positions_and_pnl(existing_future_trades)
+    positions, _, _ = _future_positions_and_pnl(existing_future_trades)
     quote_keys = {
         ('NFO', key[0]) for key, position in positions.items()
         if position['lots'] > 0
@@ -440,7 +476,7 @@ def create_nifty_future_trade():
     existing_equity_trades = PaperTrade.query.filter_by(user_id=user_id).order_by(
         PaperTrade.created_at.asc(), PaperTrade.id.asc(),
     ).all()
-    equity_positions, _ = _positions_and_pnl(existing_equity_trades)
+    equity_positions, _, _ = _positions_and_pnl(existing_equity_trades)
     quote_keys.update(
         key for key, position in equity_positions.items()
         if position['quantity'] > 0
@@ -536,7 +572,7 @@ def create_paper_trade():
         return jsonify({'success': False, 'message': 'Side must be BUY or SELL.'}), 400
     try:
         raw_quantity = payload.get('quantity')
-        if isinstance(raw_quantity, bool):
+        if raw_quantity is None or isinstance(raw_quantity, bool):
             raise ValueError
         parsed_quantity = float(raw_quantity)
     except (TypeError, ValueError, OverflowError):
@@ -604,3 +640,39 @@ def create_paper_trade():
         'data': trade.to_dict(),
         'account': snapshot,
     }), 201
+
+
+@bp.route('/trades/<string:trade_type>/<int:trade_id>/journal', methods=['PUT'])
+@jwt_required()
+def update_paper_trade_journal(trade_type, trade_id):
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Request body must be a JSON object.'}), 400
+    note = payload.get('note')
+    if not isinstance(note, str) or len(note) > 500:
+        return jsonify({'success': False, 'message': 'Journal notes must be 500 characters or fewer.'}), 400
+    trade_type = trade_type.upper()
+    trade_model = PaperTrade if trade_type == 'EQUITY' else PaperFutureTrade if trade_type == 'FUTURE' else None
+    if trade_model is None:
+        return jsonify({'success': False, 'message': 'Trade type must be EQUITY or FUTURE.'}), 400
+    user_id = int(get_jwt_identity())
+    trade = trade_model.query.filter_by(id=trade_id, user_id=user_id).first()
+    if trade is None:
+        return jsonify({'success': False, 'message': 'Trade not found.'}), 404
+    entry = PaperTradeJournal.query.filter_by(
+        user_id=user_id,
+        trade_type=trade_type,
+        trade_id=trade_id,
+    ).first()
+    note = note.strip()
+    if not note:
+        if entry is not None:
+            db.session.delete(entry)
+            db.session.commit()
+        return jsonify({'success': True, 'note': ''})
+    if entry is None:
+        entry = PaperTradeJournal(user_id=user_id, trade_type=trade_type, trade_id=trade_id)
+        db.session.add(entry)
+    entry.note = note
+    db.session.commit()
+    return jsonify({'success': True, 'note': entry.note})

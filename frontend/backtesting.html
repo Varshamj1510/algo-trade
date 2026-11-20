@@ -60,7 +60,12 @@
               <select id="backtest-symbol" name="symbol" required></select>
               <label for="backtest-capital">Initial capital (₹)</label>
               <input id="backtest-capital" name="initial_capital" type="number" min="1" step="0.01" value="100000" required />
+              <label for="backtest-commission">Commission (% per side)</label>
+              <input id="backtest-commission" name="commission_pct" type="number" min="0" max="1" step="0.01" value="0.05" required />
+              <label for="backtest-slippage">Slippage (% per side)</label>
+              <input id="backtest-slippage" name="slippage_pct" type="number" min="0" max="1" step="0.01" value="0.05" required />
               <div class="market-data-status">Strategy: 20/50-day simple moving-average crossover</div>
+              <div class="market-data-status">Estimates only. Fills occur on the next session close; fees and slippage are assumptions.</div>
               <button class="primary-btn" id="backtest-submit" type="submit">Run historical backtest</button>
             </form>
             <p id="backtest-status" class="market-data-status" role="status">Loading historical CSV coverage...</p>
@@ -69,6 +74,21 @@
               <div class="stat-card"><div class="stat-header"><span>Profit Factor</span><span class="stat-icon"><i class="fa-solid fa-chart-simple"></i></span></div><div class="stat-value" id="backtest-profit-factor">—</div><div class="stat-trend" id="backtest-trades">Historical closed trades</div></div>
               <div class="stat-card"><div class="stat-header"><span>Max Drawdown</span><span class="stat-icon"><i class="fa-solid fa-arrow-down-short-wide"></i></span></div><div class="stat-value" id="backtest-drawdown">—</div><div class="stat-trend">Calculated from the historical equity curve</div></div>
               <div class="stat-card"><div class="stat-header"><span>Win Rate</span><span class="stat-icon"><i class="fa-solid fa-trophy"></i></span></div><div class="stat-value" id="backtest-win-rate">—</div><div class="stat-trend" id="backtest-period">Historical CSV period</div></div>
+              <div class="stat-card"><div class="stat-header"><span>Buy &amp; Hold Return</span><span class="stat-icon"><i class="fa-solid fa-arrow-trend-up"></i></span></div><div class="stat-value" id="backtest-benchmark-return">—</div><div class="stat-trend" id="backtest-benchmark-value">Same capital and cost assumptions</div></div>
+            </div>
+          </section>
+          <section class="panel" aria-labelledby="backtest-period-comparison-title">
+            <div class="panel-header">
+              <div>
+                <h2 id="backtest-period-comparison-title">Results by history window</h2>
+                <p class="subtitle">Strategy and buy-and-hold returns use the same estimated costs.</p>
+              </div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="portfolio-table">
+                <thead><tr><th>Period</th><th>Observations</th><th>Strategy return</th><th>Buy &amp; hold</th><th>Max drawdown</th></tr></thead>
+                <tbody id="backtest-period-comparison"><tr><td colspan="5" class="empty-state">Run a backtest to compare available periods.</td></tr></tbody>
+              </table>
             </div>
           </section>
         </div>
@@ -130,6 +150,8 @@
             body: JSON.stringify({
               symbol: document.getElementById('backtest-symbol').value,
               initial_capital: document.getElementById('backtest-capital').value,
+              commission_pct: document.getElementById('backtest-commission').value,
+              slippage_pct: document.getElementById('backtest-slippage').value,
             }),
           });
           const result = response.data;
@@ -140,7 +162,18 @@
           document.getElementById('backtest-drawdown').textContent = `-${result.max_drawdown}%`;
           document.getElementById('backtest-win-rate').textContent = `${result.win_rate}%`;
           document.getElementById('backtest-period').textContent = `${result.start_date} to ${result.end_date} · ${result.observations} observations`;
-          setBacktestStatus(`${result.strategy_name} · ${result.symbol} · ${result.data_source} only. Excludes fees, slippage, and dividends.`);
+          document.getElementById('backtest-benchmark-return').textContent = `${result.benchmark_return >= 0 ? '+' : ''}${result.benchmark_return}%`;
+          document.getElementById('backtest-benchmark-value').textContent = `Final value ${formatCurrency(result.benchmark_final_value)}`;
+          document.getElementById('backtest-period-comparison').innerHTML = result.period_comparison.map((period) => `
+            <tr>
+              <td>${escapeHtml(period.period)}</td>
+              <td>${Number(period.observations).toLocaleString('en-IN')}</td>
+              <td class="${period.total_return >= 0 ? 'positive' : 'negative'}">${period.total_return >= 0 ? '+' : ''}${period.total_return}%</td>
+              <td class="${period.benchmark_return >= 0 ? 'positive' : 'negative'}">${period.benchmark_return >= 0 ? '+' : ''}${period.benchmark_return}%</td>
+              <td>-${period.max_drawdown}%</td>
+            </tr>
+          `).join('');
+          setBacktestStatus(`${result.strategy_name} · ${result.symbol} · ${result.data_source}. Estimated costs: ${result.commission_pct_per_side}% commission + ${result.slippage_pct_per_side}% slippage per side.`);
         } catch (error) {
           if (error.message.includes('Authorization')) {
             logoutUser();

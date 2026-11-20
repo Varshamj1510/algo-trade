@@ -28,8 +28,20 @@ def _target_position(action, position):
     return position
 
 
-def _best_action(q_values):
-    return max(range(len(ACTIONS)), key=lambda action: q_values[action])
+def _best_action(q_values, state):
+    best_value = max(q_values)
+    tied_actions = {
+        action for action, value in enumerate(q_values) if value == best_value
+    }
+    trend, position = state
+    preferred_action = (
+        1 if trend > 0 and not position
+        else 2 if trend < 0 and position
+        else 0
+    )
+    return preferred_action if preferred_action in tied_actions else next(
+        action for action in range(len(ACTIONS)) if action in tied_actions
+    )
 
 
 def _train_q_table(closes, episodes):
@@ -46,7 +58,7 @@ def _train_q_table(closes, episodes):
             action = (
                 rng.randrange(len(ACTIONS))
                 if rng.random() < epsilon
-                else _best_action(q_table[state])
+                else _best_action(q_table[state], state)
             )
             next_position = _target_position(action, position)
             price_return = closes[index + 1] / closes[index] - 1
@@ -81,7 +93,7 @@ def _evaluate(q_table, candles, closes, initial_capital, previous_closes):
     for index in range(len(closes) - 1):
         history_index = index + LOOKBACK
         state = _market_state(state_closes, history_index, position)
-        action = _best_action(q_table[state])
+        action = _best_action(q_table[state], state)
         next_position = _target_position(action, position)
 
         if next_position != position:
@@ -156,7 +168,7 @@ def _evaluate(q_table, candles, closes, initial_capital, previous_closes):
     }
 
 
-def run_q_learning_backtest(candles, symbol, initial_capital=100_000):
+def run_q_learning_backtest(candles, symbol, initial_capital: float = 100_000):
     if not isinstance(candles, list) or len(candles) < MIN_CANDLES:
         raise ValueError(
             f'At least {MIN_CANDLES} historical candles are required for an RL backtest.'

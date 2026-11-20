@@ -53,8 +53,13 @@ def _future_test_quotes(instruments):
     quotes = {}
     for instrument in instruments:
         identity = (instrument['exchange'], instrument['symbol'])
-        stock = demo_instrument(instrument['symbol'], instrument['exchange'])
-        quotes[identity] = {'price': 100 if identity[0] == 'NFO' else stock['price']}
+        if identity[0] == 'NFO':
+            price = 100
+        else:
+            stock = demo_instrument(instrument['symbol'], instrument['exchange'])
+            assert stock is not None
+            price = stock['price']
+        quotes[identity] = {'price': price}
     return quotes
 
 
@@ -68,7 +73,9 @@ def authenticated_client():
         'password': 'paper-test-password',
     })
     assert registration.status_code == 201
-    token = registration.get_json()['token']
+    registration_data = registration.get_json()
+    assert registration_data is not None
+    token = registration_data['token']
     return client, {'Authorization': f'Bearer {token}'}
 
 
@@ -119,7 +126,10 @@ def test_demo_money_can_fund_a_confirmed_virtual_buy():
 
     assert buy.status_code == 201
     result = buy.get_json()
-    price = find_paper_trading_instrument(instrument['symbol'], instrument['exchange'])['price']
+    assert result is not None
+    trading_instrument = find_paper_trading_instrument(instrument['symbol'], instrument['exchange'])
+    assert trading_instrument is not None
+    price = trading_instrument['price']
     assert result['account']['cash_balance'] == round(1505000 - price, 2)
     assert result['account']['holdings'][0]['symbol'] == instrument['symbol']
     assert result['account']['holdings'][0]['quantity'] == 1
@@ -151,14 +161,18 @@ def test_virtual_stock_list_uses_configured_csv_prices():
         'RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ICICIBANK',
         'SBIN', 'ITC', 'LT', 'TATASTEEL', 'ADANIENT',
     }
-    assert find_paper_trading_instrument('RELIANCE')['price'] == 2895.5
+    reliance = find_paper_trading_instrument('RELIANCE')
+    assert reliance is not None
+    assert reliance['price'] == 2895.5
 
 
 def test_market_top_gainer_can_be_opened_and_traded_in_the_demo_account():
     client, headers = authenticated_client()
     overview = client.get('/api/market/overview', headers=headers)
     assert overview.status_code == 200
-    gainers = overview.get_json()['data']['gainers']
+    overview_data = overview.get_json()
+    assert overview_data is not None
+    gainers = overview_data['data']['gainers']
     assert gainers
     gainer = gainers[0]
     exchange = gainer.get('exchange', 'NSE')
@@ -203,7 +217,10 @@ def test_virtual_buy_sell_updates_cash_holdings_and_trade_history(quote_prices):
 
     assert buy.status_code == 201
     buy_data = buy.get_json()
-    price = find_paper_trading_instrument(instrument['symbol'], instrument['exchange'])['price']
+    assert buy_data is not None
+    trading_instrument = find_paper_trading_instrument(instrument['symbol'], instrument['exchange'])
+    assert trading_instrument is not None
+    price = trading_instrument['price']
     expected_value = price * 2
     assert buy_data['account']['cash_balance'] == round(1500000 - expected_value, 2)
     assert buy_data['account']['holdings'][0]['quantity'] == 2
@@ -218,6 +235,7 @@ def test_virtual_buy_sell_updates_cash_holdings_and_trade_history(quote_prices):
 
     assert sell.status_code == 201
     sell_data = sell.get_json()
+    assert sell_data is not None
     assert sell_data['account']['cash_balance'] == round(1500000 - price, 2)
     assert sell_data['account']['holdings'][0]['quantity'] == 1
     assert [trade['side'] for trade in sell_data['account']['trades'][:2]] == ['SELL', 'BUY']
@@ -258,9 +276,14 @@ def test_virtual_trade_rejects_fractional_quantity(quote_prices):
 
 def test_virtual_trade_uses_seeded_price_not_external_quote(quote_prices):
     client, headers = authenticated_client()
-    account = client.get('/api/paper-trading/account', headers=headers).get_json()['data']
+    account_response = client.get('/api/paper-trading/account', headers=headers)
+    account_data = account_response.get_json()
+    assert account_data is not None
+    account = account_data['data']
     instrument = account['instruments'][0]
-    seeded_price = find_paper_trading_instrument(instrument['symbol'], instrument['exchange'])['price']
+    trading_instrument = find_paper_trading_instrument(instrument['symbol'], instrument['exchange'])
+    assert trading_instrument is not None
+    seeded_price = trading_instrument['price']
     quote_prices[(instrument['exchange'], instrument['symbol'])] = seeded_price + 10
 
     quote = client.get(
@@ -378,6 +401,7 @@ def test_nifty_future_virtual_trade_uses_lot_size_full_notional_and_kite_quote(n
     })
     assert buy.status_code == 201
     result = buy.get_json()
+    assert result is not None
     assert result['data']['quantity'] == nifty_future['lot_size']
     assert result['data']['value'] == 1000
     assert result['account']['cash_balance'] == 1499000
@@ -385,18 +409,23 @@ def test_nifty_future_virtual_trade_uses_lot_size_full_notional_and_kite_quote(n
     assert result['account']['holdings'][0]['unrealized_pnl'] == 0
 
     equity = find_paper_trading_instrument('RELIANCE', 'NSE')
+    assert equity is not None
     equity_buy = client.post('/api/paper-trading/trades', headers=headers, json={
         'symbol': equity['symbol'], 'exchange': 'NSE', 'side': 'BUY', 'quantity': 1,
     })
     assert equity_buy.status_code == 201
-    assert {holding['instrument_type'] for holding in equity_buy.get_json()['account']['holdings']} == {'EQUITY', 'FUT'}
+    equity_buy_data = equity_buy.get_json()
+    assert equity_buy_data is not None
+    assert {holding['instrument_type'] for holding in equity_buy_data['account']['holdings']} == {'EQUITY', 'FUT'}
 
     sell = client.post('/api/paper-trading/futures/trades', headers=headers, json={
         'symbol': nifty_future['symbol'], 'side': 'SELL', 'lots': 1,
     })
     assert sell.status_code == 201
-    assert sell.get_json()['account']['cash_balance'] == round(1500000 - equity['price'], 2)
-    assert [holding['instrument_type'] for holding in sell.get_json()['account']['holdings']] == ['EQUITY']
+    sell_data = sell.get_json()
+    assert sell_data is not None
+    assert sell_data['account']['cash_balance'] == round(1500000 - equity['price'], 2)
+    assert [holding['instrument_type'] for holding in sell_data['account']['holdings']] == ['EQUITY']
 
 
 def test_nifty_future_virtual_trade_requires_full_notional_and_valid_contract(nifty_future, monkeypatch):

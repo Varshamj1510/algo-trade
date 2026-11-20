@@ -157,13 +157,15 @@ def test_pin_sign_in_without_pin_explains_password_setup():
     )
 
 
-def test_local_passkey_origin_uses_current_server_port():
+def test_local_passkey_origin_uses_current_server_port(monkeypatch):
+    monkeypatch.setitem(app.config, 'WEBAUTHN_RP_ID', 'localhost')
     with app.test_request_context('/', base_url='http://localhost:3000'):
         assert app_module._expected_webauthn_rp_id() == 'localhost'
         assert app_module._expected_webauthn_origin() == 'http://localhost:3000'
 
 
-def test_default_passkey_rp_id_follows_the_current_public_host():
+def test_default_passkey_rp_id_follows_the_current_public_host(monkeypatch):
+    monkeypatch.setitem(app.config, 'WEBAUTHN_RP_ID', 'localhost')
     with app.test_request_context('/', base_url='https://alphamind.example.test'):
         assert app_module._expected_webauthn_rp_id() == 'alphamind.example.test'
         assert app_module._expected_webauthn_origin() == 'https://alphamind.example.test'
@@ -281,7 +283,8 @@ def test_pin_sign_in_locks_after_five_incorrect_attempts():
         db.session.commit()
 
 
-def test_passkey_registration_and_login_challenges():
+def test_passkey_registration_and_login_challenges(monkeypatch):
+    monkeypatch.setitem(app.config, 'WEBAUTHN_RP_ID', 'localhost')
     client = app.test_client()
     login = client.post('/api/auth/login', json={
         'email': 'demo@algotrade.com',

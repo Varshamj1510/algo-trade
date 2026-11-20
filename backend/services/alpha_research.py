@@ -74,8 +74,9 @@ def _rolling_mean(values, window):
 
 def _rolling_std(values, window):
     output = np.full(len(values), np.nan)
-    for index in range(window - 1, len(values)):
-        output[index] = np.std(values[index - window + 1:index + 1])
+    if len(values) >= window:
+        windows = np.lib.stride_tricks.sliding_window_view(values, window)
+        output[window - 1:] = np.std(windows, axis=1)
     return output
 
 

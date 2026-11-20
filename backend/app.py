@@ -1133,14 +1133,31 @@ def get_alerts():
             'quiet_end': '08:00',
             'timezone': 'UTC',
         },
-        "delivery": {
-            'method': 'browser_notification',
-            'requires_alerts_page_open': False,
-            'push_configured': bool(app.config['VAPID_PUBLIC_KEY'] and app.config['VAPID_PRIVATE_KEY']),
-            'background_worker_online': _price_alert_worker_online(),
-            'market_data': 'Kite Connect quotes only',
-        },
+        "delivery": _alert_delivery_status(user_id),
     })
+
+
+@app.route('/api/alerts/health', methods=['GET'])
+@jwt_required()
+def get_alert_delivery_health():
+    user_id = int(get_jwt_identity())
+    settings = AlertNotificationSettings.query.filter_by(user_id=user_id).first()
+    return jsonify({
+        'success': True,
+        'settings': {'enabled': settings.enabled if settings else False},
+        'delivery': _alert_delivery_status(user_id),
+    })
+
+
+def _alert_delivery_status(user_id):
+    return {
+        'method': 'browser_notification',
+        'requires_alerts_page_open': False,
+        'push_configured': bool(app.config['VAPID_PUBLIC_KEY'] and app.config['VAPID_PRIVATE_KEY']),
+        'background_worker_online': _price_alert_worker_online(),
+        'push_subscription_registered': AlertPushSubscription.query.filter_by(user_id=user_id).first() is not None,
+        'market_data': 'Kite Connect quotes only',
+    }
 
 
 def _price_alert_worker_online():

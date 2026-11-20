@@ -53,6 +53,23 @@ def authenticated_clients():
         db.session.commit()
 
 
+def test_alert_health_endpoint_reports_delivery_readiness(monkeypatch, authenticated_clients):
+    client, headers = authenticated_clients()
+    monkeypatch.setattr(app_module, '_price_alert_worker_online', lambda: True)
+    monkeypatch.setitem(app.config, 'VAPID_PUBLIC_KEY', 'public-key')
+    monkeypatch.setitem(app.config, 'VAPID_PRIVATE_KEY', 'private-key')
+
+    response = client.get('/api/alerts/health', headers=headers)
+
+    assert response.status_code == 200
+    result = response.get_json()
+    assert result is not None
+    assert result['settings']['enabled'] is False
+    assert result['delivery']['push_configured'] is True
+    assert result['delivery']['background_worker_online'] is True
+    assert result['delivery']['push_subscription_registered'] is False
+
+
 def test_price_alert_settings_and_user_scoping(monkeypatch, authenticated_clients):
     client, headers = authenticated_clients()
     other_client, other_headers = authenticated_clients()

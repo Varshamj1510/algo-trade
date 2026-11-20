@@ -45,6 +45,9 @@ def test_dashboard_includes_centered_ai_chat():
     page = response.get_data(as_text=True)
     assert 'dashboard-ai-chat' in page
     assert 'Ask Alpha-Mind AI' in page
+    assert 'Demo · not live' in page
+    assert 'dashboard-alert-status' in page
+    assert "apiRequest('/api/alerts/health')" in page
     assert '/api/ai-assistant/chat' in page
 
 

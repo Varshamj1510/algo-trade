@@ -64,8 +64,10 @@
           <div class="dashboard-ticker-item" data-index="NIFTY 50"><span>NIFTY 50</span><strong>--</strong><small></small></div>
           <div class="dashboard-ticker-item" data-index="SENSEX"><span>SENSEX</span><strong>--</strong><small></small></div>
           <div class="dashboard-ticker-item" data-index="BANK NIFTY"><span>BANK NIFTY</span><strong>--</strong><small></small></div>
-          <div class="dashboard-ticker-status">
-            <span id="dashboard-market-status" aria-live="polite">Loading market data...</span>
+          <div class="dashboard-ticker-status" aria-label="Market and alert service health">
+            <span class="demo-status-badge">Demo · not live</span>
+            <span id="dashboard-market-status" aria-live="polite">Loading demo snapshot...</span>
+            <span id="dashboard-alert-status" class="dashboard-health-badge is-checking" role="status" aria-live="polite">Checking alert service...</span>
           </div>
         </section>
 
@@ -686,6 +688,7 @@
           renderDecision(null);
           renderSignals(response.signals || []);
           loadDemoDashboardMarket();
+          loadDashboardAlertHealth();
           renderAllocationChart();
         } catch (error) {
           logoutUser();
@@ -765,9 +768,9 @@
           renderDashboardMovers('dashboard-losers', overview.losers, 'No losers available.');
           const updatedAt = overview.updated_at ? new Date(overview.updated_at) : null;
           const updateLabel = updatedAt && !Number.isNaN(updatedAt.getTime())
-            ? ` · updated ${updatedAt.toLocaleTimeString('en-IN')}`
+            ? `Generated ${updatedAt.toLocaleTimeString('en-IN')}`
             : '';
-          status.textContent = `${overview.provider || 'Market prices'}${updateLabel}`;
+          status.textContent = updateLabel || 'Illustrative market snapshot';
         } catch (error) {
           dashboardIndices = [];
           renderDashboardTicker(dashboardIndices);
@@ -775,6 +778,35 @@
           renderDashboardMovers('dashboard-gainers', [], 'Market data unavailable.');
           renderDashboardMovers('dashboard-losers', [], 'Market data unavailable.');
           status.textContent = error.message || 'Could not load market data.';
+        }
+      }
+
+      async function loadDashboardAlertHealth() {
+        const status = document.getElementById('dashboard-alert-status');
+        try {
+          const response = await apiRequest('/api/alerts/health');
+          const delivery = response.delivery || {};
+          const settings = response.settings || {};
+          let message = 'Background alerts ready';
+          let state = 'online';
+          if (!delivery.push_configured) {
+            message = 'Push alerts not configured';
+            state = 'offline';
+          } else if (!delivery.background_worker_online) {
+            message = 'Alert worker offline';
+            state = 'offline';
+          } else if (!settings.enabled) {
+            message = 'Alerts paused for this account';
+            state = 'paused';
+          } else if (!delivery.push_subscription_registered) {
+            message = 'No notification device registered';
+            state = 'paused';
+          }
+          status.textContent = message;
+          status.className = `dashboard-health-badge is-${state}`;
+        } catch (error) {
+          status.textContent = 'Alert service status unavailable';
+          status.className = 'dashboard-health-badge is-offline';
         }
       }
 
@@ -1006,6 +1038,7 @@
       loadDashboardWatchlist();
       loadDashboardStock();
       setInterval(loadDemoDashboardMarket, 30000);
+      setInterval(loadDashboardAlertHealth, 30000);
       setInterval(loadDashboardWatchlist, 30000);
     </script>
   </body>

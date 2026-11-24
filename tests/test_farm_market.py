@@ -12,6 +12,18 @@ def authenticated_client():
     return client, {'Authorization': f'Bearer {token}'}
 
 
+def test_farm_market_page_starts_without_loading_csv_data():
+    client, _headers = authenticated_client()
+
+    response = client.get('/farm-market')
+
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert 'Enter search details and press Search.' in page
+    assert 'No data loaded. Search the crop and location first.' in page
+    assert "document.getElementById('farm-search').addEventListener('submit'" in page
+
+
 def test_farm_market_search_filters_crop_and_district():
     client, headers = authenticated_client()
 

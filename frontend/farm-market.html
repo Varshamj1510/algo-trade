@@ -71,28 +71,28 @@
         <section class="farm-summary">
           <article class="farm-stat"><span>Best local price</span><strong id="farm-best-price">--</strong></article>
           <article class="farm-stat"><span>Nearest market</span><strong id="farm-nearest">--</strong></article>
-          <article class="farm-stat"><span>Selected crop</span><strong id="farm-selected-crop">Tomato</strong></article>
+          <article class="farm-stat"><span>Selected crop</span><strong id="farm-selected-crop">--</strong></article>
           <article class="farm-stat"><span>Recommendation</span><strong id="farm-summary-action">--</strong></article>
         </section>
 
         <section class="farm-panel">
           <div class="panel-header"><div><div class="panel-title">Search crop and market</div><p class="subtitle">Search by crop, state, district or mandi name.</p><p class="market-data-status">Source: downloaded daily mandi-price CSV.</p></div></div>
           <form id="farm-search" class="farm-search">
-            <label>Crop<select id="farm-crop"><option value="TOMATO">Tomato</option><option value="ONION">Onion</option><option value="RICE">Rice</option><option value="TENDER COCONUT">Tender Coconut</option></select></label>
+            <label>Crop<select id="farm-crop"><option value="" selected>Select crop</option><option value="TOMATO">Tomato</option><option value="ONION">Onion</option><option value="RICE">Rice</option><option value="TENDER COCONUT">Tender Coconut</option></select></label>
             <label>State<input id="farm-state" placeholder="Example: Karnataka" /></label>
             <label>District<input id="farm-district" placeholder="Example: Kolar" /></label>
             <label>Mandi / market<input id="farm-market" placeholder="Example: APMC" /></label>
             <button class="primary-btn" type="submit">Search</button>
           </form>
-          <div id="farm-search-status" class="market-data-status">Loading markets…</div>
-          <div class="farm-table-wrap"><table class="farm-table"><thead><tr><th>Crop</th><th>District</th><th>Market</th><th>Modal / range</th><th>Variety</th><th>Arrival date</th><th>Grade</th></tr></thead><tbody id="farm-markets"><tr><td colspan="7">Loading markets…</td></tr></tbody></table></div>
+          <div id="farm-search-status" class="market-data-status">Enter search details and press Search.</div>
+          <div class="farm-table-wrap"><table class="farm-table"><thead><tr><th>Crop</th><th>District</th><th>Market</th><th>Modal / range</th><th>Variety</th><th>Arrival date</th><th>Grade</th></tr></thead><tbody id="farm-markets"><tr><td colspan="7">No data loaded. Search the crop and location first.</td></tr></tbody></table></div>
         </section>
 
         <section class="farm-panel farm-half">
           <div class="panel-header"><div><div class="panel-title">Net return calculator</div><p class="subtitle">Compare immediate sale against transport and storage costs.</p></div></div>
           <form id="farm-calculator" class="farm-calculator">
-            <label>Market price per quintal<input id="farm-price" type="number" min="1" step="1" value="2350" /></label>
-            <label>Previous price<input id="farm-previous-price" type="number" min="1" step="1" value="2180" /></label>
+            <label>Market price per quintal<input id="farm-price" type="number" min="1" step="1" value="" placeholder="Enter price" /></label>
+            <label>Previous price<input id="farm-previous-price" type="number" min="1" step="1" value="" placeholder="Enter previous price" /></label>
             <label>Quantity in quintals<input id="farm-quantity" type="number" min="0.1" step="0.1" value="20" /></label>
             <label>Distance in km<input id="farm-distance" type="number" min="0" step="1" value="62" /></label>
             <label>Transport cost<input id="farm-transport" type="number" min="0" step="1" value="3600" /></label>
@@ -163,7 +163,22 @@
       } catch (error) { status.textContent = error.message || 'Could not load market prices.'; }
     }
 
-    document.getElementById('farm-search').addEventListener('submit', (event) => { event.preventDefault(); loadMarkets(); });
+    document.getElementById('farm-search').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const crop = document.getElementById('farm-crop').value;
+      if (!crop) {
+        document.getElementById('farm-search-status').textContent = 'Select a crop before searching.';
+        document.getElementById('farm-markets').innerHTML = '<tr><td colspan="7">Select a crop and location, then press Search.</td></tr>';
+        return;
+      }
+      await loadResources();
+      if (crop === 'TENDER COCONUT') {
+        await loadTenderCoconutHistory();
+        document.getElementById('farm-search-status').textContent = 'Tender Coconut history loaded from the downloaded CSV.';
+      } else {
+        await loadMarkets();
+      }
+    });
 
     document.getElementById('farm-calculator').addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -235,9 +250,9 @@
     }
 
     document.getElementById('farm-crop').addEventListener('change', () => {
-      loadMarkets();
-      loadResources();
-      loadTenderCoconutHistory();
+      const crop = document.getElementById('farm-crop').value;
+      document.getElementById('farm-selected-crop').textContent = crop === 'TENDER COCONUT' ? 'Tender Coconut' : crop.charAt(0) + crop.slice(1).toLowerCase();
+      document.getElementById('farm-history-panel').hidden = crop !== 'TENDER COCONUT';
     });
     document.getElementById('farm-language').addEventListener('change', (event) => {
       document.documentElement.lang = event.target.value === 'Kannada' ? 'kn' : event.target.value === 'Hindi' ? 'hi' : event.target.value === 'Telugu' ? 'te' : 'en';
@@ -245,9 +260,9 @@
     document.getElementById('logout-btn').addEventListener('click', logoutUser);
     document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
     bindSidebarNavigation();
-    loadMarkets();
-    loadResources();
-    loadTenderCoconutHistory();
+    document.getElementById('farm-history-panel').hidden = true;
+    document.getElementById('farm-selected-crop').textContent = '--';
+    document.getElementById('farm-markets').innerHTML = '<tr><td colspan="7">Select a crop and location, then press Search.</td></tr>';
   </script>
 </body>
 </html>

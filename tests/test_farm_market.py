@@ -60,6 +60,17 @@ def test_farm_recommendation_returns_sell_wait_or_store():
     assert result['net_revenue'] == 40900
 
 
+def test_tender_coconut_is_available_in_history_csv():
+    client, headers = authenticated_client()
+
+    response = client.get('/api/farm-market/history/tender-coconut?district=Chikkamagaluru', headers=headers)
+
+    assert response.status_code == 200
+    data = response.get_json()['data']
+    assert data['observations'] > 0
+    assert data['latest']['variety'] == 'Tender Coconut'
+
+
 def test_tender_coconut_history_returns_real_csv_observations():
     client, headers = authenticated_client()
 

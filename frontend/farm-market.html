@@ -12,8 +12,8 @@
     .farm-panel { grid-column:span 12; padding:18px; border:1px solid var(--border); border-radius:12px; background:var(--panel); }
     .farm-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
     .farm-stat { min-height:104px; padding:14px; border:1px solid var(--border); border-radius:10px; }
-    .farm-stat span { color:var(--muted); font-size:.72rem; }
-    .farm-stat strong { display:block; margin-top:10px; font-size:1.25rem; }
+    .farm-stat span { display:block; min-height:32px; color:var(--muted); font-size:.72rem; line-height:1.35; }
+    .farm-stat strong { display:block; min-height:34px; margin-top:6px; overflow-wrap:anywhere; font-size:1.12rem; line-height:1.25; }
     .farm-search { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) auto; align-items:end; gap:10px; }
     .farm-search label,.farm-calculator label { display:grid; gap:6px; color:var(--muted); font-size:.76rem; }
     .farm-search input,.farm-search select,.farm-calculator input,.farm-calculator select { min-height:40px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--panel-strong); color:var(--text); }
@@ -78,7 +78,7 @@
         <section class="farm-panel">
           <div class="panel-header"><div><div class="panel-title">Search crop and market</div><p class="subtitle">Search by crop, state, district or mandi name.</p><p class="market-data-status">Source: downloaded daily mandi-price CSV.</p></div></div>
           <form id="farm-search" class="farm-search">
-            <label>Crop<select id="farm-crop"><option value="TOMATO">Tomato</option><option value="ONION">Onion</option><option value="RICE">Rice</option></select></label>
+            <label>Crop<select id="farm-crop"><option value="TOMATO">Tomato</option><option value="ONION">Onion</option><option value="RICE">Rice</option><option value="TENDER COCONUT">Tender Coconut</option></select></label>
             <label>State<input id="farm-state" placeholder="Example: Karnataka" /></label>
             <label>District<input id="farm-district" placeholder="Example: Kolar" /></label>
             <label>Mandi / market<input id="farm-market" placeholder="Example: APMC" /></label>
@@ -144,7 +144,9 @@
       try {
         const response = await apiRequest(`/api/farm-market/markets?${params}`);
         const rows = response.data || [];
-        document.getElementById('farm-selected-crop').textContent = crop.charAt(0) + crop.slice(1).toLowerCase()
+        document.getElementById('farm-selected-crop').textContent = crop === 'TENDER COCONUT'
+          ? 'Tender Coconut'
+          : crop.charAt(0) + crop.slice(1).toLowerCase()
           .replace(/^./, (character) => character.toUpperCase());
         document.getElementById('farm-best-price').textContent = rows.length ? money(rows[0].price) : '--';
         document.getElementById('farm-nearest').textContent = rows.length ? rows[0].market : '--';
@@ -191,6 +193,10 @@
     });
 
     async function loadTenderCoconutHistory() {
+      const selectedCrop = document.getElementById('farm-crop').value;
+      const historyPanel = document.getElementById('farm-history-panel');
+      historyPanel.hidden = selectedCrop !== 'TENDER COCONUT';
+      if (selectedCrop !== 'TENDER COCONUT') return;
       const district = document.getElementById('farm-district').value.trim();
       const market = document.getElementById('farm-market').value.trim();
       const params = new URLSearchParams({ district, market });
@@ -228,7 +234,11 @@
       }
     }
 
-    document.getElementById('farm-crop').addEventListener('change', () => { loadMarkets(); loadResources(); loadTenderCoconutHistory(); });
+    document.getElementById('farm-crop').addEventListener('change', () => {
+      loadMarkets();
+      loadResources();
+      loadTenderCoconutHistory();
+    });
     document.getElementById('farm-language').addEventListener('change', (event) => {
       document.documentElement.lang = event.target.value === 'Kannada' ? 'kn' : event.target.value === 'Hindi' ? 'hi' : event.target.value === 'Telugu' ? 'te' : 'en';
     });

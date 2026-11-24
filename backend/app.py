@@ -117,7 +117,11 @@ def index():
 
 @app.route('/login')
 def login_page():
-    return send_file(str(BASE_DIR / 'frontend' / 'login.html'))
+    response = send_file(str(BASE_DIR / 'frontend' / 'login.html'))
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['X-Alpha-Mind-Build'] = 'pin-login-v2'
+    return response
 
 
 @app.route('/project-portfolio')

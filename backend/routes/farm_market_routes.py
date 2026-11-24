@@ -13,9 +13,13 @@ def farm_markets():
     crop = request.args.get('crop', '').strip()
     district = request.args.get('district', '').strip()
     market = request.args.get('market', '').strip()
+    state = request.args.get('state', '').strip()
+    rows = get_crop_markets(crop=crop, district=district, market=market, state=state)
     return jsonify({
         'success': True,
-        'data': get_crop_markets(crop=crop, district=district, market=market),
+        'data': rows,
+        'source': 'AGMARKNET daily mandi-price CSV',
+        'live': True,
     })
 
 

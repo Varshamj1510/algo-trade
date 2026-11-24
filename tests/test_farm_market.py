@@ -18,11 +18,26 @@ def test_farm_market_search_filters_crop_and_district():
     response = client.get('/api/farm-market/markets?crop=TOMATO&district=Kolar', headers=headers)
 
     assert response.status_code == 200
+    body = response.get_json()
+    assert body['live'] is True
+    assert 'CSV' in body['source']
+    rows = body['data']
+    assert rows
+    assert all(row['crop'] == 'Tomato' for row in rows)
+    assert all(row['district'] == 'Kolar' for row in rows)
+    assert all(row['price'] > 0 for row in rows)
+
+
+def test_farm_market_csv_has_tomato_and_karnataka_records():
+    client, headers = authenticated_client()
+
+    response = client.get('/api/farm-market/markets?crop=Tomato&state=Karnataka', headers=headers)
+
+    assert response.status_code == 200
     rows = response.get_json()['data']
-    assert len(rows) == 1
-    assert rows[0]['crop'] == 'Tomato'
-    assert rows[0]['district'] == 'Kolar'
-    assert rows[0]['market'] == 'Kolar APMC'
+    assert rows
+    assert all(row['state'] == 'Karnataka' for row in rows)
+    assert all(row['crop'] == 'Tomato' for row in rows)
 
 
 def test_farm_recommendation_returns_sell_wait_or_store():

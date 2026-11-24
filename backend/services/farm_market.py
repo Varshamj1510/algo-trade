@@ -1,4 +1,9 @@
+import csv
 import math
+from pathlib import Path
+
+
+MANDI_CSV = Path(__file__).resolve().parent.parent / 'data' / 'mandi_prices.csv'
 
 
 CROP_MARKETS = {
@@ -49,33 +54,56 @@ WEATHER_ALERTS = [
 ]
 
 
-def get_crop_markets(crop=None, district=None, market=None):
-    normalized_crop = (crop or '').strip().upper()
-    selected = CROP_MARKETS.get(normalized_crop) if normalized_crop else None
-    crop_rows = [selected] if selected else CROP_MARKETS.values()
-    rows = []
+def get_crop_markets(crop=None, district=None, market=None, state=None):
+    crop_filter = (crop or '').strip().lower()
     district_filter = (district or '').strip().lower()
     market_filter = (market or '').strip().lower()
-    for crop_row in crop_rows:
-        for item in crop_row['markets']:
-            if district_filter and district_filter not in item['district'].lower():
+    state_filter = (state or '').strip().lower()
+    rows = []
+
+    with MANDI_CSV.open('r', encoding='utf-8-sig', newline='') as csv_file:
+        reader = csv.DictReader(csv_file)
+        for item in reader:
+            commodity = (item.get('Commodity') or '').strip()
+            row_district = (item.get('District') or '').strip()
+            row_market = (item.get('Market') or '').strip()
+            row_state = (item.get('State') or '').strip()
+            if crop_filter and crop_filter not in commodity.lower():
                 continue
-            if market_filter and market_filter not in item['market'].lower():
+            if district_filter and district_filter not in row_district.lower():
                 continue
-            change_pct = ((item['price'] - item['previous_price']) / item['previous_price']) * 100
+            if market_filter and market_filter not in row_market.lower():
+                continue
+            if state_filter and state_filter not in row_state.lower():
+                continue
+            try:
+                modal_price = float(item['Modal_x0020_Price'])
+                min_price = float(item['Min_x0020_Price'])
+                max_price = float(item['Max_x0020_Price'])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if not all(math.isfinite(value) and value >= 0 for value in (modal_price, min_price, max_price)):
+                continue
             rows.append({
-                'crop': crop_row['name'],
-                'unit': crop_row['unit'],
-                'district': item['district'],
-                'market': item['market'],
-                'price': item['price'],
-                'previous_price': item['previous_price'],
-                'change_pct': round(change_pct, 2),
-                'distance_km': item['distance_km'],
-                'season': crop_row['season'],
+                'state': row_state,
+                'crop': commodity,
+                'unit': 'quintal',
+                'district': row_district,
+                'market': row_market,
+                'variety': (item.get('Variety') or '').strip(),
+                'grade': (item.get('Grade') or '').strip(),
+                'arrival_date': (item.get('Arrival_Date') or '').strip(),
+                'price': round(modal_price, 2),
+                'min_price': round(min_price, 2),
+                'max_price': round(max_price, 2),
+                'previous_price': round(modal_price, 2),
+                'change_pct': 0,
+                'distance_km': 0,
+                'season': 'Use arrival date and local seasonal conditions to judge timing.',
             })
-    rows.sort(key=lambda item: (-item['price'], item['distance_km']))
-    return rows
+
+    rows.sort(key=lambda item: (item['arrival_date'], item['crop'].lower(), item['market'].lower()))
+    return rows[:500]
 
 
 def recommend_sale(price, previous_price, quantity, transport_cost, storage_cost, distance_km, crop):

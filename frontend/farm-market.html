@@ -65,7 +65,7 @@
 
       <div class="content-grid farm-layout">
         <section class="farm-panel">
-          <div class="farm-language-bar"><div><div class="panel-title">Crop and mandi workspace</div><p class="subtitle">Compare selling options, transport cost and storage timing.</p></div><div class="farm-offline"><i class="fa-solid fa-cloud-arrow-down"></i><span>Offline saved views</span><select id="farm-language" aria-label="Language"><option>English</option><option>Kannada</option><option>Hindi</option><option>Telugu</option></select></div></div>
+          <div class="farm-language-bar"><div><div class="panel-title">Crop and mandi workspace</div><p class="subtitle">Compare selling options, transport cost and storage timing.</p></div><div class="farm-offline"><i class="fa-solid fa-cloud-arrow-down"></i><span>Daily mandi CSV</span><select id="farm-language" aria-label="Language"><option>English</option><option>Kannada</option><option>Hindi</option><option>Telugu</option></select></div></div>
         </section>
 
         <section class="farm-summary">
@@ -76,15 +76,16 @@
         </section>
 
         <section class="farm-panel">
-          <div class="panel-header"><div><div class="panel-title">Search crop and market</div><p class="subtitle">Search by crop, district or mandi name.</p></div></div>
+          <div class="panel-header"><div><div class="panel-title">Search crop and market</div><p class="subtitle">Search by crop, state, district or mandi name.</p><p class="market-data-status">Source: downloaded daily mandi-price CSV.</p></div></div>
           <form id="farm-search" class="farm-search">
             <label>Crop<select id="farm-crop"><option value="TOMATO">Tomato</option><option value="ONION">Onion</option><option value="RICE">Rice</option></select></label>
+            <label>State<input id="farm-state" placeholder="Example: Karnataka" /></label>
             <label>District<input id="farm-district" placeholder="Example: Kolar" /></label>
             <label>Mandi / market<input id="farm-market" placeholder="Example: APMC" /></label>
             <button class="primary-btn" type="submit">Search</button>
           </form>
           <div id="farm-search-status" class="market-data-status">Loading markets…</div>
-          <div class="farm-table-wrap"><table class="farm-table"><thead><tr><th>Crop</th><th>District</th><th>Market</th><th>Price / quintal</th><th>Change</th><th>Distance</th><th>Season</th></tr></thead><tbody id="farm-markets"><tr><td colspan="7">Loading markets…</td></tr></tbody></table></div>
+          <div class="farm-table-wrap"><table class="farm-table"><thead><tr><th>Crop</th><th>District</th><th>Market</th><th>Modal / range</th><th>Variety</th><th>Arrival date</th><th>Grade</th></tr></thead><tbody id="farm-markets"><tr><td colspan="7">Loading markets…</td></tr></tbody></table></div>
         </section>
 
         <section class="farm-panel farm-half">
@@ -128,21 +129,24 @@
 
     async function loadMarkets() {
       const crop = document.getElementById('farm-crop').value;
+      const state = document.getElementById('farm-state').value.trim();
       const district = document.getElementById('farm-district').value.trim();
       const market = document.getElementById('farm-market').value.trim();
-      const params = new URLSearchParams({ crop, district, market });
+      const params = new URLSearchParams({ crop, state, district, market });
       const status = document.getElementById('farm-search-status');
       status.textContent = 'Loading markets…';
       try {
         const response = await apiRequest(`/api/farm-market/markets?${params}`);
         const rows = response.data || [];
-        document.getElementById('farm-selected-crop').textContent = crop.charAt(0) + crop.slice(1).toLower()
+        document.getElementById('farm-selected-crop').textContent = crop.charAt(0) + crop.slice(1).toLowerCase()
           .replace(/^./, (character) => character.toUpperCase());
         document.getElementById('farm-best-price').textContent = rows.length ? money(rows[0].price) : '--';
-        document.getElementById('farm-nearest').textContent = rows.length ? `${rows.sort((a,b) => a.distance_km-b.distance_km)[0].market}` : '--';
+        document.getElementById('farm-nearest').textContent = rows.length ? rows[0].market : '--';
         document.getElementById('farm-markets').innerHTML = rows.length ? rows.map((row) => `
-          <tr><td>${row.crop}</td><td>${row.district}</td><td>${row.market}</td><td>${money(row.price)}</td><td class="${row.change_pct >= 0 ? 'positive' : 'negative'}">${row.change_pct >= 0 ? '+' : ''}${row.change_pct}%</td><td>${row.distance_km} km</td><td>${row.season}</td></tr>`).join('') : '<tr><td colspan="7">No matching markets found.</td></tr>';
-        status.textContent = rows.length ? `${rows.length} market${rows.length === 1 ? '' : 's'} found.` : 'No matching markets found.';
+          <tr><td>${row.crop}</td><td>${row.district}</td><td>${row.market}</td><td>${money(row.price)}<small> · ${money(row.min_price)}–${money(row.max_price)}</small></td><td>${row.variety}</td><td>${row.arrival_date}</td><td>${row.grade}</td></tr>`).join('') : '<tr><td colspan="7">No matching markets found.</td></tr>';
+        status.textContent = rows.length
+          ? `${rows.length} mandi market${rows.length === 1 ? '' : 's'} found from the downloaded CSV.`
+          : 'No matching mandi markets found.';
         if (rows[0]) {
           document.getElementById('farm-price').value = rows[0].price;
           document.getElementById('farm-previous-price').value = rows[0].previous_price;

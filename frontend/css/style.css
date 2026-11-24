@@ -4065,6 +4065,24 @@ body.theme-light .app-shell .dashboard-ticker-item {
   border-color: #e8edf4;
 }
 
+body.theme-light.dashboard-page .dashboard-ticker-item > span,
+body.theme-light.dashboard-page .dashboard-ticker-status,
+body.theme-light.dashboard-page .dashboard-ticker-item > small {
+  color: #64748b;
+}
+
+body.theme-light.dashboard-page .dashboard-ticker-item > strong {
+  color: #172033;
+}
+
+body.theme-light.dashboard-page .dashboard-ticker-item > small.positive {
+  color: #087f5b;
+}
+
+body.theme-light.dashboard-page .dashboard-ticker-item > small.negative {
+  color: #c43d4d;
+}
+
 body.theme-light .app-shell .dashboard-ai-chat {
   border-color: #e1e8f1;
   background: #fff;

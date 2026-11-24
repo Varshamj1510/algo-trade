@@ -113,10 +113,6 @@
           <div id="farm-history-list" class="farm-resource-grid"></div>
         </section>
 
-        <section class="farm-panel">
-          <div class="panel-header"><div><div class="panel-title">Buyers, cooperatives and schemes</div><p class="subtitle">Verified status, eligibility and network details should be confirmed before any transaction.</p></div></div>
-          <div id="farm-resources" class="farm-resource-grid"></div>
-        </section>
       </div>
     </main>
   </div>
@@ -171,7 +167,6 @@
         document.getElementById('farm-markets').innerHTML = '<tr><td colspan="7">Select a crop and location, then press Search.</td></tr>';
         return;
       }
-      await loadResources();
       if (crop === 'TENDER COCONUT') {
         await loadTenderCoconutHistory();
         document.getElementById('farm-search-status').textContent = 'Tender Coconut history loaded from the downloaded CSV.';
@@ -239,32 +234,71 @@
       }
     }
 
-    async function loadResources() {
-      const crop = document.getElementById('farm-crop').value;
-      const district = document.getElementById('farm-district').value.trim();
-      const params = new URLSearchParams({ crop, district });
-      try {
-        const response = await apiRequest(`/api/farm-market/resources?${params}`);
-        const data = response.data;
-        document.getElementById('farm-weather').innerHTML = data.weather_alerts.map((alert) => `
-          <article class="farm-resource"><span class="badge">${alert.level}</span><h3>${alert.title}</h3><p>${alert.detail}</p></article>`).join('');
-        const buyers = data.buyers.map((buyer) => `
-          <article class="farm-resource"><span class="badge">${buyer.verified ? 'Verified network' : 'Pending verification'}</span><h3>${buyer.name}</h3><p>${buyer.type} · ${buyer.district}<br>${buyer.crops.join(', ')}</p></article>`).join('');
-        const schemes = data.schemes.map((scheme) => `
-          <article class="farm-resource"><span class="badge">${scheme.category}</span><h3>${scheme.name}</h3><p>${scheme.summary}</p></article>`).join('');
-        document.getElementById('farm-resources').innerHTML = buyers + schemes;
-      } catch (error) {
-        document.getElementById('farm-resources').innerHTML = `<p class="negative">${error.message || 'Could not load farm resources.'}</p>`;
-      }
-    }
-
     document.getElementById('farm-crop').addEventListener('change', () => {
       const crop = document.getElementById('farm-crop').value;
       document.getElementById('farm-selected-crop').textContent = crop === 'TENDER COCONUT' ? 'Tender Coconut' : crop.charAt(0) + crop.slice(1).toLowerCase();
       document.getElementById('farm-history-panel').hidden = crop !== 'TENDER COCONUT';
     });
+    const farmTranslations = {
+      English: {
+        title:'Crop and mandi workspace', subtitle:'Compare selling options, transport cost and storage timing.',
+        searchTitle:'Search crop and market', searchSubtitle:'Search by crop, state, district or mandi name.', crop:'Crop', state:'State', district:'District', market:'Mandi / market', search:'Search',
+        best:'Best local price', nearest:'Nearest market', selected:'Selected crop', recommendation:'Recommendation',
+        weatherTitle:'Weather and seasonal advisories', weatherSubtitle:'Review conditions before transport or storage.',
+        historyTitle:'Tender Coconut price history', historySubtitle:'Recent observations from the downloaded district-level CSV.',
+        empty:'Enter search details and press Search.', tableEmpty:'Select a crop and location, then press Search.'
+      },
+      Kannada: {
+        title:'ಬೆಳೆ ಮತ್ತು ಮಂಡಿ ಕೆಲಸದ ಸ್ಥಳ', subtitle:'ಮಾರಾಟ ಆಯ್ಕೆಗಳು, ಸಾರಿಗೆ ವೆಚ್ಚ ಮತ್ತು ಸಂಗ್ರಹಣೆಯ ಸಮಯವನ್ನು ಹೋಲಿಸಿ.',
+        searchTitle:'ಬೆಳೆ ಮತ್ತು ಮಾರುಕಟ್ಟೆ ಹುಡುಕಿ', searchSubtitle:'ಬೆಳೆ, ರಾಜ್ಯ, ಜಿಲ್ಲೆ ಅಥವಾ ಮಂಡಿ ಹೆಸರುಹಾಕಿ ಹುಡುಕಿ.', crop:'ಬೆಳೆ', state:'ರಾಜ್ಯ', district:'ಜಿಲ್ಲೆ', market:'ಮಂಡಿ / ಮಾರುಕಟ್ಟೆ', search:'ಹುಡುಕಿ',
+        best:'ಉತ್ತಮ ಸ್ಥಳೀಯ ಬೆಲೆ', nearest:'ಹತ್ತಿರದ ಮಾರುಕಟ್ಟೆ', selected:'ಆಯ್ಕೆ ಮಾಡಿದ ಬೆಳೆ', recommendation:'ಶಿಫಾರಸು',
+        weatherTitle:'ಹವಾಮಾನ ಮತ್ತು ಬೇಸಿಗೆ ಮಾರ್ಗದರ್ಶನ', weatherSubtitle:'ಸಾರಿಗೆ ಅಥವಾ ಸಂಗ್ರಹಣೆಗೆ ಮೊದಲು ಪರಿಸ್ಥಿತಿಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.',
+        historyTitle:'ತೆಂಗಿನಕಾಯಿ ಬೆಲೆ ಇತಿಹಾಸ', historySubtitle:'ಡೌನ್ಲೋಡ್ ಮಾಡಿದ ಜಿಲ್ಲೆ-ಮಟ್ಟದ CSV ದತ್ತಾಂಶದ ಇತ್ತೀಚಿನ ದಾಖಲೆಗಳು.',
+        empty:'ಹುಡುಕಲು ವಿವರಗಳನ್ನು ನಮೂದಿಸಿ ಮತ್ತು ಹುಡುಕಿ दबಿಸಿ.', tableEmpty:'ಬೆಳೆ ಮತ್ತು ಸ್ಥಳವನ್ನು ಆಯ್ಕೆ ಮಾಡಿ, ನಂತರ ಹುಡುಕಿ.'
+      },
+      Hindi: {
+        title:'फसल और मंडी कार्यक्षेत्र', subtitle:'बिक्री विकल्प, परिवहन लागत और भंडारण समय की तुलना करें.',
+        searchTitle:'फसल और बाजार खोजें', searchSubtitle:'फसल, राज्य, जिला या मंडी नाम से खोजें.', crop:'फसल', state:'राज्य', district:'जिला', market:'मंडी / बाजार', search:'खोजें',
+        best:'सबसे अच्छी स्थानीय कीमत', nearest:'निकटतम बाजार', selected:'चुनी गई फसल', recommendation:'सुझाव',
+        weatherTitle:'मौसम और मौसमीय सलाह', weatherSubtitle:'परिवहन या भंडारण से पहले स्थिति देखें.',
+        historyTitle:'नारियल कीमत इतिहास', historySubtitle:'डाउनलोड की गई जिला-स्तरीय CSV के हाल के रिकॉर्ड.',
+        empty:'खोज विवरण भरें और खोजें दबाएं.', tableEmpty:'फसल और स्थान चुनें, फिर खोजें दबाएं.'
+      },
+      Telugu: {
+        title:'పంట మరియు మండీ వర్క్‌స్పేస్', subtitle:'అమ్మకం ఎంపికలు, రవాణా ఖర్చు మరియు నిల్వ సమయాన్ని పోల్చండి.',
+        searchTitle:'పంట మరియు మార్కెట్‌ను వెతకండి', searchSubtitle:'పంట, రాష్ట్రం, జిల్లా లేదా మండీ పేరు ద్వారా వెతకండి.', crop:'పంట', state:'రాష్ట్రం', district:'జిల్లా', market:'మండి / మార్కెట్', search:'వెతకండి',
+        best:'ఉత్తమ స్థానిక ధర', nearest:'సమీప మార్కెట్', selected:'ఎంచుకున్న పంట', recommendation:'సిఫార్సు',
+        weatherTitle:'వాతావరణ మరియు కాలానుగుణ సలహా', weatherSubtitle:'రవాణా లేదా నిల్వ ముందు పరిస్థితులను పరిశీలించండి.',
+        historyTitle:'కొబ్బరి ధర చరిత్ర', historySubtitle:'డౌన్లోడ్ చేసిన జిల్లా-స్థాయి CSV యొక్క ఇటీవలి రికార్డులు.',
+        empty:'వెతకడానికి వివరాలు నమోదు చేసి వెతకండి నొక్కండి.', tableEmpty:'పంట మరియు స్థలాన్ని ఎంచుకుని వెతకండి.'
+      }
+    };
+
     document.getElementById('farm-language').addEventListener('change', (event) => {
-      document.documentElement.lang = event.target.value === 'Kannada' ? 'kn' : event.target.value === 'Hindi' ? 'hi' : event.target.value === 'Telugu' ? 'te' : 'en';
+      const language = event.target.value;
+      const text = farmTranslations[language] || farmTranslations.English;
+      document.documentElement.lang = language === 'Kannada' ? 'kn' : language === 'Hindi' ? 'hi' : language === 'Telugu' ? 'te' : 'en';
+      document.querySelector('.farm-language-bar .panel-title').textContent = text.title;
+      document.querySelector('.farm-language-bar .subtitle').textContent = text.subtitle;
+      document.querySelector('#farm-search .panel-title')?.remove();
+      const searchTitle = document.querySelector('#farm-search').previousElementSibling?.querySelector('.panel-title');
+      if (searchTitle) searchTitle.textContent = text.searchTitle;
+      const searchSubtitle = document.querySelector('#farm-search').previousElementSibling?.querySelector('.subtitle');
+      if (searchSubtitle) searchSubtitle.textContent = text.searchSubtitle;
+      document.querySelector('#farm-search label:nth-of-type(1)').childNodes[0].textContent = text.crop;
+      document.querySelector('#farm-search label:nth-of-type(2)').childNodes[0].textContent = text.state;
+      document.querySelector('#farm-search label:nth-of-type(3)').childNodes[0].textContent = text.district;
+      document.querySelector('#farm-search label:nth-of-type(4)').childNodes[0].textContent = text.market;
+      document.querySelector('#farm-search button').textContent = text.search;
+      document.querySelectorAll('.farm-summary .farm-stat span')[0].textContent = text.best;
+      document.querySelectorAll('.farm-summary .farm-stat span')[1].textContent = text.nearest;
+      document.querySelectorAll('.farm-summary .farm-stat span')[2].textContent = text.selected;
+      document.querySelectorAll('.farm-summary .farm-stat span')[3].textContent = text.recommendation;
+      document.querySelector('#farm-history-panel .panel-title').textContent = text.historyTitle;
+      document.querySelector('#farm-history-panel .subtitle').textContent = text.historySubtitle;
+      document.querySelector('.farm-page .farm-half:nth-of-type(5) .panel-title')?.text;
+      document.getElementById('farm-search-status').textContent = document.getElementById('farm-markets').textContent.includes('No data') ? text.empty : document.getElementById('farm-search-status').textContent;
+      document.getElementById('farm-history-panel').hidden = document.getElementById('farm-crop').value !== 'TENDER COCONUT';
     });
     document.getElementById('logout-btn').addEventListener('click', logoutUser);
     document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));

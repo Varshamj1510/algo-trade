@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 MANDI_CSV = Path(__file__).resolve().parent.parent / 'data' / 'mandi_prices.csv'
+TENDER_COCONUT_HISTORY_CSV = Path(__file__).resolve().parent.parent / 'data' / 'tender_coconut_history.csv'
 
 
 CROP_MARKETS = {
@@ -104,6 +105,51 @@ def get_crop_markets(crop=None, district=None, market=None, state=None):
 
     rows.sort(key=lambda item: (item['arrival_date'], item['crop'].lower(), item['market'].lower()))
     return rows[:500]
+
+
+def get_tender_coconut_history(district=None, market=None):
+    district_filter = (district or '').strip().lower()
+    market_filter = (market or '').strip().lower()
+    rows = []
+    with TENDER_COCONUT_HISTORY_CSV.open('r', encoding='utf-8-sig', newline='') as csv_file:
+        for item in csv.DictReader(csv_file):
+            row_district = (item.get('District') or '').strip()
+            row_market = (item.get('Market') or '').strip()
+            if district_filter and district_filter not in row_district.lower():
+                continue
+            if market_filter and market_filter not in row_market.lower():
+                continue
+            try:
+                modal_price = float(item['Modal_Price'])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if not math.isfinite(modal_price) or modal_price < 0:
+                continue
+            rows.append({
+                'date': (item.get('Arrival_Date') or '').strip(),
+                'district': row_district,
+                'market': row_market,
+                'grade': (item.get('Grade') or '').strip(),
+                'variety': (item.get('Variety') or '').strip(),
+                'modal_price': round(modal_price, 2),
+                'min_price': round(float(item['Min_Price']) if item.get('Min_Price') else modal_price, 2),
+                'max_price': round(float(item['Max_Price']) if item.get('Max_Price') else modal_price, 2),
+            })
+    rows.sort(key=lambda item: item['date'])
+    latest = rows[-1] if rows else None
+    previous = rows[-2] if len(rows) >= 2 else None
+    change_pct = 0
+    if latest and previous and previous['modal_price']:
+        change_pct = round(((latest['modal_price'] - previous['modal_price']) / previous['modal_price']) * 100, 2)
+    return {
+        'district': district or 'All districts',
+        'market': market or 'All markets',
+        'observations': len(rows),
+        'latest': latest,
+        'previous': previous,
+        'change_pct': change_pct,
+        'rows': rows[-30:],
+    }
 
 
 def recommend_sale(price, previous_price, quantity, transport_cost, storage_cost, distance_km, crop):

@@ -107,6 +107,12 @@
           <div id="farm-weather" class="farm-resource-grid"></div>
         </section>
 
+        <section class="farm-panel" id="farm-history-panel">
+          <div class="panel-header"><div><div class="panel-title">Tender Coconut price history</div><p class="subtitle">Recent observations from the downloaded district-level CSV.</p></div></div>
+          <div id="farm-history-summary" class="farm-summary"><article class="farm-stat"><span>Observations</span><strong>--</strong></article><article class="farm-stat"><span>Latest modal price</span><strong>--</strong></article><article class="farm-stat"><span>Previous price</span><strong>--</strong></article><article class="farm-stat"><span>Latest change</span><strong>--</strong></article></div>
+          <div id="farm-history-list" class="farm-resource-grid"></div>
+        </section>
+
         <section class="farm-panel">
           <div class="panel-header"><div><div class="panel-title">Buyers, cooperatives and schemes</div><p class="subtitle">Verified status, eligibility and network details should be confirmed before any transaction.</p></div></div>
           <div id="farm-resources" class="farm-resource-grid"></div>
@@ -184,6 +190,25 @@
       }
     });
 
+    async function loadTenderCoconutHistory() {
+      const district = document.getElementById('farm-district').value.trim();
+      const market = document.getElementById('farm-market').value.trim();
+      const params = new URLSearchParams({ district, market });
+      try {
+        const response = await apiRequest(`/api/farm-market/history/tender-coconut?${params}`);
+        const data = response.data;
+        const cards = document.querySelectorAll('#farm-history-summary .farm-stat strong');
+        cards[0].textContent = data.observations;
+        cards[1].textContent = data.latest ? money(data.latest.modal_price) : '--';
+        cards[2].textContent = data.previous ? money(data.previous.modal_price) : '--';
+        cards[3].textContent = data.latest ? `${data.change_pct >= 0 ? '+' : ''}${data.change_pct}%` : '--';
+        document.getElementById('farm-history-list').innerHTML = data.rows.slice(-6).reverse().map((row) => `
+          <article class="farm-resource"><span class="badge">${row.date}</span><h3>${money(row.modal_price)}</h3><p>${row.district} · ${row.market}<br>Min ${money(row.min_price)} · Max ${money(row.max_price)}</p></article>`).join('') || '<article class="farm-resource"><p>No Tender Coconut history found for this district or market.</p></article>';
+      } catch (error) {
+        document.getElementById('farm-history-list').innerHTML = `<p class="negative">${error.message || 'Could not load Tender Coconut history.'}</p>`;
+      }
+    }
+
     async function loadResources() {
       const crop = document.getElementById('farm-crop').value;
       const district = document.getElementById('farm-district').value.trim();
@@ -203,7 +228,7 @@
       }
     }
 
-    document.getElementById('farm-crop').addEventListener('change', () => { loadMarkets(); loadResources(); });
+    document.getElementById('farm-crop').addEventListener('change', () => { loadMarkets(); loadResources(); loadTenderCoconutHistory(); });
     document.getElementById('farm-language').addEventListener('change', (event) => {
       document.documentElement.lang = event.target.value === 'Kannada' ? 'kn' : event.target.value === 'Hindi' ? 'hi' : event.target.value === 'Telugu' ? 'te' : 'en';
     });
@@ -212,6 +237,7 @@
     bindSidebarNavigation();
     loadMarkets();
     loadResources();
+    loadTenderCoconutHistory();
   </script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
-from backend.services.farm_market import get_crop_markets, get_farm_resources, recommend_sale
+from backend.services.farm_market import get_crop_markets, get_farm_resources, get_tender_coconut_history, recommend_sale
 
 
 bp = Blueprint('farm_market', __name__, url_prefix='/api/farm-market')
@@ -20,6 +20,19 @@ def farm_markets():
         'data': rows,
         'source': 'AGMARKNET daily mandi-price CSV',
         'live': True,
+    })
+
+
+@bp.route('/history/tender-coconut', methods=['GET'])
+@jwt_required()
+def tender_coconut_history():
+    return jsonify({
+        'success': True,
+        'data': get_tender_coconut_history(
+            district=request.args.get('district', '').strip(),
+            market=request.args.get('market', '').strip(),
+        ),
+        'source': 'Downloaded Tender Coconut mandi history CSV',
     })
 
 

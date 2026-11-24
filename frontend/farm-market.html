@@ -10,8 +10,8 @@
     .farm-page { --farm-green:#168b68; --farm-gold:#c98c29; --farm-blue:#2563eb; }
     .farm-layout { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:14px; }
     .farm-panel { grid-column:span 12; padding:18px; border:1px solid var(--border); border-radius:12px; background:var(--panel); }
-    .farm-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
-    .farm-stat { min-height:104px; padding:14px; border:1px solid var(--border); border-radius:10px; }
+    .farm-summary { grid-column:1/-1; width:100%; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+    .farm-stat { min-width:0; min-height:104px; padding:14px; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
     .farm-stat span { display:block; min-height:32px; color:var(--muted); font-size:.72rem; line-height:1.35; }
     .farm-stat strong { display:block; min-height:34px; margin-top:6px; overflow-wrap:anywhere; font-size:1.12rem; line-height:1.25; }
     .farm-search { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) auto; align-items:end; gap:10px; }

@@ -139,7 +139,8 @@
         localStorage.setItem('algotrade_token', data.token);
         localStorage.setItem('algotrade_user', JSON.stringify(data.user));
         localStorage.setItem('alphamind_signed_in', '1');
-        redirectTo(postLoginRedirect);
+        showAlert('Signed in successfully. Opening your workspace…', 'success');
+        window.setTimeout(() => redirectTo(postLoginRedirect), 350);
       }
 
       function getEmail() {
@@ -209,12 +210,17 @@
 
       document.getElementById('pin-login-form').addEventListener('submit', async (event) => {
         event.preventDefault();
+        const pinSubmit = event.currentTarget.querySelector('button[type="submit"]');
+        pinSubmit.disabled = true;
+        pinSubmit.textContent = 'Signing in…';
         let identifier = localStorage.getItem('alphamind_login_identifier')?.trim();
         if (!identifier) {
           emailGroup.hidden = false;
           emailInput.required = true;
           showAlert('Enter the email or username for this account.');
           emailInput.focus();
+          pinSubmit.disabled = false;
+          pinSubmit.innerHTML = 'Sign in with PIN <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>';
           return;
         }
         try {
@@ -228,12 +234,19 @@
           finishSignIn(data);
         } catch (error) {
           if (/does not have a PIN yet|set up a PIN from Profile Settings first/i.test(error.message)) {
+            pinSubmit.disabled = false;
+            pinSubmit.innerHTML = 'Sign in with PIN <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>';
             postLoginRedirect = '/profile';
             showPanel(passwordForm);
             showAlert('Sign in with your account password, then set your 6-digit PIN in Profile Settings.');
             return;
           }
           showAlert(error.message);
+        } finally {
+          if (!pinSubmit.disabled || document.activeElement !== pinSubmit) {
+            pinSubmit.disabled = false;
+            pinSubmit.innerHTML = 'Sign in with PIN <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>';
+          }
         }
       });
 

@@ -126,8 +126,10 @@
       }
 
       const params = new URLSearchParams(window.location.search);
-      if (!params.get('logout') && getToken()) {
-        redirectTo('/dashboard');
+      if (getToken()) {
+        localStorage.removeItem('algotrade_token');
+        localStorage.removeItem('algotrade_user');
+        localStorage.removeItem('alphamind_signed_in');
       }
       if (params.get('registered') === '1') {
         showAlert('Your account is ready. You can continue with your PIN.', 'success');

@@ -125,6 +125,16 @@ function bindSidebarNavigation() {
       return item;
     });
     sidebarNav.replaceChildren(...pageItems, ...(logoutItem ? [logoutItem] : []));
+    const savedSidebarScroll = Number(sessionStorage.getItem('alphamind_sidebar_scroll') || 0);
+    const sidebar = sidebarNav.closest('.sidebar');
+    if (sidebar) {
+      sidebar.scrollTop = savedSidebarScroll;
+      window.requestAnimationFrame(() => {
+        const activeItem = sidebarNav.querySelector('.nav-item.active');
+        if (activeItem) activeItem.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        sidebar.scrollTop = savedSidebarScroll;
+      });
+    }
   }
 
   document.querySelectorAll('.nav-item[data-page]').forEach((item) => {
@@ -132,6 +142,8 @@ function bindSidebarNavigation() {
     item.onclick = () => {
       const page = item.dataset.page;
       if (page) {
+        const sidebar = item.closest('.sidebar');
+        if (sidebar) sessionStorage.setItem('alphamind_sidebar_scroll', String(sidebar.scrollTop));
         window.location.assign(`/${page}`);
       }
     };

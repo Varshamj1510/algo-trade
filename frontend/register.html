@@ -184,12 +184,15 @@
         }
 
         try {
-          await apiRequest('/api/auth/register', {
+          const data = await apiRequest('/api/auth/register', {
             method: 'POST',
             body: JSON.stringify(payload),
           });
+          localStorage.setItem('algotrade_token', data.token);
+          localStorage.setItem('algotrade_user', JSON.stringify(data.user));
           localStorage.setItem('alphamind_login_identifier', payload.email);
-          window.location.assign('/login?registered=1');
+          localStorage.setItem('alphamind_signed_in', '1');
+          window.location.assign('/dashboard');
         } catch (error) {
           if (/email or username already exists|account with this email already exists/i.test(error.message)) {
             showAlert('This email or username already has an account. Sign in instead.', 'error', {

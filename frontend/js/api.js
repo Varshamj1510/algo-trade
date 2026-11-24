@@ -43,7 +43,8 @@ function redirectTo(path) {
 function logoutUser() {
   localStorage.removeItem('algotrade_token');
   localStorage.removeItem('algotrade_user');
-  redirectTo('/login');
+  localStorage.removeItem('alphamind_signed_in');
+  redirectTo('/login?logout=1');
 }
 
 function getDisplayName(user) {
@@ -91,6 +92,7 @@ function bindSidebarNavigation() {
   if (sidebarNav) {
     const pages = [
       ['dashboard', 'fa-chart-line', 'Dashboard'],
+      ['farm-market', 'fa-wheat-awn', 'Farm Market'],
       ['market', 'fa-chart-column', 'Market Data'],
       ['stocks', 'fa-address-book', 'Stock Directory'],
       ['signals', 'fa-bolt', 'Trade Signals'],

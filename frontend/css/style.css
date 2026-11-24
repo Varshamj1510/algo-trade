@@ -2539,6 +2539,14 @@ body.theme-light .app-shell .topbar {
   border-bottom-color: rgba(90, 115, 148, 0.15);
 }
 
+dashboard-page .dashboard-single-column {
+  grid-template-columns: 1fr;
+}
+
+dashboard-page .dashboard-signals-panel {
+  width: 100%;
+}
+
 body.theme-light.dashboard-page {
   background:
     radial-gradient(760px 440px at 70% -8%, rgba(37, 99, 235, 0.09), transparent 66%),

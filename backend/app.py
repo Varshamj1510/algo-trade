@@ -62,6 +62,7 @@ from backend.routes.sentiment_routes import bp as sentiment_bp
 from backend.routes.assistant_routes import bp as assistant_bp
 from backend.routes.academy_routes import bp as academy_bp
 from backend.routes.reinforcement_learning_routes import bp as reinforcement_learning_bp
+from backend.routes.farm_market_routes import bp as farm_market_bp
 from backend.seed import seed_demo_data
 from backend.services.instrument_catalog import (
     find_demo_instrument,
@@ -102,6 +103,7 @@ app.register_blueprint(sentiment_bp)
 app.register_blueprint(assistant_bp)
 app.register_blueprint(academy_bp)
 app.register_blueprint(reinforcement_learning_bp)
+app.register_blueprint(farm_market_bp)
 init_db(app)
 
 with app.app_context():
@@ -121,6 +123,11 @@ def login_page():
 @app.route('/project-portfolio')
 def project_portfolio_page():
     return send_file(str(BASE_DIR / 'frontend' / 'project-portfolio.html'))
+
+
+@app.route('/farm-market')
+def farm_market_page():
+    return send_file(str(BASE_DIR / 'frontend' / 'farm-market.html'))
 
 
 @app.route('/register')

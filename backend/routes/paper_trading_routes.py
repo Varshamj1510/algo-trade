@@ -726,6 +726,8 @@ def create_paper_order():
     if order_type == 'MARKET':
         filled_price = market_price
     else:
+        if limit_price is None:
+            return jsonify({'success': False, 'message': 'Limit price must be greater than zero.'}), 400
         can_fill = limit_price >= market_price if side == 'BUY' else limit_price <= market_price
         filled_price = market_price if can_fill else None
 

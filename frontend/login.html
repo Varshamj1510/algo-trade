@@ -126,8 +126,11 @@
       }
 
       const params = new URLSearchParams(window.location.search);
+      if (!params.get('logout') && getToken()) {
+        redirectTo('/dashboard');
+      }
       if (params.get('registered') === '1') {
-        showAlert('Your account is ready. Sign in with your password, PIN, or passkey.', 'success');
+        showAlert('Your account is ready. You can continue with your PIN.', 'success');
         emailInput.focus();
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -135,6 +138,7 @@
       function finishSignIn(data) {
         localStorage.setItem('algotrade_token', data.token);
         localStorage.setItem('algotrade_user', JSON.stringify(data.user));
+        localStorage.setItem('alphamind_signed_in', '1');
         redirectTo(postLoginRedirect);
       }
 
@@ -205,11 +209,12 @@
 
       document.getElementById('pin-login-form').addEventListener('submit', async (event) => {
         event.preventDefault();
-        const identifier = localStorage.getItem('alphamind_login_identifier')?.trim();
+        let identifier = localStorage.getItem('alphamind_login_identifier')?.trim();
         if (!identifier) {
-          postLoginRedirect = '/dashboard';
-          showPanel(passwordForm);
-          showAlert('Sign in once with your account password to enable PIN sign-in on this browser.');
+          emailGroup.hidden = false;
+          emailInput.required = true;
+          showAlert('Enter the email or username for this account.');
+          emailInput.focus();
           return;
         }
         try {

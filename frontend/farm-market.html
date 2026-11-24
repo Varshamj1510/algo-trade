@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alpha-Mind | Farm Market</title>
+  <link rel="stylesheet" href="/css/style.css?v=farm-market-1" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <style>
+    .farm-page { --farm-green:#168b68; --farm-gold:#c98c29; --farm-blue:#2563eb; }
+    .farm-layout { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:14px; }
+    .farm-panel { grid-column:span 12; padding:18px; border:1px solid var(--border); border-radius:12px; background:var(--panel); }
+    .farm-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+    .farm-stat { min-height:104px; padding:14px; border:1px solid var(--border); border-radius:10px; }
+    .farm-stat span { color:var(--muted); font-size:.72rem; }
+    .farm-stat strong { display:block; margin-top:10px; font-size:1.25rem; }
+    .farm-search { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) auto; align-items:end; gap:10px; }
+    .farm-search label,.farm-calculator label { display:grid; gap:6px; color:var(--muted); font-size:.76rem; }
+    .farm-search input,.farm-search select,.farm-calculator input,.farm-calculator select { min-height:40px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--panel-strong); color:var(--text); }
+    .farm-table-wrap { overflow-x:auto; }
+    .farm-table { width:100%; border-collapse:collapse; }
+    .farm-table th,.farm-table td { padding:11px 9px; border-bottom:1px solid var(--border); text-align:left; white-space:nowrap; }
+    .farm-table th { color:var(--muted); font-size:.68rem; text-transform:uppercase; }
+    .farm-table td { font-size:.82rem; }
+    .farm-action { display:inline-flex; align-items:center; border-radius:999px; padding:5px 9px; font-size:.72rem; font-weight:800; }
+    .farm-action.sell { background:rgba(32,215,154,.12); color:#20d79a; }
+    .farm-action.wait { background:rgba(247,201,72,.12); color:#d8a724; }
+    .farm-action.store { background:rgba(37,99,235,.12); color:#80aef8; }
+    .farm-half { grid-column:span 6; }
+    .farm-third { grid-column:span 4; }
+    .farm-calculator { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .farm-result { grid-column:1/-1; min-height:150px; padding:16px; border:1px solid var(--border); border-radius:10px; background:rgba(255,255,255,.025); }
+    .farm-result h3 { margin:8px 0; font-size:1.5rem; }
+    .farm-result p { color:var(--muted); line-height:1.55; }
+    .farm-resource-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+    .farm-resource { min-height:170px; padding:14px; border:1px solid var(--border); border-radius:10px; }
+    .farm-resource h3 { margin:8px 0; font-size:.95rem; }
+    .farm-resource p { margin:0; color:var(--muted); font-size:.78rem; line-height:1.5; }
+    .farm-resource .badge { display:inline-flex; margin-bottom:8px; padding:4px 7px; border-radius:999px; background:rgba(22,139,104,.12); color:#62c69f; font-size:.66rem; }
+    .farm-language-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .farm-language-bar select { min-height:38px; padding:7px 9px; border:1px solid var(--border); border-radius:8px; background:var(--panel-strong); color:var(--text); }
+    .farm-offline { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:.78rem; }
+    @media(max-width:900px) { .farm-summary,.farm-resource-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .farm-half,.farm-third { grid-column:span 12; } .farm-search { grid-template-columns:1fr 1fr; } }
+    @media(max-width:560px) { .farm-summary,.farm-resource-grid,.farm-calculator,.farm-search { grid-template-columns:1fr; } .farm-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .farm-language-bar { align-items:flex-start; flex-direction:column; } }
+  </style>
+</head>
+<body class="farm-page">
+  <script>document.body.classList.remove('theme-light');</script>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><div class="brand-mark"><img src="/images/algomind-mark.svg" alt="" /></div><h1>Alpha-Mind</h1></div>
+      <ul class="sidebar-nav">
+        <li class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</li>
+        <li class="nav-item active" data-page="farm-market"><i class="fa-solid fa-wheat-awn"></i> Farm Market</li>
+        <li class="nav-item" data-page="market"><i class="fa-solid fa-chart-column"></i> Market Data</li>
+        <li class="nav-item" data-page="portfolio"><i class="fa-solid fa-wallet"></i> Portfolio</li>
+        <li class="nav-item" data-page="alerts"><i class="fa-solid fa-bell"></i> Alerts</li>
+        <li class="nav-item" data-page="profile"><i class="fa-solid fa-user"></i> Profile Settings</li>
+        <li class="nav-item logout" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</li>
+      </ul>
+    </aside>
+
+    <main class="main-panel">
+      <header class="topbar"><div class="topbar-left"><button class="icon-button mobile-menu" id="menu-toggle"><i class="fa fa-bars"></i></button><span class="page-title">Farm Market</span></div><div class="topbar-right"><div class="user-chip"><div class="avatar" id="user-avatar">T</div><div><div class="user-name" id="top-user-name">Trader</div><div class="user-plan">Farm workspace</div></div></div></div></header>
+
+      <div class="content-grid farm-layout">
+        <section class="farm-panel">
+          <div class="farm-language-bar"><div><div class="panel-title">Crop and mandi workspace</div><p class="subtitle">Compare selling options, transport cost and storage timing.</p></div><div class="farm-offline"><i class="fa-solid fa-cloud-arrow-down"></i><span>Offline saved views</span><select id="farm-language" aria-label="Language"><option>English</option><option>Kannada</option><option>Hindi</option><option>Telugu</option></select></div></div>
+        </section>
+
+        <section class="farm-summary">
+          <article class="farm-stat"><span>Best local price</span><strong id="farm-best-price">--</strong></article>
+          <article class="farm-stat"><span>Nearest market</span><strong id="farm-nearest">--</strong></article>
+          <article class="farm-stat"><span>Selected crop</span><strong id="farm-selected-crop">Tomato</strong></article>
+          <article class="farm-stat"><span>Recommendation</span><strong id="farm-summary-action">--</strong></article>
+        </section>
+
+        <section class="farm-panel">
+          <div class="panel-header"><div><div class="panel-title">Search crop and market</div><p class="subtitle">Search by crop, district or mandi name.</p></div></div>
+          <form id="farm-search" class="farm-search">
+            <label>Crop<select id="farm-crop"><option value="TOMATO">Tomato</option><option value="ONION">Onion</option><option value="RICE">Rice</option></select></label>
+            <label>District<input id="farm-district" placeholder="Example: Kolar" /></label>
+            <label>Mandi / market<input id="farm-market" placeholder="Example: APMC" /></label>
+            <button class="primary-btn" type="submit">Search</button>
+          </form>
+          <div id="farm-search-status" class="market-data-status">Loading markets…</div>
+          <div class="farm-table-wrap"><table class="farm-table"><thead><tr><th>Crop</th><th>District</th><th>Market</th><th>Price / quintal</th><th>Change</th><th>Distance</th><th>Season</th></tr></thead><tbody id="farm-markets"><tr><td colspan="7">Loading markets…</td></tr></tbody></table></div>
+        </section>
+
+        <section class="farm-panel farm-half">
+          <div class="panel-header"><div><div class="panel-title">Net return calculator</div><p class="subtitle">Compare immediate sale against transport and storage costs.</p></div></div>
+          <form id="farm-calculator" class="farm-calculator">
+            <label>Market price per quintal<input id="farm-price" type="number" min="1" step="1" value="2350" /></label>
+            <label>Previous price<input id="farm-previous-price" type="number" min="1" step="1" value="2180" /></label>
+            <label>Quantity in quintals<input id="farm-quantity" type="number" min="0.1" step="0.1" value="20" /></label>
+            <label>Distance in km<input id="farm-distance" type="number" min="0" step="1" value="62" /></label>
+            <label>Transport cost<input id="farm-transport" type="number" min="0" step="1" value="3600" /></label>
+            <label>Storage cost<input id="farm-storage" type="number" min="0" step="1" value="2500" /></label>
+            <button class="primary-btn" type="submit" style="grid-column:1/-1">Calculate recommendation</button>
+            <div id="farm-result" class="farm-result"><span class="muted">Enter sale details to calculate a recommendation.</span></div>
+          </form>
+        </section>
+
+        <section class="farm-panel farm-half">
+          <div class="panel-header"><div><div class="panel-title">Weather and seasonal advisories</div><p class="subtitle">Review conditions before transport or storage.</p></div></div>
+          <div id="farm-weather" class="farm-resource-grid"></div>
+        </section>
+
+        <section class="farm-panel">
+          <div class="panel-header"><div><div class="panel-title">Buyers, cooperatives and schemes</div><p class="subtitle">Verified status, eligibility and network details should be confirmed before any transaction.</p></div></div>
+          <div id="farm-resources" class="farm-resource-grid"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/api.js?v=farm-market-1"></script>
+  <script>
+    const user = parseUser();
+    if (!requireAuth()) throw new Error('Not authenticated');
+    if (user) {
+      const name = getDisplayName(user);
+      document.getElementById('top-user-name').textContent = name;
+      document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
+    }
+
+    function money(value) { return formatCurrency(Number(value || 0)); }
+
+    async function loadMarkets() {
+      const crop = document.getElementById('farm-crop').value;
+      const district = document.getElementById('farm-district').value.trim();
+      const market = document.getElementById('farm-market').value.trim();
+      const params = new URLSearchParams({ crop, district, market });
+      const status = document.getElementById('farm-search-status');
+      status.textContent = 'Loading markets…';
+      try {
+        const response = await apiRequest(`/api/farm-market/markets?${params}`);
+        const rows = response.data || [];
+        document.getElementById('farm-selected-crop').textContent = crop.charAt(0) + crop.slice(1).toLower()
+          .replace(/^./, (character) => character.toUpperCase());
+        document.getElementById('farm-best-price').textContent = rows.length ? money(rows[0].price) : '--';
+        document.getElementById('farm-nearest').textContent = rows.length ? `${rows.sort((a,b) => a.distance_km-b.distance_km)[0].market}` : '--';
+        document.getElementById('farm-markets').innerHTML = rows.length ? rows.map((row) => `
+          <tr><td>${row.crop}</td><td>${row.district}</td><td>${row.market}</td><td>${money(row.price)}</td><td class="${row.change_pct >= 0 ? 'positive' : 'negative'}">${row.change_pct >= 0 ? '+' : ''}${row.change_pct}%</td><td>${row.distance_km} km</td><td>${row.season}</td></tr>`).join('') : '<tr><td colspan="7">No matching markets found.</td></tr>';
+        status.textContent = rows.length ? `${rows.length} market${rows.length === 1 ? '' : 's'} found.` : 'No matching markets found.';
+        if (rows[0]) {
+          document.getElementById('farm-price').value = rows[0].price;
+          document.getElementById('farm-previous-price').value = rows[0].previous_price;
+          document.getElementById('farm-distance').value = rows[0].distance_km;
+        }
+      } catch (error) { status.textContent = error.message || 'Could not load market prices.'; }
+    }
+
+    document.getElementById('farm-search').addEventListener('submit', (event) => { event.preventDefault(); loadMarkets(); });
+
+    document.getElementById('farm-calculator').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload = {
+        crop: document.getElementById('farm-crop').value,
+        price: Number(document.getElementById('farm-price').value),
+        previous_price: Number(document.getElementById('farm-previous-price').value),
+        quantity: Number(document.getElementById('farm-quantity').value),
+        transport_cost: Number(document.getElementById('farm-transport').value),
+        storage_cost: Number(document.getElementById('farm-storage').value),
+        distance_km: Number(document.getElementById('farm-distance').value),
+      };
+      try {
+        const response = await apiRequest('/api/farm-market/recommend', { method:'POST', body:JSON.stringify(payload) });
+        const result = response.data;
+        const actionClass = result.action === 'SELL NOW' ? 'sell' : result.action === 'STORE' ? 'store' : 'wait';
+        document.getElementById('farm-summary-action').textContent = result.action;
+        document.getElementById('farm-result').innerHTML = `
+          <span class="farm-action ${actionClass}">${result.action}</span>
+          <h3>${money(result.net_revenue)} net revenue</h3>
+          <p>${result.reason}</p>
+          <p><strong>Gross:</strong> ${money(result.gross_revenue)} · <strong>Transport per quintal:</strong> ${money(result.transport_per_quintal)} · <strong>Price change:</strong> ${result.change_pct}%</p>
+          <small class="muted">${result.profit_formula}</small>`;
+      } catch (error) {
+        document.getElementById('farm-result').innerHTML = `<p class="negative">${error.message || 'Could not calculate a recommendation.'}</p>`;
+      }
+    });
+
+    async function loadResources() {
+      const crop = document.getElementById('farm-crop').value;
+      const district = document.getElementById('farm-district').value.trim();
+      const params = new URLSearchParams({ crop, district });
+      try {
+        const response = await apiRequest(`/api/farm-market/resources?${params}`);
+        const data = response.data;
+        document.getElementById('farm-weather').innerHTML = data.weather_alerts.map((alert) => `
+          <article class="farm-resource"><span class="badge">${alert.level}</span><h3>${alert.title}</h3><p>${alert.detail}</p></article>`).join('');
+        const buyers = data.buyers.map((buyer) => `
+          <article class="farm-resource"><span class="badge">${buyer.verified ? 'Verified network' : 'Pending verification'}</span><h3>${buyer.name}</h3><p>${buyer.type} · ${buyer.district}<br>${buyer.crops.join(', ')}</p></article>`).join('');
+        const schemes = data.schemes.map((scheme) => `
+          <article class="farm-resource"><span class="badge">${scheme.category}</span><h3>${scheme.name}</h3><p>${scheme.summary}</p></article>`).join('');
+        document.getElementById('farm-resources').innerHTML = buyers + schemes;
+      } catch (error) {
+        document.getElementById('farm-resources').innerHTML = `<p class="negative">${error.message || 'Could not load farm resources.'}</p>`;
+      }
+    }
+
+    document.getElementById('farm-crop').addEventListener('change', () => { loadMarkets(); loadResources(); });
+    document.getElementById('farm-language').addEventListener('change', (event) => {
+      document.documentElement.lang = event.target.value === 'Kannada' ? 'kn' : event.target.value === 'Hindi' ? 'hi' : event.target.value === 'Telugu' ? 'te' : 'en';
+    });
+    document.getElementById('logout-btn').addEventListener('click', logoutUser);
+    document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+    bindSidebarNavigation();
+    loadMarkets();
+    loadResources();
+  </script>
+</body>
+</html>

@@ -29,7 +29,7 @@ def test_login_confirmation_explains_available_sign_in_methods():
     response = app.test_client().get('/login?registered=1')
 
     assert response.status_code == 200
-    assert 'Your account is ready. Sign in with your password, PIN, or passkey.' in (
+    assert 'Your account is ready. You can continue with your PIN.' in (
         response.get_data(as_text=True)
     )
 

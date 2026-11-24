@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
   <body class="dashboard-page">
-    <script>document.body.classList.toggle('theme-light', localStorage.getItem('alphamind_theme') !== 'dark');</script>
+    <script>document.body.classList.remove('theme-light');</script>
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <div class="brand">
@@ -110,22 +110,22 @@
                 <h2 id="dashboard-stock-title">--</h2>
                 <div class="dashboard-stock-quote">
                   <strong id="dashboard-stock-price">--</strong>
-                  <span id="dashboard-stock-change">Historical price data</span>
+                  <span id="dashboard-stock-change">Market price</span>
                 </div>
               </div>
               <a class="secondary-btn" href="/candlestick-chart">Candlestick chart</a>
             </div>
-            <div class="dashboard-stock-timeframes" aria-label="Historical chart range">
+            <div class="dashboard-stock-timeframes" aria-label="Chart range">
               <button type="button" data-stock-timeframe="3M">3M</button>
               <button type="button" data-stock-timeframe="6M">6M</button>
               <button type="button" data-stock-timeframe="1Y" class="active">1Y</button>
               <button type="button" data-stock-timeframe="5Y">5Y</button>
             </div>
             <div class="dashboard-stock-chart-wrap">
-              <canvas id="dashboard-stock-chart" aria-label="Historical stock price chart"></canvas>
+              <canvas id="dashboard-stock-chart" aria-label="Stock price chart"></canvas>
             </div>
             <p id="dashboard-stock-chart-status" class="market-data-status" role="status" aria-live="polite">
-              Historical prices from bundled CSV files; not current market quotes.
+              Price performance and trading activity.
             </p>
           </div>
           <aside class="dashboard-order-ticket" aria-label="Stock order">
@@ -229,21 +229,8 @@
 
           <div class="stats-grid" id="stats-grid"></div>
 
-          <div class="two-col">
-            <section class="panel">
-              <div class="panel-header">
-                <div class="panel-title">Market Overview</div>
-                <div class="segment-tabs">
-                  <button class="active" data-market="NIFTY 50">NIFTY 50</button>
-                  <button data-market="SENSEX">SENSEX</button>
-                  <button data-market="BANK NIFTY">BANK NIFTY</button>
-                </div>
-              </div>
-              <div class="chart-wrap"><canvas id="marketChart"></canvas></div>
-              <div class="market-data-status" id="dashboard-chart-status">Market session · 9:15 AM–3:30 PM IST</div>
-            </section>
-
-            <section class="panel">
+          <div class="two-col dashboard-single-column">
+            <section class="panel dashboard-signals-panel">
               <div class="panel-header">
                 <div class="panel-title">Trade Signals</div>
                 <button class="secondary-btn" onclick="window.location.href='/signals'">View All</button>
@@ -385,7 +372,7 @@
             </div>
             <div class="dashboard-footer-market-grid">
               <div><a href="/market">Market overview</a><a href="/market">Top gainers</a><a href="/market">Top losers</a></div>
-              <div><a href="/candlestick-chart">Historical charts</a><a href="/backtesting">Historical backtests</a><a href="/alpha-research">Alpha research</a></div>
+              <div><a href="/candlestick-chart">Candlestick charts</a><a href="/backtesting">Strategy backtests</a><a href="/alpha-research">Alpha research</a></div>
               <div><a href="/strategies">Strategy library</a><a href="/order-protection">Risk tools</a><a href="/trading-academy">Learning academy</a></div>
               <div><a href="/sentiment">Sentiment analysis</a><a href="/alerts">Alerts</a><a href="/reports">Reports</a></div>
             </div>
@@ -529,7 +516,7 @@
           data: {
             labels: candles.map((candle) => String(candle.time).slice(0, 10)),
             datasets: [{
-              label: 'Historical close',
+              label: 'Closing price',
               data: candles.map((candle) => Number(candle.close)),
               borderColor: '#ff684f',
               backgroundColor: 'rgba(255,104,79,0.10)',
@@ -601,7 +588,7 @@
         const symbol = document.getElementById('dashboard-stock-symbol').value;
         if (!symbol) return;
         const chartStatus = document.getElementById('dashboard-stock-chart-status');
-        chartStatus.textContent = `Loading ${symbol} historical prices…`;
+        chartStatus.textContent = `Loading ${symbol} price chart…`;
         document.getElementById('dashboard-stock-title').textContent = symbol;
         document.getElementById('dashboard-order-symbol').textContent = `${symbol} · NSE`;
         const params = new URLSearchParams({ symbol, timeframe: dashboardStockTimeframe });
@@ -631,10 +618,10 @@
           const changeLabel = document.getElementById('dashboard-stock-change');
           changeLabel.textContent = dayChange === null
             ? 'Current market quote'
-            : `CSV daily move ${dayChange >= 0 ? '+' : ''}${dayChange.toFixed(2)}%`;
+            : `Daily move ${dayChange >= 0 ? '+' : ''}${dayChange.toFixed(2)}%`;
           changeLabel.className = dayChange === null ? '' : dayChange >= 0 ? 'positive' : 'negative';
           renderDashboardStockChart(dashboardStockCandles);
-          chartStatus.textContent = `${dashboardStockCandles.length} historical daily closes · ${last?.time || ''} · ${historyResponse.data.provider || 'Bundled CSV history'}`;
+          chartStatus.textContent = `${dashboardStockCandles.length} daily observations · ${last?.time || ''}`;
         } else {
           dashboardStockCandles = [];
           if (dashboardStockChartInstance) {
@@ -643,9 +630,9 @@
           }
           const canvas = document.getElementById('dashboard-stock-chart');
           canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-          chartStatus.textContent = `${symbol} has no bundled historical chart data.`;
+          chartStatus.textContent = `${symbol} has no chart data available.`;
           const changeLabel = document.getElementById('dashboard-stock-change');
-          changeLabel.textContent = 'Historical chart unavailable';
+          changeLabel.textContent = 'Chart unavailable';
           changeLabel.className = '';
         }
         updateDashboardOrderEstimate();
@@ -722,39 +709,6 @@
         }
       }
 
-      function renderMarketChart(indices) {
-        const selectedName = document.querySelector('.segment-tabs [data-market].active')?.dataset.market || 'NIFTY 50';
-        const selectedIndex = (indices || []).find((index) => index.name === selectedName);
-        const candles = selectedIndex?.candles || [];
-        const context = document.getElementById('marketChart');
-        if (window.marketChartInstance) window.marketChartInstance.destroy();
-        window.marketChartInstance = new Chart(context, {
-          type: 'line',
-          data: {
-            labels: candles.map((candle) => new Date(candle.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })),
-            datasets: [{
-              label: selectedName,
-              data: candles.map((candle) => candle.close),
-              borderColor: getComputedStyle(document.body).getPropertyValue('--primary-2').trim(),
-              backgroundColor: getComputedStyle(document.body).getPropertyValue('--primary-1').trim(),
-              fill: true,
-              tension: 0.4,
-              pointRadius: 0,
-              borderWidth: 3,
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { grid: { display: false }, ticks: { color: '#8ea1be' } },
-              y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8ea1be', callback: (value) => `₹${value}` } }
-            }
-          }
-        });
-      }
-
       function renderDashboardMovers(targetId, items, emptyMessage) {
         const target = document.getElementById(targetId);
         target.innerHTML = items?.length ? items.slice(0, 5).map((item) => `
@@ -790,18 +744,16 @@
           const overview = response.data;
           dashboardIndices = overview.indices || [];
           renderDashboardTicker(dashboardIndices);
-          renderMarketChart(dashboardIndices);
           renderDashboardMovers('dashboard-gainers', overview.gainers, 'No gainers available.');
           renderDashboardMovers('dashboard-losers', overview.losers, 'No losers available.');
           const updatedAt = overview.updated_at ? new Date(overview.updated_at) : null;
           const updateLabel = updatedAt && !Number.isNaN(updatedAt.getTime())
             ? ` · updated ${updatedAt.toLocaleTimeString('en-IN')}`
             : '';
-          status.textContent = `${overview.provider || 'Market prices'}${updateLabel}`;
+          status.textContent = `Market update${updateLabel}`;
         } catch (error) {
           dashboardIndices = [];
           renderDashboardTicker(dashboardIndices);
-          renderMarketChart(dashboardIndices);
           renderDashboardMovers('dashboard-gainers', [], 'Market data unavailable.');
           renderDashboardMovers('dashboard-losers', [], 'Market data unavailable.');
           status.textContent = error.message || 'Could not load market data.';
@@ -841,7 +793,7 @@
             : 'No runs yet';
           document.getElementById('dashboard-latest-backtest-detail').textContent = latest
             ? `${latest.strategy_name} · ${latest.created_at}`
-            : 'Run a historical backtest to see results';
+            : 'Run a backtest to see results';
         } else {
           document.getElementById('dashboard-latest-backtest').textContent = 'Unavailable';
           document.getElementById('dashboard-latest-backtest-detail').textContent = 'Backtest history could not be loaded';
@@ -934,14 +886,8 @@
 
       bindSidebarNavigation();
       window.addEventListener('alphamind-theme-change', () => {
-        renderMarketChart(dashboardIndices);
         renderAllocationChart();
       });
-
-      document.querySelectorAll('.segment-tabs [data-market]').forEach((button) => button.addEventListener('click', () => {
-        document.querySelectorAll('.segment-tabs [data-market]').forEach((item) => item.classList.toggle('active', item === button));
-        renderMarketChart(dashboardIndices);
-      }));
 
       dashboardAiForm.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -978,7 +924,7 @@
           loadingMessage.remove();
           dashboardAiHistory.push({ role: 'assistant', content: response.data.reply });
           appendAssistantMessage('assistant', response.data.reply);
-          dashboardAiStatus.textContent = `Reply from ${response.data.provider} · messages are not saved by Alpha-Mind`;
+          dashboardAiStatus.textContent = 'Reply received · messages are not saved by Alpha-Mind';
         } catch (error) {
           loadingMessage.remove();
           dashboardAiHistory.pop();

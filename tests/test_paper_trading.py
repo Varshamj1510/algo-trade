@@ -503,6 +503,22 @@ def test_virtual_limit_order_opens_when_limit_does_not_qualify_and_can_be_cancel
     assert cancelled.get_json()['data']['status'] == 'CANCELLED'
 
 
+def test_virtual_limit_order_rejects_missing_limit_price():
+    client, headers = authenticated_client()
+    instrument = client.get('/api/paper-trading/account', headers=headers).get_json()['data']['instruments'][0]
+
+    response = client.post('/api/paper-trading/orders', headers=headers, json={
+        'symbol': instrument['symbol'],
+        'exchange': instrument['exchange'],
+        'side': 'BUY',
+        'order_type': 'LIMIT',
+        'quantity': 1,
+    })
+
+    assert response.status_code == 400
+    assert 'Limit price' in response.get_json()['message']
+
+
 def test_virtual_limit_order_fills_when_limit_qualifies():
     client, headers = authenticated_client()
     instrument = client.get('/api/paper-trading/account', headers=headers).get_json()['data']['instruments'][0]

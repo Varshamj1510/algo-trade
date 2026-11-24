@@ -108,12 +108,11 @@ def test_chat_endpoint_enforces_per_user_rate_limit(monkeypatch):
 def test_chat_request_limiter_caps_calls_per_user():
     identifier = secrets.token_hex(8)
     with app.app_context():
-        user = User(
-            full_name='Assistant Limit Test',
-            email=f'assistant-limit-{identifier}@example.test',
-            username=f'assistant-limit-{identifier}',
-            password_hash='test-hash',
-        )
+        user = User()
+        user.full_name = 'Assistant Limit Test'
+        user.email = f'assistant-limit-{identifier}@example.test'
+        user.username = f'assistant-limit-{identifier}'
+        user.password_hash = 'test-hash'
         db.session.add(user)
         db.session.commit()
         try:

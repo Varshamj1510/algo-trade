@@ -223,7 +223,16 @@
         cards[1].textContent = data.latest ? money(data.latest.modal_price) : '--';
         cards[2].textContent = data.previous ? money(data.previous.modal_price) : '--';
         cards[3].textContent = data.latest ? `${data.change_pct >= 0 ? '+' : ''}${data.change_pct}%` : '--';
-        document.getElementById('farm-history-list').innerHTML = data.rows.slice(-6).reverse().map((row) => `
+        const historyRows = data.rows || [];
+        document.getElementById('farm-best-price').textContent = data.latest ? money(data.latest.modal_price) : '--';
+        document.getElementById('farm-nearest').textContent = data.latest ? data.latest.market : '--';
+        document.getElementById('farm-selected-crop').textContent = 'Tender Coconut';
+        document.getElementById('farm-markets').innerHTML = historyRows.length ? historyRows.slice().reverse().slice(0, 500).map((row) => `
+          <tr><td>Tender Coconut</td><td>${row.district}</td><td>${row.market}</td><td>${money(row.modal_price)}<small> · ${money(row.min_price)}–${money(row.max_price)}</small></td><td>${row.variety}</td><td>${row.date}</td><td>${row.grade}</td></tr>`).join('') : '<tr><td colspan="7">No Tender Coconut history found for this location.</td></tr>';
+        document.getElementById('farm-search-status').textContent = historyRows.length
+          ? `${historyRows.length} Tender Coconut history record${historyRows.length === 1 ? '' : 's'} found.`
+          : 'No Tender Coconut history found for this location.';
+        document.getElementById('farm-history-list').innerHTML = historyRows.slice(-6).reverse().map((row) => `
           <article class="farm-resource"><span class="badge">${row.date}</span><h3>${money(row.modal_price)}</h3><p>${row.district} · ${row.market}<br>Min ${money(row.min_price)} · Max ${money(row.max_price)}</p></article>`).join('') || '<article class="farm-resource"><p>No Tender Coconut history found for this district or market.</p></article>';
       } catch (error) {
         document.getElementById('farm-history-list').innerHTML = `<p class="negative">${error.message || 'Could not load Tender Coconut history.'}</p>`;

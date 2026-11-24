@@ -81,6 +81,7 @@ def test_tender_coconut_is_available_in_history_csv():
     data = response.get_json()['data']
     assert data['observations'] > 0
     assert data['latest']['variety'] == 'Tender Coconut'
+    assert data['observations'] == len(data['rows']) or data['observations'] >= len(data['rows'])
 
 
 def test_tender_coconut_history_returns_real_csv_observations():

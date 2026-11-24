@@ -215,10 +215,12 @@
         pinSubmit.textContent = 'Signing in…';
         let identifier = localStorage.getItem('alphamind_login_identifier')?.trim();
         if (!identifier) {
+          authOptions.hidden = true;
+          panels.forEach((item) => { item.hidden = item !== passwordForm; });
           emailGroup.hidden = false;
           emailInput.required = true;
-          showAlert('Enter the email or username for this account.');
           emailInput.focus();
+          showAlert('Enter your email or username, then use password or PIN sign-in.');
           pinSubmit.disabled = false;
           pinSubmit.innerHTML = 'Sign in with PIN <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>';
           return;

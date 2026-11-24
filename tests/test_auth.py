@@ -25,7 +25,7 @@ def test_registration_page_includes_relevant_terms_before_acceptance():
     assert 'verification' not in page.lower()
 
 
-def test_login_confirmation_explains_available_sign_in_methods():
+def test_login_confirmation_explains_pin_sign_in():
     response = app.test_client().get('/login?registered=1')
 
     assert response.status_code == 200

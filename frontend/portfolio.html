@@ -41,7 +41,7 @@
             <div class="user-chip">
               <div class="avatar" id="user-avatar">V</div>
               <div>
-                <div class="user-name" id="top-user-name">Investor</div>
+                <div class="user-name" id="top-user-name">Trader</div>
               </div>
             </div>
           </div>
@@ -106,8 +106,9 @@
       const user = parseUser();
       if (!requireAuth()) { throw new Error('Not authenticated'); }
       if (user) {
-        document.getElementById('top-user-name').textContent = user.full_name || user.username;
-        document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
+        const displayName = getDisplayName(user);
+        document.getElementById('top-user-name').textContent = displayName;
+        document.getElementById('user-avatar').textContent = displayName.charAt(0).toUpperCase();
       }
 
       function escapeHtml(value) {
@@ -146,9 +147,7 @@
           const holdings = data.holdings || [];
           setPortfolioSummary(data, holdings);
           document.getElementById('portfolio-status').textContent =
-            data.holdings_source === 'seeded-demo'
-              ? `Showing ${holdings.length} holdings because this account has no saved positions.`
-              : `${holdings.length} holding${holdings.length === 1 ? '' : 's'}.`;
+            `${holdings.length} holding${holdings.length === 1 ? '' : 's'}.`;
           if (!holdings.length) {
             table.innerHTML = '<tr><td colspan="7" class="empty-state">No holdings are available for this account yet.</td></tr>';
             return;

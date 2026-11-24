@@ -32,7 +32,11 @@
       .candle-down { fill: #ff5f7a; stroke: #ff5f7a; }
       .candle-doji { stroke-width: 2; }
       .candle-pattern-marker { fill: #f7c948; stroke: #07111f; stroke-width: 2; }
-      .candle-pattern-number { fill: #07111f; font-size: 9px; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
+      .candle-pattern-number { fill: #07111f; font-size: 8px; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
+      .candle-chart-help { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 10px 0 0; }
+      .candle-chart-help article { padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: .74rem; line-height: 1.45; }
+      .candle-chart-help strong { display: block; margin-bottom: 2px; color: var(--text); font-size: .76rem; }
+      @media (max-width: 720px) { .candle-chart-help { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
       .candle-legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: .8rem; }
       .candle-legend span { display: inline-flex; align-items: center; gap: 6px; }
       .candle-swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
@@ -69,7 +73,7 @@
             <span class="page-title">CSV Candlestick Chart</span>
           </div>
           <div class="topbar-right">
-            <div class="user-chip"><div class="avatar" id="user-avatar">V</div><div><div class="user-name" id="top-user-name">Investor</div><div class="user-plan">Historical data</div></div></div>
+            <div class="user-chip"><div class="avatar" id="user-avatar">V</div><div><div class="user-name" id="top-user-name">Trader</div><div class="user-plan">Historical data</div></div></div>
           </div>
         </header>
         <div class="content-grid">
@@ -87,9 +91,15 @@
             </div>
             <p id="chart-status" class="market-data-status" role="status" aria-live="polite">Loading CSV symbols…</p>
             <div class="candle-legend">
-              <span><i class="candle-swatch" style="background:#20d79a"></i> Close above open</span>
-              <span><i class="candle-swatch" style="background:#ff5f7a"></i> Close below open</span>
-              <span><i class="candle-swatch" style="background:#f7c948"></i> Detected pattern</span>
+              <span><i class="candle-swatch" style="background:#20d79a"></i> Green: price closed above open</span>
+              <span><i class="candle-swatch" style="background:#ff5f7a"></i> Red: price closed below open</span>
+              <span><i class="candle-swatch" style="background:#f7c948"></i> Yellow P1/P2: detected pattern count</span>
+            </div>
+            <div class="candle-chart-help" aria-label="Candlestick chart definitions">
+              <article><strong>Open / Close</strong>Start and end price of the day.</article>
+              <article><strong>High / Low</strong>Highest and lowest price of the day.</article>
+              <article><strong>Volume</strong>Blue/green/red bars below show trading activity.</article>
+              <article><strong>P1 / P2</strong>One or two pattern types detected on that candle.</article>
             </div>
             <div id="candle-chart-wrap" class="candle-chart-wrap" role="img" aria-label="Historical daily candlestick chart"></div>
             <div class="chart-zoom-controls" aria-label="Candles shown">
@@ -128,8 +138,9 @@
       const user = parseUser();
       if (!requireAuth()) throw new Error('Not authenticated');
       if (user) {
-        document.getElementById('top-user-name').textContent = user.full_name || user.username;
-        document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
+        const displayName = getDisplayName(user);
+        document.getElementById('top-user-name').textContent = displayName;
+        document.getElementById('user-avatar').textContent = displayName.charAt(0).toUpperCase();
       }
 
       function escapeHtml(value) {
@@ -198,8 +209,11 @@
           const markedPatterns = patternsAtIndex.get(index) || [];
           if (markedPatterns.length) {
             const markerY = Math.max(14, priceY(high) - 13);
-            parts.push(`<circle class="candle-pattern-marker" cx="${x}" cy="${markerY}" r="8"/>`);
-            parts.push(`<text class="candle-pattern-number" x="${x}" y="${markerY}">${markedPatterns.length}</text>`);
+            const patternNames = markedPatterns.map((pattern) => `${pattern.name} (${pattern.direction})`).join(', ');
+            parts.push(`<g><title>${escapeHtml(`${markedPatterns.length} pattern(s) on ${candle.time}: ${patternNames}`)}</title>`);
+            parts.push(`<circle class="candle-pattern-marker" cx="${x}" cy="${markerY}" r="10"/>`);
+            parts.push(`<text class="candle-pattern-number" x="${x}" y="${markerY}">P${markedPatterns.length}</text>`);
+            parts.push('</g>');
           }
           if (index === 0 || index === visible.length - 1 || index % Math.ceil(visible.length / 6) === 0) {
             parts.push(`<text class="candle-axis-label" x="${x}" y="${plot.volumeBottom + 42}" text-anchor="middle">${escapeHtml(String(candle.time).slice(0, 10))}</text>`);
@@ -212,9 +226,9 @@
         const recentPatterns = [...patterns].slice(-30).reverse();
         document.getElementById('pattern-count').textContent = `${patterns.length} detected`;
         patternList.innerHTML = recentPatterns.length ? recentPatterns.map((pattern) => `
-          <div class="candle-pattern-item">
+          <div class="candle-pattern-item" title="Historical candlestick pattern; informational only">
             <span>${escapeHtml(pattern.name)} <small>${escapeHtml(pattern.direction)}</small></span>
-            <small>${escapeHtml(pattern.date)}</small>
+            <small>On ${escapeHtml(pattern.date)}</small>
           </div>
         `).join('') : '<p class="muted">No supported patterns detected in this period.</p>';
       }

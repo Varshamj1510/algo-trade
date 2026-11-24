@@ -118,6 +118,11 @@ def login_page():
     return send_file(str(BASE_DIR / 'frontend' / 'login.html'))
 
 
+@app.route('/project-portfolio')
+def project_portfolio_page():
+    return send_file(str(BASE_DIR / 'frontend' / 'project-portfolio.html'))
+
+
 @app.route('/register')
 def register_page():
     return send_file(str(BASE_DIR / 'frontend' / 'register.html'))

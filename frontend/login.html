@@ -58,10 +58,10 @@
           <div id="login-alert" aria-live="polite"></div>
 
           <div class="auth-method-intro">Choose a secure way to continue to your account.</div>
-          <div class="form-group auth-email-group">
+          <div class="form-group auth-email-group" hidden>
             <label for="auth-email">Email or username</label>
-            <input id="auth-email" name="email" type="text" autocomplete="username" placeholder="you@example.com or username" required />
-            <small class="auth-input-hint">Use your email for PIN sign-in, or your email/username for password sign-in.</small>
+            <input id="auth-email" name="email" type="text" autocomplete="username" placeholder="you@example.com or username" />
+            <small class="auth-input-hint">Required only for password sign-in.</small>
           </div>
 
           <div class="auth-secure-options" id="auth-secure-options">
@@ -151,7 +151,7 @@
       function showPanel(panel) {
         authOptions.hidden = Boolean(panel);
         panels.forEach((item) => { item.hidden = item !== panel; });
-        emailGroup.hidden = false;
+        emailGroup.hidden = panel !== passwordForm;
         alertBox.replaceChildren();
         if (panel) {
           const firstInput = panel.querySelector('input');
@@ -171,7 +171,6 @@
       });
 
       document.getElementById('pin-option-btn').addEventListener('click', () => {
-        if (!getEmail()) return;
         postLoginRedirect = '/dashboard';
         showPanel(document.getElementById('pin-login-form'));
       });
@@ -196,7 +195,9 @@
         };
 
         try {
-          finishSignIn(await apiRequest('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) }));
+          const data = await apiRequest('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) });
+          localStorage.setItem('alphamind_login_identifier', identifier);
+          finishSignIn(data);
         } catch (error) {
           showAlert(error.message);
         }
@@ -204,11 +205,18 @@
 
       document.getElementById('pin-login-form').addEventListener('submit', async (event) => {
         event.preventDefault();
+        const identifier = localStorage.getItem('alphamind_login_identifier')?.trim();
+        if (!identifier) {
+          postLoginRedirect = '/dashboard';
+          showPanel(passwordForm);
+          showAlert('Sign in once with your account password to enable PIN sign-in on this browser.');
+          return;
+        }
         try {
           const data = await apiRequest('/api/auth/pin/login', {
             method: 'POST',
             body: JSON.stringify({
-              email: emailInput.value.trim(),
+              email: identifier,
               pin: document.getElementById('login-pin').value,
             }),
           });

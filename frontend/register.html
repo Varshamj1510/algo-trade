@@ -188,6 +188,7 @@
             method: 'POST',
             body: JSON.stringify(payload),
           });
+          localStorage.setItem('alphamind_login_identifier', payload.email);
           window.location.assign('/login?registered=1');
         } catch (error) {
           if (/email or username already exists|account with this email already exists/i.test(error.message)) {

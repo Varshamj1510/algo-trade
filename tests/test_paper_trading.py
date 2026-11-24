@@ -375,7 +375,8 @@ def test_daily_change_strategy_review_explains_conditions_without_ordering():
     assert review['buy_conditions'][0]['actual'] == 1.84
     assert review['buy_conditions'][0]['matched'] is True
     assert review['sell_conditions'][0]['matched'] is False
-    assert 'signal' not in review
+    assert review['signal'] == 'BUY'
+    assert 50 <= review['confidence'] <= 99
 
 
 def test_saved_strategy_review_uses_historical_indicators_and_user_scope():
@@ -407,7 +408,8 @@ def test_saved_strategy_review_uses_historical_indicators_and_user_scope():
     assert len(review['buy_conditions']) == 2
     assert review['buy_conditions'][0]['actual'] > 0
     assert review['sell_conditions'][0]['matched'] is True
-    assert 'signal' not in review
+    assert review['signal'] in {'BUY', 'SELL', 'HOLD'}
+    assert 50 <= review['confidence'] <= 99
 
 
 def test_nifty_future_virtual_trade_uses_lot_size_full_notional_and_kite_quote(nifty_future):
@@ -477,13 +479,58 @@ def test_nifty_future_virtual_trade_requires_full_notional_and_valid_contract(ni
     assert account.get_json()['data']['trades'] == []
 
 
+def test_virtual_limit_order_opens_when_limit_does_not_qualify_and_can_be_cancelled():
+    client, headers = authenticated_client()
+    instrument = client.get('/api/paper-trading/account', headers=headers).get_json()['data']['instruments'][0]
+
+    placed = client.post('/api/paper-trading/orders', headers=headers, json={
+        'symbol': instrument['symbol'],
+        'exchange': instrument['exchange'],
+        'side': 'BUY',
+        'order_type': 'LIMIT',
+        'limit_price': 1,
+        'quantity': 1,
+    })
+    assert placed.status_code == 201
+    assert placed.get_json()['data']['status'] == 'OPEN'
+
+    orders = client.get('/api/paper-trading/orders?status=OPEN', headers=headers)
+    assert orders.status_code == 200
+    order_id = orders.get_json()['data'][0]['id']
+
+    cancelled = client.post(f'/api/paper-trading/orders/{order_id}/cancel', headers=headers)
+    assert cancelled.status_code == 200
+    assert cancelled.get_json()['data']['status'] == 'CANCELLED'
+
+
+def test_virtual_limit_order_fills_when_limit_qualifies():
+    client, headers = authenticated_client()
+    instrument = client.get('/api/paper-trading/account', headers=headers).get_json()['data']['instruments'][0]
+    seeded = find_paper_trading_instrument(instrument['symbol'], instrument['exchange'])
+    assert seeded is not None
+
+    placed = client.post('/api/paper-trading/orders', headers=headers, json={
+        'symbol': instrument['symbol'],
+        'exchange': instrument['exchange'],
+        'side': 'BUY',
+        'order_type': 'LIMIT',
+        'limit_price': seeded['price'] + 10,
+        'quantity': 1,
+    })
+    assert placed.status_code == 201
+    assert placed.get_json()['data']['status'] == 'FILLED'
+    assert placed.get_json()['account']['holdings'][0]['quantity'] == 1
+
+
 def test_existing_untouched_legacy_virtual_account_is_upgraded_once():
     client, headers = authenticated_client()
     user_id = int(client.get('/api/auth/me', headers=headers).get_json()['user']['id'])
     with app.app_context():
         account = paper_trading_routes.PaperAccount.query.filter_by(user_id=user_id).first()
         assert account is None
-        account = paper_trading_routes.PaperAccount(user_id=user_id, cash_balance=100000)
+        account = paper_trading_routes.PaperAccount()
+        account.user_id = user_id
+        account.cash_balance = 100000
         paper_trading_routes.db.session.add(account)
         paper_trading_routes.db.session.commit()
 

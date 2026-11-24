@@ -36,7 +36,7 @@
             <span class="page-title">Virtual Trading</span>
           </div>
           <div class="topbar-right">
-            <div class="user-chip"><div class="avatar" id="user-avatar">V</div><div><div class="user-name" id="top-user-name">Investor</div><div class="user-plan">Paper trading account</div></div></div>
+            <div class="user-chip"><div class="avatar" id="user-avatar">I</div><div><div class="user-name" id="top-user-name">Trader</div><div class="user-plan">Trading account</div></div></div>
           </div>
         </header>
 
@@ -48,7 +48,7 @@
                 <p class="subtitle">Each account starts with ₹15,00,000. Stock trades use app-provided prices and stay virtual.</p>
               </div>
               <div class="paper-account-actions">
-                <span class="date-pill">VIRTUAL ONLY · NO BROKER ORDERS</span>
+                <span class="date-pill">SIMULATION MODE</span>
                 <button class="secondary-btn" id="paper-add-cash-open" type="button"><i class="fa-solid fa-plus"></i> Add practice funds</button>
               </div>
             </div>
@@ -102,10 +102,16 @@
               <label>Side
                 <select id="paper-side"><option value="BUY">Buy</option><option value="SELL">Sell</option></select>
               </label>
+              <label>Order type
+                <select id="paper-order-type"><option value="MARKET">Market</option><option value="LIMIT">Limit</option></select>
+              </label>
+              <label id="paper-limit-label" hidden>Limit price
+                <input id="paper-limit-price" type="number" min="0.01" step="0.01" placeholder="0.00" />
+              </label>
               <label>Quantity
                 <input id="paper-quantity" type="number" min="1" step="1" value="1" required />
               </label>
-              <button class="primary-btn" id="paper-submit" type="submit">Place virtual trade</button>
+              <button class="primary-btn" id="paper-submit" type="submit">Review &amp; place order</button>
             </form>
             <div id="paper-quote-status" class="market-data-status" role="status" aria-live="polite">Select an instrument to load its virtual price.</div>
             <p class="order-ticket-note">Buy orders use virtual cash; sells are limited to shares held in this account. No real money or broker order is involved.</p>
@@ -122,6 +128,26 @@
           </section>
 
           <section class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Virtual orders</div>
+                <p class="subtitle">Market orders fill immediately. Limit orders fill when the app-provided virtual price qualifies.</p>
+              </div>
+              <div class="paper-order-tabs" role="tablist" aria-label="Filter virtual orders">
+                <button type="button" class="paper-order-tab active" data-order-status="OPEN">Open</button>
+                <button type="button" class="paper-order-tab" data-order-status="FILLED">Filled</button>
+                <button type="button" class="paper-order-tab" data-order-status="CANCELLED">Cancelled</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="portfolio-table">
+                <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Type</th><th>Quantity</th><th>Limit / fill</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="paper-orders"><tr><td colspan="8" class="empty-state">Loading virtual orders…</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel">
             <div class="panel-header"><div class="panel-title">Virtual trade history</div></div>
             <p class="market-data-status" id="paper-journal-summary">No closed exits yet. Journal notes are saved per trade.</p>
             <div style="overflow-x:auto;">
@@ -131,7 +157,7 @@
               </table>
             </div>
           </section>
-          <p class="market-data-status">Educational virtual trading only. Stock orders use app-provided prices. Strategy reviews use bundled historical candles and are informational, not financial advice.</p>
+          <p class="market-data-status">Trading is simulated. Historical and market information is provided for analysis and product experience.</p>
         </div>
       </main>
     </div>
@@ -149,8 +175,9 @@
       const user = parseUser();
       if (!requireAuth()) throw new Error('Not authenticated');
       if (user) {
-        document.getElementById('top-user-name').textContent = user.full_name || user.username;
-        document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
+        const displayName = getDisplayName(user);
+        document.getElementById('top-user-name').textContent = displayName;
+        document.getElementById('user-avatar').textContent = displayName.charAt(0).toUpperCase();
       }
 
       function escapeHtml(value) {
@@ -306,11 +333,24 @@
             body: JSON.stringify({ strategy_id: strategyId, symbol }),
           });
           const review = response.data;
+          const signalClass = review.signal === 'BUY' ? 'positive' : review.signal === 'SELL' ? 'negative' : '';
           resultBox.innerHTML = `
-            <div class="paper-strategy-heading">${escapeHtml(review.strategy_name)} · <span class="stock-name-with-logo">${stockLogoMarkup(review.symbol)}${escapeHtml(review.symbol)}</span></div>
-            <p>${escapeHtml(review.description)} History through ${escapeHtml(review.history_through)}. This is an explanation, not an automatic order.</p>
-            ${renderConditionResults('Entry conditions', review.buy_conditions, review.buy_logic)}
-            ${renderConditionResults('Exit conditions', review.sell_conditions, review.sell_logic)}`;
+            <div class="paper-strategy-heading">
+              ${escapeHtml(review.strategy_name)} · <span class="stock-name-with-logo">${stockLogoMarkup(review.symbol)}${escapeHtml(review.symbol)}</span>
+              <span class="paper-recommendation ${signalClass}">${escapeHtml(review.signal)} · ${Number(review.confidence)}% confidence</span>
+            </div>
+            <p>${escapeHtml(review.description)} History through ${escapeHtml(review.history_through)}. The recommendation is informational and is not an automatic order.</p>
+            ${renderConditionResults('Entry / BUY conditions', review.buy_conditions, review.buy_logic)}
+            ${renderConditionResults('Exit / SELL conditions', review.sell_conditions, review.sell_logic)}
+            ${review.signal === 'HOLD' ? '<p class="paper-signal-note">HOLD means the evidence is mixed or no complete entry/exit rule matched. Review risk before waiting or acting.</p>' : `<button type="button" class="secondary-btn" id="paper-use-signal">Use ${escapeHtml(review.signal)} in order ticket</button>`}`;
+          const useSignal = document.getElementById('paper-use-signal');
+          if (useSignal) {
+            useSignal.addEventListener('click', () => {
+              document.getElementById('paper-side').value = review.signal;
+              document.getElementById('paper-quantity').focus();
+              status.textContent = `${review.signal} signal applied to the virtual order ticket. Confirm before placing.`;
+            });
+          }
         } catch (error) {
           resultBox.textContent = error.message || 'Could not review this strategy for the selected instrument.';
         } finally {
@@ -322,26 +362,91 @@
         event.preventDefault();
         const button = document.getElementById('paper-submit');
         const [exchange, symbol] = document.getElementById('paper-symbol').value.split(':');
+        const orderType = document.getElementById('paper-order-type').value;
+        const limitPrice = orderType === 'LIMIT' ? Number(document.getElementById('paper-limit-price').value) : null;
+        if (orderType === 'LIMIT' && (!Number.isFinite(limitPrice) || limitPrice <= 0)) {
+          status.textContent = 'Enter a valid limit price before placing the order.';
+          document.getElementById('paper-limit-price').focus();
+          return;
+        }
         button.disabled = true;
-        status.textContent = 'Filling virtual trade at the app-provided price…';
+        status.textContent = 'Placing virtual order…';
         try {
-          const response = await apiRequest('/api/paper-trading/trades', {
+          const response = await apiRequest('/api/paper-trading/orders', {
             method: 'POST',
             body: JSON.stringify({
               symbol,
               exchange,
               side: document.getElementById('paper-side').value,
+              order_type: orderType,
+              limit_price: limitPrice,
               quantity: Number(document.getElementById('paper-quantity').value),
             }),
           });
           renderAccount(response.account);
           status.textContent = response.message;
+          await loadPaperOrders();
         } catch (error) {
           status.textContent = error.message || 'Virtual trade could not be completed.';
           if (/authorization|token has expired/i.test(error.message || '')) logoutUser();
         } finally {
           button.disabled = false;
         }
+      });
+
+      let paperOrderStatus = 'OPEN';
+
+      async function loadPaperOrders() {
+        try {
+          const response = await apiRequest(`/api/paper-trading/orders?status=${encodeURIComponent(paperOrderStatus)}`);
+          const orders = response.data || [];
+          const table = document.getElementById('paper-orders');
+          table.innerHTML = orders.length ? orders.map((order) => {
+            const price = order.status === 'FILLED'
+              ? `Fill ${money(order.filled_price)}`
+              : order.limit_price != null ? `Limit ${money(order.limit_price)}` : 'Market';
+            const statusClass = order.status === 'FILLED' ? 'positive' : order.status === 'CANCELLED' ? 'negative' : '';
+            return `<tr>
+              <td>${escapeHtml(order.created_at)}</td>
+              <td>${escapeHtml(order.exchange)}:${escapeHtml(order.symbol)}</td>
+              <td class="${order.side === 'BUY' ? 'positive' : 'negative'}">${escapeHtml(order.side)}</td>
+              <td>${escapeHtml(order.order_type)}</td>
+              <td>${Number(order.quantity).toLocaleString('en-IN')}</td>
+              <td>${escapeHtml(price)}</td>
+              <td class="${statusClass}">${escapeHtml(order.status)}</td>
+              <td>${order.status === 'OPEN' ? `<button type="button" class="secondary-btn" data-cancel-order="${Number(order.id)}">Cancel</button>` : '—'}</td>
+            </tr>`;
+          }).join('') : '<tr><td colspan="8" class="empty-state">No virtual orders in this status.</td></tr>';
+        } catch (error) {
+          status.textContent = error.message || 'Could not load virtual orders.';
+        }
+      }
+
+      document.querySelectorAll('[data-order-status]').forEach((button) => {
+        button.addEventListener('click', () => {
+          paperOrderStatus = button.dataset.orderStatus;
+          document.querySelectorAll('[data-order-status]').forEach((tab) => tab.classList.toggle('active', tab === button));
+          loadPaperOrders();
+        });
+      });
+
+      document.getElementById('paper-orders').addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-cancel-order]');
+        if (!button) return;
+        button.disabled = true;
+        try {
+          const response = await apiRequest(`/api/paper-trading/orders/${button.dataset.cancelOrder}/cancel`, { method: 'POST' });
+          status.textContent = response.message;
+          await loadPaperOrders();
+        } catch (error) {
+          status.textContent = error.message || 'Could not cancel the virtual order.';
+        }
+      });
+
+      document.getElementById('paper-order-type').addEventListener('change', (event) => {
+        const limitLabel = document.getElementById('paper-limit-label');
+        limitLabel.hidden = event.target.value !== 'LIMIT';
+        if (event.target.value === 'LIMIT') document.getElementById('paper-limit-price').focus();
       });
 
       document.getElementById('paper-symbol').addEventListener('change', () => {
@@ -390,6 +495,7 @@
       document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
       bindSidebarNavigation();
       loadAccount();
+      loadPaperOrders();
       loadPaperStrategies();
     </script>
   </body>

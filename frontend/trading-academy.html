@@ -34,7 +34,7 @@
             <span class="page-title">Trading Academy</span>
           </div>
           <div class="topbar-right">
-            <div class="user-chip"><div class="avatar" id="user-avatar">V</div><div><div class="user-name" id="top-user-name">Investor</div><div class="user-plan">Learn at your own pace</div></div></div>
+            <div class="user-chip"><div class="avatar" id="user-avatar">V</div><div><div class="user-name" id="top-user-name">Trader</div><div class="user-plan">Learn at your own pace</div></div></div>
           </div>
         </header>
 
@@ -167,8 +167,9 @@
       let searchSequence = 0;
       if (!requireAuth()) throw new Error('Not authenticated');
       if (user) {
-        document.getElementById('top-user-name').textContent = user.full_name || user.username;
-        document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
+        const displayName = getDisplayName(user);
+        document.getElementById('top-user-name').textContent = displayName;
+        document.getElementById('user-avatar').textContent = displayName.charAt(0).toUpperCase();
       }
 
       function escapeHtml(value) {

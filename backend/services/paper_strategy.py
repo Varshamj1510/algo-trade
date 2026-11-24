@@ -100,12 +100,47 @@ def _check_conditions(conditions, values):
     return results
 
 
+def _recommendation(buy_results, sell_results, buy_logic='AND', sell_logic='AND'):
+    buy_matches = sum(1 for item in buy_results if item['matched'])
+    sell_matches = sum(1 for item in sell_results if item['matched'])
+    buy_matched = (
+        buy_matches == len(buy_results) if buy_logic == 'AND'
+        else buy_matches > 0
+    )
+    sell_matched = (
+        sell_matches == len(sell_results) if sell_logic == 'AND'
+        else sell_matches > 0
+    )
+
+    if buy_matched and not sell_matched:
+        signal = 'BUY'
+        confidence = 60 + min(25, buy_matches * 10)
+    elif sell_matched and not buy_matched:
+        signal = 'SELL'
+        confidence = 60 + min(25, sell_matches * 10)
+    else:
+        signal = 'HOLD'
+        confidence = 50
+
+    return {
+        'signal': signal,
+        'confidence': confidence,
+        'buy_conditions_matched': buy_matches,
+        'sell_conditions_matched': sell_matches,
+        'buy_conditions_total': len(buy_results),
+        'sell_conditions_total': len(sell_results),
+        'conflict': buy_matched and sell_matched,
+    }
+
+
 def review_strategy(symbol, strategy, is_builtin):
     if is_builtin and strategy['id'] == 'builtin:daily-change':
         instrument = find_paper_trading_instrument(symbol, 'NSE')
         if instrument is None:
             raise LookupError(f'No seeded virtual price is available for {symbol}.')
         values = {'daily_change_pct': float(instrument['change'])}
+        buy_conditions = _check_conditions(strategy['buy_conditions'], values)
+        sell_conditions = _check_conditions(strategy['sell_conditions'], values)
         return {
             'strategy_name': strategy['name'],
             'description': strategy['description'],
@@ -113,12 +148,13 @@ def review_strategy(symbol, strategy, is_builtin):
             'history_through': 'app-provided market snapshot',
             'buy_logic': 'AND',
             'sell_logic': 'AND',
-            'buy_conditions': _check_conditions(strategy['buy_conditions'], values),
-            'sell_conditions': _check_conditions(strategy['sell_conditions'], values),
+            'buy_conditions': buy_conditions,
+            'sell_conditions': sell_conditions,
             'indicators': {
                 'price': round(float(instrument['price']), 4),
                 'daily_change_pct': round(values['daily_change_pct'], 4),
             },
+            **_recommendation(buy_conditions, sell_conditions),
         }
 
     candles = get_csv_chart_candles(symbol, '1Y')
@@ -182,4 +218,5 @@ def review_strategy(symbol, strategy, is_builtin):
                 'vwap', 'atr', 'volume', 'obv',
             )
         },
+        **_recommendation(buy_results, sell_results, buy_logic, sell_logic),
     }

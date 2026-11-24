@@ -46,6 +46,16 @@ function logoutUser() {
   redirectTo('/login');
 }
 
+function getDisplayName(user) {
+  const fullName = String(user?.full_name || '').trim();
+  const username = String(user?.username || '').trim();
+  const name = fullName || username;
+  if (!name || /^virtual[-_]?[a-z0-9]+$/i.test(name) || /^paper[-_]?[a-z0-9]+$/i.test(name)) {
+    return 'Trader';
+  }
+  return name;
+}
+
 function parseUser() {
   try {
     return JSON.parse(localStorage.getItem('algotrade_user') || 'null');

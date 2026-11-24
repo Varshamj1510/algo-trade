@@ -41,7 +41,7 @@
             <div class="user-chip">
               <div class="avatar" id="user-avatar">V</div>
               <div>
-                <div class="user-name" id="top-user-name">Investor</div>
+                <div class="user-name" id="top-user-name">Trader</div>
               </div>
             </div>
           </div>
@@ -74,8 +74,9 @@
       const reportsStatus = document.getElementById('reports-status');
       let reports = [];
       if (user) {
-        document.getElementById('top-user-name').textContent = user.full_name || user.username;
-        document.getElementById('user-avatar').textContent = (user.full_name || user.username || 'V').charAt(0).toUpperCase();
+        const displayName = getDisplayName(user);
+        document.getElementById('top-user-name').textContent = displayName;
+        document.getElementById('user-avatar').textContent = displayName.charAt(0).toUpperCase();
       }
       document.getElementById('logout-btn').addEventListener('click', logoutUser);
       document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));

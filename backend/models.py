@@ -497,6 +497,38 @@ class PaperFutureTrade(db.Model):
         }
 
 
+class PaperVirtualOrder(db.Model):
+    __tablename__ = 'paper_virtual_orders'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    symbol = db.Column(db.String(20), nullable=False)
+    exchange = db.Column(db.String(10), nullable=False, default='NSE')
+    side = db.Column(db.String(4), nullable=False)
+    order_type = db.Column(db.String(10), nullable=False, default='MARKET')
+    quantity = db.Column(db.Integer, nullable=False)
+    limit_price = db.Column(db.Float, nullable=True)
+    filled_price = db.Column(db.Float, nullable=True)
+    status = db.Column(db.String(10), nullable=False, default='OPEN')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'symbol': self.symbol,
+            'exchange': self.exchange,
+            'side': self.side,
+            'order_type': self.order_type,
+            'quantity': self.quantity,
+            'limit_price': round(self.limit_price, 2) if self.limit_price is not None else None,
+            'filled_price': round(self.filled_price, 2) if self.filled_price is not None else None,
+            'status': self.status,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
+            'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else '',
+        }
+
+
 class PaperTradeJournal(db.Model):
     __tablename__ = 'paper_trade_journal'
 

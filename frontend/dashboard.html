@@ -72,11 +72,11 @@
         <section class="dashboard-pulse panel" aria-labelledby="dashboard-pulse-title">
           <div class="dashboard-pulse-heading">
             <h2 id="dashboard-pulse-title">Account overview</h2>
-            <span>Virtual account · personal activity</span>
+            <span>Account overview · personal activity</span>
           </div>
           <div class="dashboard-pulse-grid">
             <a class="dashboard-pulse-item" href="/paper-trading">
-              <span>Paper account equity</span>
+              <span>Trading account equity</span>
               <strong id="dashboard-paper-equity">--</strong>
               <small id="dashboard-paper-pnl">Loading realized and unrealized P&amp;L…</small>
             </a>
@@ -106,7 +106,7 @@
                 <select id="dashboard-stock-symbol" aria-label="Choose a stock">
                   <option value="">Loading stocks…</option>
                 </select>
-                <div class="dashboard-stock-exchange">NSE · Virtual trading</div>
+                <div class="dashboard-stock-exchange">NSE · Stocks</div>
                 <h2 id="dashboard-stock-title">--</h2>
                 <div class="dashboard-stock-quote">
                   <strong id="dashboard-stock-price">--</strong>
@@ -128,10 +128,10 @@
               Historical prices from bundled CSV files; not current market quotes.
             </p>
           </div>
-          <aside class="dashboard-order-ticket" aria-label="Virtual stock order">
+          <aside class="dashboard-order-ticket" aria-label="Stock order">
             <div class="dashboard-order-heading">
-              <strong id="dashboard-order-symbol">Virtual order</strong>
-              <span>NSE · Paper account</span>
+              <strong id="dashboard-order-symbol">Stock order</strong>
+              <span>NSE · Trading account</span>
             </div>
             <div class="dashboard-order-tabs" role="group" aria-label="Order side">
               <button type="button" data-stock-side="BUY" class="buy active">BUY</button>
@@ -140,13 +140,13 @@
             <label for="dashboard-order-quantity">Quantity</label>
             <input id="dashboard-order-quantity" type="number" min="1" step="1" value="1" inputmode="numeric" />
             <div class="dashboard-order-estimate">
-              <span>Virtual price</span><strong id="dashboard-order-price">--</strong>
+              <span>Market price</span><strong id="dashboard-order-price">--</strong>
             </div>
             <div class="dashboard-order-estimate">
               <span>Estimated value</span><strong id="dashboard-order-value">--</strong>
             </div>
-            <div class="dashboard-order-cash">Available virtual cash <strong id="dashboard-order-cash">--</strong></div>
-            <button type="button" id="dashboard-order-submit" class="primary-btn dashboard-order-submit">Buy virtually</button>
+            <div class="dashboard-order-cash">Available cash <strong id="dashboard-order-cash">--</strong></div>
+            <button type="button" id="dashboard-order-submit" class="primary-btn dashboard-order-submit">Buy</button>
             <p id="dashboard-order-status" role="status" aria-live="polite">
               Educational practice only · no broker order is sent.
             </p>
@@ -170,7 +170,7 @@
           </div>
           <div class="dashboard-ai-prompts" aria-label="Suggested questions">
             <button type="button" data-ai-prompt="Explain RSI in simple terms and what traders commonly use it for.">Explain RSI</button>
-            <button type="button" data-ai-prompt="How can I manage risk before placing a virtual trade?">Risk management</button>
+            <button type="button" data-ai-prompt="How can I manage risk before placing a trade?">Risk management</button>
             <button type="button" data-ai-prompt="What is the difference between a market order and a limit order?">Trading basics</button>
           </div>
           <form id="dashboard-ai-form" class="dashboard-ai-form">
@@ -346,7 +346,7 @@
           <div class="dashboard-footer-main">
             <section class="dashboard-footer-brand" aria-label="About Alpha-Mind">
               <a class="dashboard-footer-wordmark" href="/dashboard"><span class="brand-mark"><img src="/images/algomind-mark.svg" alt="" aria-hidden="true"></span><strong>Alpha-Mind</strong></a>
-              <p>Learn the market. Explore the data. Practise with virtual trades.</p>
+              <p>Explore the market, analyze opportunities and manage every position.</p>
               <span class="dashboard-footer-note">Educational use only · Not investment advice</span>
             </section>
             <nav class="dashboard-footer-column" aria-label="Explore Alpha-Mind">
@@ -405,7 +405,7 @@
               <a href="/order-protection">Risk information</a>
               <a href="/trading-academy">Learning resources</a>
             </div>
-            <p>Virtual orders do not reach a broker. Alpha-Mind does not provide investment advice.</p>
+            <p>Markets involve risk. Invest thoughtfully.</p>
             <span class="dashboard-footer-copyright">© 2026 Alpha-Mind · Built for market learning</span>
           </div>
         </footer>
@@ -572,15 +572,15 @@
       async function loadDashboardStock() {
         const stockSelect = document.getElementById('dashboard-stock-symbol');
         const chartStatus = document.getElementById('dashboard-stock-chart-status');
-        chartStatus.textContent = 'Loading virtual instruments…';
+        chartStatus.textContent = 'Loading instruments…';
         try {
           const accountResponse = await apiRequest('/api/paper-trading/account');
           const tradableSymbols = accountResponse.data?.instruments || [];
 
           if (!tradableSymbols.length) {
-            stockSelect.innerHTML = '<option value="">No chartable virtual stocks available</option>';
-            chartStatus.textContent = 'No virtual stock instruments are currently available.';
-            document.getElementById('dashboard-order-status').textContent = 'No eligible virtual instrument is available.';
+            stockSelect.innerHTML = '<option value="">No chartable stocks available</option>';
+            chartStatus.textContent = 'No stock instruments are currently available.';
+            document.getElementById('dashboard-order-status').textContent = 'No eligible instrument is available.';
             return;
           }
 
@@ -591,8 +591,8 @@
           await loadDashboardStockDetails();
         } catch (error) {
           stockSelect.innerHTML = '<option value="">Stocks unavailable</option>';
-          chartStatus.textContent = error.message || 'Could not load chart history and virtual instruments.';
-          document.getElementById('dashboard-order-status').textContent = error.message || 'The virtual order ticket is unavailable.';
+          chartStatus.textContent = error.message || 'Could not load chart history and instruments.';
+          document.getElementById('dashboard-order-status').textContent = error.message || 'The order ticket is unavailable.';
           document.getElementById('dashboard-order-status').className = 'error';
         }
       }
@@ -630,7 +630,7 @@
             : null;
           const changeLabel = document.getElementById('dashboard-stock-change');
           changeLabel.textContent = dayChange === null
-            ? 'Virtual quote · app-provided'
+            ? 'Current market quote'
             : `CSV daily move ${dayChange >= 0 ? '+' : ''}${dayChange.toFixed(2)}%`;
           changeLabel.className = dayChange === null ? '' : dayChange >= 0 ? 'positive' : 'negative';
           renderDashboardStockChart(dashboardStockCandles);
@@ -662,12 +662,12 @@
           return;
         }
         if (!Number.isFinite(dashboardStockQuote)) {
-          status.textContent = 'A virtual quote is unavailable for this stock, so no order was placed.';
+          status.textContent = 'A quote is unavailable for this stock, so no order was placed.';
           status.className = 'error';
           return;
         }
         button.disabled = true;
-        status.textContent = `Placing virtual ${dashboardStockSide.toLowerCase()}…`;
+        status.textContent = `Placing ${dashboardStockSide.toLowerCase()} order…`;
         status.className = '';
         try {
           const response = await apiRequest('/api/paper-trading/trades', {
@@ -678,7 +678,7 @@
           status.textContent = `${response.message} ${quantity} × ${formatCurrency(response.data.price)}.`;
           status.className = 'success';
         } catch (error) {
-          status.textContent = error.message || 'Virtual trade could not be completed.';
+          status.textContent = error.message || 'Trade could not be completed.';
           status.className = 'error';
         } finally {
           button.disabled = false;
@@ -707,7 +707,7 @@
           const response = await apiRequest('/api/dashboard');
           const user = response.user || parseUser();
           if (user) {
-            const fullName = user.full_name || user.username || 'Trader';
+            const fullName = getDisplayName(user);
             topUserName.textContent = fullName;
             userAvatar.textContent = (fullName || 'T').charAt(0).toUpperCase();
           }
@@ -823,7 +823,7 @@
           pnl.className = account.realized_pnl + account.unrealized_pnl >= 0 ? 'positive' : 'negative';
         } else {
           equity.textContent = 'Unavailable';
-          pnl.textContent = 'Paper account could not be loaded';
+          pnl.textContent = 'Account could not be loaded';
         }
 
         if (alertsResult.status === 'fulfilled') {
@@ -925,7 +925,7 @@
           dashboardStockSide = button.dataset.stockSide;
           document.querySelectorAll('[data-stock-side]').forEach((item) => item.classList.toggle('active', item === button));
           const submit = document.getElementById('dashboard-order-submit');
-          submit.textContent = dashboardStockSide === 'BUY' ? 'Buy virtually' : 'Sell virtually';
+          submit.textContent = dashboardStockSide === 'BUY' ? 'Buy' : 'Sell';
           submit.classList.toggle('sell', dashboardStockSide === 'SELL');
         });
       });

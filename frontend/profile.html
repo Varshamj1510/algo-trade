@@ -41,7 +41,7 @@
             <div class="user-chip">
               <div class="avatar" id="user-avatar">V</div>
               <div>
-                <div class="user-name" id="top-user-name">Investor</div>
+                <div class="user-name" id="top-user-name">Trader</div>
               </div>
             </div>
           </div>
@@ -115,8 +115,9 @@
       const profileForm = document.getElementById('profile-form');
       if (!requireAuth()) { throw new Error('Not authenticated'); }
       if (user) {
-        document.getElementById('top-user-name').textContent = user.username;
-        document.getElementById('user-avatar').textContent = (user.username || 'V').charAt(0).toUpperCase();
+        const displayName = getDisplayName(user);
+        document.getElementById('top-user-name').textContent = displayName;
+        document.getElementById('user-avatar').textContent = displayName.charAt(0).toUpperCase();
         document.getElementById('profile-email').value = user.email || '';
         document.getElementById('profile-username').value = user.username || '';
       }

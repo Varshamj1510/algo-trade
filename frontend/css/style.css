@@ -3259,6 +3259,84 @@ body.theme-light.paper-trading-page .paper-strategy-controls select {
   font-weight: 600;
 }
 
+.paper-recommendation {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.paper-recommendation.positive {
+  border-color: rgba(32, 215, 154, 0.45);
+  background: rgba(32, 215, 154, 0.10);
+}
+
+.paper-recommendation.negative {
+  border-color: rgba(255, 95, 95, 0.45);
+  background: rgba(255, 95, 95, 0.10);
+}
+
+.paper-signal-note {
+  color: var(--muted);
+}
+
+.paper-order-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.paper-order-tab {
+  min-width: 70px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.paper-order-tab.active {
+  background: rgba(32, 215, 154, 0.14);
+  color: var(--green);
+}
+
+#paper-limit-label input {
+  min-width: 110px;
+}
+
+[data-cancel-order] {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 0.72rem;
+}
+
+@media (max-width: 760px) {
+  .paper-recommendation {
+    display: flex;
+    width: fit-content;
+    margin: 6px 0 0;
+  }
+
+  .paper-order-tabs {
+    width: 100%;
+  }
+
+  .paper-order-tab {
+    flex: 1;
+  }
+}
+
 .sentiment-page .content-grid {
   gap: 14px;
 }

@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alpha-Mind — Project Portfolio</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <style>
+    :root { --ink:#10243d; --muted:#667891; --blue:#2563eb; --green:#168b68; --line:#dfe7f0; --paper:#f7f9fc; --white:#fff; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; color:var(--ink); background:var(--paper); font-family:"Segoe UI", Tahoma, sans-serif; }
+    a { color:inherit; text-decoration:none; }
+    .nav { position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; height:68px; padding:0 5vw; border-bottom:1px solid rgba(16,36,61,.08); background:rgba(255,255,255,.94); backdrop-filter:blur(14px); }
+    .brand { display:flex; align-items:center; gap:10px; font-weight:800; }
+    .brand img { width:32px; height:32px; }
+    .nav-links { display:flex; align-items:center; gap:22px; color:var(--muted); font-size:.88rem; }
+    .nav-links a:hover { color:var(--ink); }
+    .button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:42px; padding:0 16px; border:1px solid var(--line); border-radius:8px; background:var(--white); font-size:.88rem; font-weight:750; }
+    .button.primary { border-color:var(--ink); background:var(--ink); color:white; }
+    .hero { display:grid; grid-template-columns:minmax(0,1fr) minmax(320px,.85fr); align-items:center; min-height:620px; padding:78px 5vw 64px; }
+    .eyebrow { display:inline-flex; align-items:center; gap:8px; color:var(--green); font-size:.72rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .eyebrow::before { content:""; width:28px; height:2px; background:var(--green); }
+    h1 { max-width:760px; margin:18px 0 20px; font-family:Georgia, "Times New Roman", serif; font-size:clamp(3.2rem,7vw,6.6rem); font-weight:500; line-height:.92; letter-spacing:-.055em; }
+    .hero-copy { max-width:620px; color:var(--muted); font-size:1.12rem; line-height:1.75; }
+    .hero-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:28px; }
+    .product-stage { position:relative; min-height:480px; }
+    .screen { position:absolute; width:min(520px,92%); right:0; top:20px; overflow:hidden; border:1px solid var(--line); border-radius:12px; background:var(--white); box-shadow:0 28px 70px rgba(34,67,111,.16); }
+    .screen-top { display:flex; align-items:center; gap:7px; height:42px; padding:0 14px; border-bottom:1px solid var(--line); }
+    .screen-top i { width:7px; height:7px; border-radius:50%; background:#ccd7e5; }
+    .screen-body { display:grid; grid-template-columns:82px 1fr; min-height:350px; }
+    .screen-sidebar { border-right:1px solid var(--line); background:#fbfcfe; }
+    .screen-sidebar div { height:32px; margin:12px 10px 0; border-radius:6px; background:#edf2f7; }
+    .screen-sidebar div:first-child { background:#deebff; }
+    .screen-main { padding:22px; }
+    .screen-kicker { color:var(--green); font-size:.68rem; font-weight:800; letter-spacing:.08em; }
+    .screen-value { margin:8px 0 18px; font-family:Georgia, serif; font-size:2.1rem; }
+    .mini-chart { position:relative; height:145px; overflow:hidden; border-bottom:1px solid var(--line); background:linear-gradient(rgba(37,99,235,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(37,99,235,.06) 1px,transparent 1px); background-size:32px 32px; }
+    .mini-chart svg { width:100%; height:100%; }
+    .screen-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:16px; }
+    .screen-stats div { min-height:70px; padding:12px; border:1px solid var(--line); border-radius:8px; }
+    .screen-stats strong { display:block; margin-top:8px; font-size:.92rem; }
+    .metric-strip { display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:white; }
+    .metric { padding:24px 5vw; border-right:1px solid var(--line); }
+    .metric:last-child { border-right:0; }
+    .metric strong { display:block; font-family:Georgia,serif; font-size:2.2rem; font-weight:500; }
+    .metric span { color:var(--muted); font-size:.78rem; }
+    section { padding:82px 5vw; }
+    .section-heading { display:flex; align-items:end; justify-content:space-between; gap:20px; margin-bottom:34px; }
+    .section-heading h2 { max-width:620px; margin:8px 0 0; font-family:Georgia,serif; font-size:clamp(2.2rem,4vw,4.2rem); font-weight:500; line-height:1; letter-spacing:-.035em; }
+    .section-heading p { max-width:430px; color:var(--muted); line-height:1.65; }
+    .module-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    .module { min-height:230px; padding:24px; border:1px solid var(--line); border-radius:10px; background:white; }
+    .module-icon { display:grid; place-items:center; width:42px; height:42px; border-radius:8px; background:#edf4ff; color:var(--blue); }
+    .module h3 { margin:18px 0 8px; font-size:1.05rem; }
+    .module p { color:var(--muted); font-size:.88rem; line-height:1.65; }
+    .architecture { background:var(--ink); color:white; }
+    .architecture .section-heading p { color:#b8c7d9; }
+    .flow { display:grid; grid-template-columns:repeat(5,1fr); align-items:center; }
+    .flow-item { min-height:145px; padding:20px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04); }
+    .flow-item span { color:#82a7de; font-size:.68rem; font-weight:800; }
+    .flow-item strong { display:block; margin:12px 0 8px; }
+    .flow-item p { margin:0; color:#bdcad9; font-size:.82rem; line-height:1.5; }
+    .tech-grid { display:grid; grid-template-columns:1.15fr .85fr; gap:18px; }
+    .tech-panel { padding:28px; border:1px solid var(--line); border-radius:10px; background:white; }
+    .tech-list { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+    .tech { display:flex; align-items:center; gap:10px; padding:12px; border-bottom:1px solid var(--line); }
+    .tech i { color:var(--green); }
+    .cta { margin:0 5vw 70px; padding:52px; border-radius:12px; background:#edf4ff; }
+    .cta h2 { margin:8px 0 12px; font-family:Georgia,serif; font-size:3rem; font-weight:500; }
+    .cta p { max-width:650px; color:var(--muted); }
+    footer { display:flex; justify-content:space-between; padding:28px 5vw; border-top:1px solid var(--line); color:var(--muted); font-size:.78rem; }
+    @media (max-width:900px) { .nav-links a:not(.button) { display:none; } .hero { grid-template-columns:1fr; } .product-stage { min-height:420px; } .screen { left:0; right:auto; width:100%; } .metric-strip,.module-grid { grid-template-columns:repeat(2,1fr); } .flow { grid-template-columns:1fr; } .flow-item { min-height:auto; } .tech-grid { grid-template-columns:1fr; } }
+    @media (max-width:600px) { .nav { height:60px; } .hero { padding-top:48px; } h1 { font-size:3.4rem; } .metric-strip,.module-grid { grid-template-columns:1fr; } .metric { border-right:0; border-bottom:1px solid var(--line); } .section-heading { align-items:flex-start; flex-direction:column; } .screen-body { grid-template-columns:55px 1fr; } .screen-stats { grid-template-columns:1fr; } .tech-list { grid-template-columns:1fr; } .cta { padding:34px 24px; } footer { flex-direction:column; gap:8px; } }
+  </style>
+</head>
+<body>
+  <nav class="nav" aria-label="Project navigation">
+    <a class="brand" href="/project-portfolio"><img src="/images/algomind-mark.svg" alt="" /> Alpha-Mind</a>
+    <div class="nav-links">
+      <a href="#modules">Modules</a><a href="#architecture">Architecture</a><a href="#technology">Technology</a>
+      <a class="button" href="/login">Sign in</a><a class="button primary" href="/register">Create account</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <div class="eyebrow">Full-stack market workspace</div>
+      <h1>Alpha-Mind</h1>
+      <p class="hero-copy">A complete market-analysis and trading application bringing research, strategies, charts, portfolio management, alerts and order planning into one connected workspace.</p>
+      <div class="hero-actions"><a class="button primary" href="/dashboard">Open application <i class="fa-solid fa-arrow-right"></i></a><a class="button" href="/register">Create account</a></div>
+    </div>
+    <div class="product-stage" aria-label="Application preview">
+      <div class="screen">
+        <div class="screen-top"><i></i><i></i><i></i></div>
+        <div class="screen-body">
+          <div class="screen-sidebar"><div></div><div></div><div></div><div></div></div>
+          <div class="screen-main">
+            <div class="screen-kicker">PORTFOLIO OVERVIEW</div><div class="screen-value">₹15,00,000</div>
+            <div class="mini-chart"><svg viewBox="0 0 420 145" role="img" aria-label="Portfolio trend preview"><path d="M0 118 C45 110 65 90 105 96 S155 118 194 82 S250 96 280 56 S340 68 420 22" fill="none" stroke="#2563eb" stroke-width="4"/><path d="M0 118 C45 110 65 90 105 96 S155 118 194 82 S250 96 280 56 S340 68 420 22 L420 145 L0 145 Z" fill="rgba(37,99,235,.08)"/></svg></div>
+            <div class="screen-stats"><div>Cash<strong>₹12.4L</strong></div><div>Invested<strong>₹2.6L</strong></div><div>Active alerts<strong>8</strong></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="metric-strip">
+    <div class="metric"><strong>20+</strong><span>Application screens and tools</span></div>
+    <div class="metric"><strong>40+</strong><span>Backend API capabilities</span></div>
+    <div class="metric"><strong>BUY/SELL/HOLD</strong><span>Decision workflow</span></div>
+    <div class="metric"><strong>One</strong><span>Connected workspace</span></div>
+  </div>
+
+  <section id="modules">
+    <div class="section-heading"><div><div class="eyebrow">Platform modules</div><h2>Built around the complete market workflow.</h2></div><p>Each module solves a separate task but shares the same account, market data, user scope and interface conventions.</p></div>
+    <div class="module-grid">
+      <article class="module"><div class="module-icon"><i class="fa-solid fa-chart-line"></i></div><h3>Market intelligence</h3><p>Market overview, stocks, indices, gainers, losers, sectors, watchlists and historical chart exploration.</p></article>
+      <article class="module"><div class="module-icon"><i class="fa-solid fa-chart-simple"></i></div><h3>Technical analysis</h3><p>RSI, MACD, EMA, SMA, VWAP, Bollinger Bands, ATR, candlesticks and volume-based analysis.</p></article>
+      <article class="module"><div class="module-icon"><i class="fa-solid fa-diagram-project"></i></div><h3>Strategy engine</h3><p>User-defined AND/OR conditions, built-in strategies, clear BUY/SELL/HOLD outcomes and historical reviews.</p></article>
+      <article class="module"><div class="module-icon"><i class="fa-solid fa-briefcase"></i></div><h3>Portfolio and orders</h3><p>Holdings, account cash, P&L, trade history, journals, market/limit orders and open-position workflows.</p></article>
+      <article class="module"><div class="module-icon"><i class="fa-solid fa-flask-vial"></i></div><h3>Research and backtesting</h3><p>Historical moving-average backtests, cost assumptions, drawdown, win rate, alpha research and held-out evaluation.</p></article>
+      <article class="module"><div class="module-icon"><i class="fa-solid fa-shield-halved"></i></div><h3>Risk and alerts</h3><p>Position sizing, stop-loss planning, risk/reward calculations, price alerts and browser notifications.</p></article>
+    </div>
+  </section>
+
+  <section class="architecture" id="architecture">
+    <div class="section-heading"><div><div class="eyebrow">System architecture</div><h2>From browser interaction to persistent account state.</h2></div><p>The application uses a single-origin Flask architecture with separate services for market data, strategies, backtesting, trading and external integrations.</p></div>
+    <div class="flow">
+      <div class="flow-item"><span>01 / BROWSER</span><strong>Responsive interface</strong><p>HTML, CSS and JavaScript pages.</p></div>
+      <div class="flow-item"><span>02 / API</span><strong>Flask routes</strong><p>Authentication and validated requests.</p></div>
+      <div class="flow-item"><span>03 / SERVICES</span><strong>Business logic</strong><p>Indicators, P&L, strategies and risk.</p></div>
+      <div class="flow-item"><span>04 / DATA</span><strong>SQLAlchemy</strong><p>User, trade and portfolio records.</p></div>
+      <div class="flow-item"><span>05 / INTEGRATIONS</span><strong>Optional providers</strong><p>Market, AI and notification services.</p></div>
+    </div>
+  </section>
+
+  <section id="technology">
+    <div class="section-heading"><div><div class="eyebrow">Implementation</div><h2>Practical technology, designed for a complete product workflow.</h2></div><p>The stack combines a reliable Python backend with a fast, responsive multi-page frontend and a deployment-ready persistence model.</p></div>
+    <div class="tech-grid">
+      <div class="tech-panel"><div class="eyebrow">Core stack</div><div class="tech-list">
+        <div class="tech"><i class="fa-brands fa-python"></i><strong>Python / Flask</strong></div><div class="tech"><i class="fa-solid fa-database"></i><strong>SQLAlchemy</strong></div>
+        <div class="tech"><i class="fa-brands fa-js"></i><strong>JavaScript / HTML / CSS</strong></div><div class="tech"><i class="fa-solid fa-flask-vial"></i><strong>Pytest</strong></div>
+        <div class="tech"><i class="fa-solid fa-server"></i><strong>SQLite / PostgreSQL</strong></div><div class="tech"><i class="fa-solid fa-cloud"></i><strong>Render deployment</strong></div>
+      </div></div>
+      <div class="tech-panel"><div class="eyebrow">Project focus</div><p>Account security and user scope</p><p>Financial data validation</p><p>Explainable algorithmic decisions</p><p>Responsive product screens</p><p>Realistic virtual-order workflows</p></div>
+    </div>
+  </section>
+
+  <section class="cta"><div class="eyebrow">Explore the project</div><h2>See the complete application.</h2><p>Open the product workspace, create an account or return to the sign-in page.</p><div class="hero-actions"><a class="button primary" href="/dashboard">Open dashboard</a><a class="button" href="/register">Create account</a><a class="button" href="/login">Sign in</a></div></section>
+
+  <footer><span>Alpha-Mind · Full-stack market workspace</span><span>Projects · Architecture · Technology · Demo</span></footer>
+</body>
+</html>

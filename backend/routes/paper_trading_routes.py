@@ -5,7 +5,14 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from backend.database import db
-from backend.models import PaperAccount, PaperFutureTrade, PaperTrade, PaperTradeJournal, StrategyModel
+from backend.models import (
+    PaperAccount,
+    PaperFutureTrade,
+    PaperTrade,
+    PaperTradeJournal,
+    PaperVirtualOrder,
+    StrategyModel,
+)
 from backend.services.instrument_catalog import (
     find_demo_instrument,
     find_paper_trading_instrument,
@@ -39,7 +46,9 @@ def _quote_price(quote):
 def _account_for_user(user_id):
     account = PaperAccount.query.filter_by(user_id=user_id).with_for_update().first()
     if account is None:
-        account = PaperAccount(user_id=user_id, cash_balance=STARTING_CASH)
+        account = PaperAccount()
+        account.user_id = user_id
+        account.cash_balance = STARTING_CASH
         db.session.add(account)
         db.session.commit()
     elif account.cash_balance == LEGACY_STARTING_CASH:
@@ -534,15 +543,14 @@ def create_nifty_future_trade():
             }), 400
         account.cash_balance += notional
 
-    trade = PaperFutureTrade(
-        user_id=user_id,
-        symbol=contract['symbol'],
-        expiry=datetime.fromisoformat(contract['expiry']).date(),
-        side=side,
-        lots=lots,
-        lot_size=contract['lot_size'],
-        price=price,
-    )
+    trade = PaperFutureTrade()
+    trade.user_id = user_id
+    trade.symbol = contract['symbol']
+    trade.expiry = datetime.fromisoformat(contract['expiry']).date()
+    trade.side = side
+    trade.lots = lots
+    trade.lot_size = contract['lot_size']
+    trade.price = price
     db.session.add(trade)
     db.session.commit()
     snapshot = _account_snapshot(user_id, market_quotes=quotes)
@@ -623,14 +631,13 @@ def create_paper_trade():
     else:
         account.cash_balance -= trade_value
 
-    trade = PaperTrade(
-        user_id=user_id,
-        symbol=symbol,
-        exchange=exchange,
-        side=side,
-        quantity=quantity,
-        price=price,
-    )
+    trade = PaperTrade()
+    trade.user_id = user_id
+    trade.symbol = symbol
+    trade.exchange = exchange
+    trade.side = side
+    trade.quantity = quantity
+    trade.price = price
     db.session.add(trade)
     db.session.commit()
     snapshot = _account_snapshot(user_id)
@@ -640,6 +647,146 @@ def create_paper_trade():
         'data': trade.to_dict(),
         'account': snapshot,
     }), 201
+
+
+@bp.route('/orders', methods=['GET'])
+@jwt_required()
+def list_paper_orders():
+    user_id = int(get_jwt_identity())
+    status_filter = request.args.get('status', '').strip().upper()
+    query = PaperVirtualOrder.query.filter_by(user_id=user_id)
+    if status_filter:
+        status_filter = status_filter.replace('-', '_')
+        if status_filter not in {'OPEN', 'FILLED', 'CANCELLED'}:
+            return jsonify({'success': False, 'message': 'Invalid virtual order status.'}), 400
+        query = query.filter_by(status=status_filter)
+    orders = query.order_by(PaperVirtualOrder.created_at.desc(), PaperVirtualOrder.id.desc()).all()
+    return jsonify({'success': True, 'data': [order.to_dict() for order in orders]})
+
+
+@bp.route('/orders', methods=['POST'])
+@jwt_required()
+def create_paper_order():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Request body must be a JSON object.'}), 400
+
+    symbol = payload.get('symbol')
+    exchange = payload.get('exchange', 'NSE')
+    side = payload.get('side')
+    order_type = payload.get('order_type', 'MARKET')
+
+    if not isinstance(symbol, str) or not symbol.strip() or len(symbol.strip()) > 20:
+        return jsonify({'success': False, 'message': 'Enter a valid symbol.'}), 400
+    if not isinstance(exchange, str) or exchange.strip().upper() not in {'NSE', 'BSE'}:
+        return jsonify({'success': False, 'message': 'Exchange must be NSE or BSE.'}), 400
+    if not isinstance(side, str) or side.strip().upper() not in {'BUY', 'SELL'}:
+        return jsonify({'success': False, 'message': 'Side must be BUY or SELL.'}), 400
+    if not isinstance(order_type, str) or order_type.strip().upper() not in {'MARKET', 'LIMIT'}:
+        return jsonify({'success': False, 'message': 'Order type must be MARKET or LIMIT.'}), 400
+
+    try:
+        raw_quantity = payload.get('quantity')
+        if raw_quantity is None or isinstance(raw_quantity, bool):
+            raise ValueError
+        quantity = float(raw_quantity)
+    except (TypeError, ValueError, OverflowError):
+        return jsonify({'success': False, 'message': 'Quantity must be a positive whole number.'}), 400
+    if not math.isfinite(quantity) or not quantity.is_integer() or quantity <= 0:
+        return jsonify({'success': False, 'message': 'Quantity must be a positive whole number.'}), 400
+
+    symbol = symbol.strip().upper()
+    exchange = exchange.strip().upper()
+    side = side.strip().upper()
+    order_type = order_type.strip().upper()
+    instrument = find_paper_trading_instrument(symbol, exchange) or find_demo_instrument(symbol, exchange)
+    if instrument is None:
+        return jsonify({'success': False, 'message': f'No seeded virtual quote is available for {exchange}:{symbol}.'}), 404
+
+    market_price = _quote_price({'price': instrument['price']})
+    if market_price is None:
+        return jsonify({'success': False, 'message': 'The seeded virtual price is invalid.'}), 422
+
+    limit_price = None
+    if order_type == 'LIMIT':
+        try:
+            raw_limit = payload.get('limit_price')
+            if raw_limit is None or isinstance(raw_limit, bool):
+                raise ValueError
+            limit_price = float(raw_limit)
+        except (TypeError, ValueError, OverflowError):
+            return jsonify({'success': False, 'message': 'Limit price must be greater than zero.'}), 400
+        if not math.isfinite(limit_price) or limit_price <= 0:
+            return jsonify({'success': False, 'message': 'Limit price must be greater than zero.'}), 400
+
+    user_id = int(get_jwt_identity())
+    account = _account_for_user(user_id)
+    quantity = int(quantity)
+
+    if order_type == 'MARKET':
+        filled_price = market_price
+    else:
+        can_fill = limit_price >= market_price if side == 'BUY' else limit_price <= market_price
+        filled_price = market_price if can_fill else None
+
+    if filled_price is not None:
+        trade_value = round(filled_price * quantity, 2)
+        existing_trades = PaperTrade.query.filter_by(user_id=user_id).order_by(
+            PaperTrade.created_at.asc(), PaperTrade.id.asc(),
+        ).all()
+        positions, _, _ = _positions_and_pnl(existing_trades)
+        held_quantity = positions.get((exchange, symbol), {'quantity': 0})['quantity']
+
+        if side == 'BUY' and trade_value > account.cash_balance:
+            return jsonify({'success': False, 'message': 'Insufficient virtual cash for this order.'}), 400
+        if side == 'SELL' and quantity > held_quantity:
+            return jsonify({'success': False, 'message': f'Cannot sell {quantity} shares; only {held_quantity} are held.'}), 400
+
+        account.cash_balance += trade_value if side == 'SELL' else -trade_value
+        trade = PaperTrade()
+        trade.user_id = user_id
+        trade.symbol = symbol
+        trade.exchange = exchange
+        trade.side = side
+        trade.quantity = quantity
+        trade.price = filled_price
+        db.session.add(trade)
+
+    order = PaperVirtualOrder()
+    order.user_id = user_id
+    order.symbol = symbol
+    order.exchange = exchange
+    order.side = side
+    order.order_type = order_type
+    order.quantity = quantity
+    order.limit_price = limit_price
+    order.status = 'FILLED' if filled_price is not None else 'OPEN'
+    order.filled_price = filled_price
+    db.session.add(order)
+    db.session.commit()
+
+    snapshot = _account_snapshot(user_id)
+    return jsonify({
+        'success': True,
+        'message': 'Virtual order filled.' if filled_price is not None else 'Limit order placed and awaiting a qualifying virtual price.',
+        'data': order.to_dict(),
+        'account': snapshot,
+    }), 201
+
+
+@bp.route('/orders/<int:order_id>/cancel', methods=['POST'])
+@jwt_required()
+def cancel_paper_order(order_id):
+    user_id = int(get_jwt_identity())
+    order = PaperVirtualOrder.query.filter_by(id=order_id, user_id=user_id).first()
+    if order is None:
+        return jsonify({'success': False, 'message': 'Virtual order not found.'}), 404
+    if order.status != 'OPEN':
+        return jsonify({'success': False, 'message': 'Only open virtual orders can be cancelled.'}), 400
+    order.status = 'CANCELLED'
+    db.session.add(order)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Virtual order cancelled.', 'data': order.to_dict()})
 
 
 @bp.route('/trades/<string:trade_type>/<int:trade_id>/journal', methods=['PUT'])
@@ -671,7 +818,10 @@ def update_paper_trade_journal(trade_type, trade_id):
             db.session.commit()
         return jsonify({'success': True, 'note': ''})
     if entry is None:
-        entry = PaperTradeJournal(user_id=user_id, trade_type=trade_type, trade_id=trade_id)
+        entry = PaperTradeJournal()
+        entry.user_id = user_id
+        entry.trade_type = trade_type
+        entry.trade_id = trade_id
         db.session.add(entry)
     entry.note = note
     db.session.commit()
